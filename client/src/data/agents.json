@@ -1,0 +1,80 @@
+[
+  {
+    "id": "agent1",
+    "name": "Sarah Martinez",
+    "email": "sarah@choiceproperties.com",
+    "phone": "(555) 123-4567",
+    "location": "Beverly Hills, CA",
+    "specialties": ["Luxury Homes", "Investment Properties"],
+    "rating": 4.9,
+    "verified": true,
+    "photo_url": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop",
+    "total_sales": 128,
+    "bio": "Luxury real estate specialist with 15 years of experience in high-end properties."
+  },
+  {
+    "id": "agent2",
+    "name": "James Thompson",
+    "email": "james@choiceproperties.com",
+    "phone": "(555) 234-5678",
+    "location": "New York, NY",
+    "specialties": ["Commercial", "First-Time Buyers"],
+    "rating": 4.8,
+    "verified": true,
+    "photo_url": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop",
+    "total_sales": 95,
+    "bio": "Expert in helping first-time buyers navigate the market with confidence."
+  },
+  {
+    "id": "agent3",
+    "name": "Maria Garcia",
+    "email": "maria@choiceproperties.com",
+    "phone": "(555) 345-6789",
+    "location": "Miami, FL",
+    "specialties": ["Waterfront", "Investment Properties"],
+    "rating": 4.7,
+    "verified": true,
+    "photo_url": "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&h=200&fit=crop",
+    "total_sales": 112,
+    "bio": "Specializing in waterfront and investment properties in Miami and South Florida."
+  },
+  {
+    "id": "agent4",
+    "name": "David Chen",
+    "email": "david@choiceproperties.com",
+    "phone": "(555) 456-7890",
+    "location": "San Francisco, CA",
+    "specialties": ["Tech Industry", "Urban Living"],
+    "rating": 4.6,
+    "verified": true,
+    "photo_url": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop",
+    "total_sales": 87,
+    "bio": "Helping tech professionals find their perfect home in the Bay Area."
+  },
+  {
+    "id": "agent5",
+    "name": "Jennifer Wilson",
+    "email": "jennifer@choiceproperties.com",
+    "phone": "(555) 567-8901",
+    "location": "Austin, TX",
+    "specialties": ["Family Homes", "Suburban Living"],
+    "rating": 4.8,
+    "verified": true,
+    "photo_url": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop",
+    "total_sales": 156,
+    "bio": "Family home specialist helping Austin families find their dream neighborhoods."
+  },
+  {
+    "id": "agent6",
+    "name": "Michael Rodriguez",
+    "email": "michael@choiceproperties.com",
+    "phone": "(555) 678-9012",
+    "location": "Denver, CO",
+    "specialties": ["Mountain Properties", "Outdoor Living"],
+    "rating": 4.5,
+    "verified": true,
+    "photo_url": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop",
+    "total_sales": 73,
+    "bio": "Mountain lifestyle expert connecting outdoor enthusiasts with their perfect property."
+  }
+]

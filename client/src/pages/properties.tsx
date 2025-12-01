@@ -1,0 +1,307 @@
+import { useState, useEffect } from "react";
+import { Navbar } from "@/components/layout/navbar";
+import { Footer } from "@/components/layout/footer";
+import { PropertyCard } from "@/components/property-card";
+import { Breadcrumb } from "@/components/breadcrumb";
+import { NoResults } from "@/components/no-results";
+import { PropertyQuickView } from "@/components/property-quick-view";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import MapView from "@/components/map-view";
+import propertiesData from "@/data/properties.json";
+import type { Property } from "@/lib/types";
+import { Search, Bookmark } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { updateMetaTags } from "@/lib/seo";
+
+export default function Properties() {
+  useEffect(() => {
+    updateMetaTags({
+      title: "Browse Rental Properties - Choice Properties",
+      description: "Search and browse available rental properties. Filter by price, bedrooms, and property type."
+    });
+  }, []);
+  const allProperties = propertiesData as Property[];
+  const [filteredProperties, setFilteredProperties] = useState<Property[]>(allProperties);
+  const [sortBy, setSortBy] = useState("featured");
+  const [quickViewProperty, setQuickViewProperty] = useState<Property | null>(null);
+  const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
+  const { toast } = useToast();
+  
+  // Filters
+  const [search, setSearch] = useState("");
+  const [priceMin, setPriceMin] = useState("any");
+  const [bedrooms, setBedrooms] = useState("any");
+  const [homeType, setHomeType] = useState("any");
+  const [savedSearches, setSavedSearches] = useState<Array<{search: string; priceMin: string; bedrooms: string; homeType: string}>>(
+    JSON.parse(localStorage.getItem("choiceProperties_savedSearches") || "[]")
+  );
+
+  const handleSaveSearch = () => {
+    const newSearch = { search, priceMin, bedrooms, homeType };
+    const updated = [...savedSearches, newSearch];
+    localStorage.setItem("choiceProperties_savedSearches", JSON.stringify(updated));
+    setSavedSearches(updated);
+    toast({
+      title: "Search Saved",
+      description: "Your search criteria has been saved for future reference."
+    });
+  };
+
+  useEffect(() => {
+    let result = allProperties;
+
+    if (search) {
+      const query = search.toLowerCase();
+      result = result.filter(p => 
+        p.title.toLowerCase().includes(query) || 
+        p.address.toLowerCase().includes(query) ||
+        p.city.toLowerCase().includes(query)
+      );
+    }
+
+    if (priceMin !== "any") {
+      result = result.filter(p => p.price >= parseInt(priceMin));
+    }
+
+    if (bedrooms !== "any") {
+      result = result.filter(p => p.bedrooms >= parseInt(bedrooms));
+    }
+
+    if (homeType !== "any") {
+        result = result.filter(p => p.type === homeType);
+    }
+
+    // Apply sorting
+    if (sortBy === "price-low") {
+      result = [...result].sort((a, b) => a.price - b.price);
+    } else if (sortBy === "price-high") {
+      result = [...result].sort((a, b) => b.price - a.price);
+    } else if (sortBy === "newest") {
+      result = [...result].reverse();
+    }
+
+    setFilteredProperties(result);
+  }, [search, priceMin, bedrooms, homeType, sortBy, allProperties]);
+
+  const saveSearch = () => {
+    const newSearch = { search, priceMin, bedrooms, homeType };
+    const isDuplicate = savedSearches.some(s => 
+      s.search === search && s.priceMin === priceMin && s.bedrooms === bedrooms && s.homeType === homeType
+    );
+    
+    if (!isDuplicate) {
+      const updated = [...savedSearches, newSearch];
+      setSavedSearches(updated);
+      localStorage.setItem("choiceProperties_savedSearches", JSON.stringify(updated));
+      toast({
+        title: "Search Saved",
+        description: "You can find this search in your saved searches."
+      });
+    } else {
+      toast({
+        title: "Already Saved",
+        description: "This search is already in your saved searches.",
+        variant: "default"
+      });
+    }
+  };
+
+  const loadSearch = (s: typeof savedSearches[0]) => {
+    setSearch(s.search);
+    setPriceMin(s.priceMin);
+    setBedrooms(s.bedrooms);
+    setHomeType(s.homeType);
+  };
+
+  const deleteSearch = (index: number) => {
+    const updated = savedSearches.filter((_, i) => i !== index);
+    setSavedSearches(updated);
+    localStorage.setItem("choiceProperties_savedSearches", JSON.stringify(updated));
+  };
+
+  const resetFilters = () => {
+    setSearch("");
+    setPriceMin("any");
+    setBedrooms("any");
+    setHomeType("any");
+    setSortBy("featured");
+  };
+
+  const handleQuickView = (property: Property) => {
+    setQuickViewProperty(property);
+    setIsQuickViewOpen(true);
+  };
+
+  // Mock map markers
+  const mapMarkers = filteredProperties.map(p => {
+      const offset = parseInt(p.id) * 0.005;
+      return {
+          position: [34.0522 + offset, -118.2437 - offset] as [number, number],
+          title: `$${p.price.toLocaleString()}`,
+          description: p.address
+      }
+  });
+
+  return (
+    <div className="h-screen flex flex-col bg-background overflow-hidden">
+      <Navbar />
+      <Breadcrumb items={[{ label: "Properties" }]} />
+      
+      {savedSearches.length > 0 && (
+        <div className="bg-blue-50 border-b border-blue-200 px-4 py-2 text-sm">
+          <span className="text-blue-900">💾 <strong>{savedSearches.length}</strong> saved search{savedSearches.length !== 1 ? 'es' : ''}</span>
+        </div>
+      )}
+      
+      {/* Zillow-style Subheader Filter Bar */}
+      <div className="border-b bg-white shadow-sm p-3 z-20">
+        <div className="container mx-auto max-w-7xl flex flex-col md:flex-row gap-3 items-center">
+            <div className="relative flex-1 w-full md:w-auto">
+                <Input 
+                  placeholder="Address, Neighborhood, or Zip" 
+                  className="pl-3 pr-10 h-10 border-gray-300 focus:border-primary" 
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+                <Search className="absolute right-3 top-2.5 h-5 w-5 text-primary cursor-pointer" />
+            </div>
+
+            <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
+                <Select value={priceMin} onValueChange={setPriceMin}>
+                    <SelectTrigger className="w-[140px] h-10 border-gray-300">
+                        <SelectValue placeholder="Min Price" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="any">Any Price</SelectItem>
+                        <SelectItem value="1000">$1,000+</SelectItem>
+                        <SelectItem value="2000">$2,000+</SelectItem>
+                        <SelectItem value="3000">$3,000+</SelectItem>
+                        <SelectItem value="4000">$4,000+</SelectItem>
+                        <SelectItem value="5000">$5,000+</SelectItem>
+                    </SelectContent>
+                </Select>
+
+                <Select value={bedrooms} onValueChange={setBedrooms}>
+                    <SelectTrigger className="w-[120px] h-10 border-gray-300">
+                        <SelectValue placeholder="Beds" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="any">Any Beds</SelectItem>
+                        <SelectItem value="1">1+ Bd</SelectItem>
+                        <SelectItem value="2">2+ Bd</SelectItem>
+                        <SelectItem value="3">3+ Bd</SelectItem>
+                        <SelectItem value="4">4+ Bd</SelectItem>
+                    </SelectContent>
+                </Select>
+
+                <Select value={homeType} onValueChange={setHomeType}>
+                    <SelectTrigger className="w-[140px] h-10 border-gray-300">
+                        <SelectValue placeholder="Home Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="any">Any Type</SelectItem>
+                        <SelectItem value="House">Houses</SelectItem>
+                        <SelectItem value="Apartment">Apartments</SelectItem>
+                        <SelectItem value="Condo">Condos</SelectItem>
+                        <SelectItem value="Townhome">Townhomes</SelectItem>
+                    </SelectContent>
+                </Select>
+                
+                <Select value={sortBy} onValueChange={setSortBy}>
+                    <SelectTrigger className="w-[140px] h-10 border-gray-300">
+                        <SelectValue placeholder="Sort" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="featured">Featured</SelectItem>
+                        <SelectItem value="price-low">Price: Low to High</SelectItem>
+                        <SelectItem value="price-high">Price: High to Low</SelectItem>
+                        <SelectItem value="newest">Newest</SelectItem>
+                    </SelectContent>
+                </Select>
+                
+                <Button variant="outline" className="h-10 border-primary text-primary hover:bg-primary/5 flex items-center gap-2" onClick={saveSearch}>
+                  <Bookmark className="h-4 w-4" /> Save
+                </Button>
+                
+                <Button variant="outline" className="h-10 border-gray-300 text-gray-700 hover:bg-gray-50" onClick={resetFilters}>Clear</Button>
+            </div>
+        </div>
+      </div>
+
+      {/* Split Layout: Map (Right) & List (Left) */}
+      <div className="flex-1 flex overflow-hidden relative">
+         {/* Right Side Map (Mobile hidden or stacked) */}
+         <div className="hidden lg:block w-1/2 h-full relative z-0">
+             <MapView 
+                center={[34.0522, -118.2437]} 
+                zoom={12}
+                markers={mapMarkers}
+                className="h-full w-full rounded-none border-none"
+             />
+             {/* Floating pill buttons on map */}
+             <div className="absolute top-4 left-4 z-[400] flex gap-2">
+                 <Button variant="secondary" size="sm" className="shadow-md bg-white text-gray-800 hover:bg-gray-100">Draw</Button>
+                 <Button variant="secondary" size="sm" className="shadow-md bg-white text-gray-800 hover:bg-gray-100">Satellite</Button>
+             </div>
+         </div>
+
+         {/* Left Side List */}
+         <div className="w-full lg:w-1/2 h-full overflow-y-auto p-4 shadow-2xl z-10 bg-white">
+             <div className="flex justify-between items-center mb-4 px-2">
+                 <h2 className="text-xl font-bold text-gray-900">Real Estate & Homes For Rent</h2>
+                 <span className="text-gray-500 text-sm">{filteredProperties.length} results</span>
+             </div>
+             
+             {savedSearches.length > 0 && (
+               <div className="mb-4 border-b pb-3">
+                 <p className="text-xs font-semibold text-gray-600 mb-2">SAVED SEARCHES</p>
+                 <div className="flex gap-2 flex-wrap">
+                   {savedSearches.map((s, idx) => (
+                     <div key={idx} className="flex items-center gap-1 bg-blue-50 border border-blue-200 rounded-full px-3 py-1 text-xs">
+                       <span className="text-gray-700">{s.search || "All"}</span>
+                       <button 
+                         onClick={() => loadSearch(s)}
+                         className="text-blue-600 hover:text-blue-800 font-semibold"
+                       >Load</button>
+                       <button 
+                         onClick={() => deleteSearch(idx)}
+                         className="text-red-500 hover:text-red-700 ml-1"
+                       >×</button>
+                     </div>
+                   ))}
+                 </div>
+               </div>
+             )}
+             
+             <div className="mb-4 flex gap-2 px-2">
+                 <span className="text-sm font-semibold text-primary border-b-2 border-primary cursor-pointer pb-1">Agent Listings</span>
+                 <span className="text-sm text-gray-500 hover:text-gray-800 cursor-pointer pb-1">Other Listings</span>
+             </div>
+
+             {filteredProperties.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {filteredProperties.map((property) => (
+                    <PropertyCard key={property.id} property={property} onQuickView={handleQuickView} />
+                    ))}
+                </div>
+             ) : (
+                <NoResults onReset={resetFilters} />
+             )}
+             
+             <div className="mt-8 text-center text-xs text-gray-400 py-4 border-t">
+                 Choice Properties Inc. | Updated every 5 minutes.
+             </div>
+         </div>
+      </div>
+
+      <PropertyQuickView 
+        property={quickViewProperty} 
+        isOpen={isQuickViewOpen} 
+        onClose={() => setIsQuickViewOpen(false)} 
+      />
+      <Footer />
+    </div>
+  );
+}
