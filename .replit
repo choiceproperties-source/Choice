@@ -16,19 +16,16 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "dev-server"
+args = "Start application"
 
 [[workflows.workflow]]
-name = "dev-server"
+name = "Start application"
 author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "npm run dev:client"
+args = "npm run dev"
 waitForPort = 5000
-
-[workflows.workflow.metadata]
-outputType = "webview"
 
 [[ports]]
 localPort = 5000
@@ -46,8 +43,17 @@ externalPort = 3002
 localPort = 41225
 externalPort = 3000
 
+[[ports]]
+localPort = 44257
+externalPort = 3003
+
 [userenv]
 
 [userenv.shared]
 VITE_SUPABASE_URL = "https://zacmhcaqzwgjlzjwiwjd.supabase.co"
 VITE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InphY21oY2Fxendnamx6andpd2pkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ1OTc5MjgsImV4cCI6MjA4MDE3MzkyOH0.zPRbSpsm-bROBV8r5FoADAl23dEphnpL6WZz1DF1T7E"
+
+[deployment]
+deploymentTarget = "autoscale"
+run = ["npm", "run", "start"]
+build = ["npm", "run", "build"]
