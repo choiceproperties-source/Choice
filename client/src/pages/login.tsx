@@ -5,35 +5,35 @@ import { Footer } from '@/components/layout/footer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { Mail, Lock } from 'lucide-react';
 
 export default function Login() {
   const { login } = useAuth();
+  const [, setLocation] = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
     
     if (!email || !password) {
       setError('Please fill in all fields');
+      setLoading(false);
       return;
     }
 
     try {
-      login(email, password);
-      const users = JSON.parse(localStorage.getItem('choiceProperties_users') || '[]');
-      const found = users.find((u: any) => u.email === email && u.password === password);
-      if (found) {
-        window.location.href = '/';
-      } else {
-        setError('Invalid email or password');
-      }
-    } catch (e) {
-      setError('Login failed');
+      await login(email, password);
+      setLocation('/');
+    } catch (err: any) {
+      setError(err.message || 'Login failed');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -55,6 +55,7 @@ export default function Login() {
                 placeholder="you@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                disabled={loading}
               />
             </div>
 
@@ -67,13 +68,14 @@ export default function Login() {
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                disabled={loading}
               />
             </div>
 
             {error && <p className="text-red-600 text-sm bg-red-50 p-3 rounded">{error}</p>}
 
-            <Button type="submit" className="w-full bg-primary">
-              Sign In
+            <Button type="submit" className="w-full bg-primary" disabled={loading}>
+              {loading ? 'Signing In...' : 'Sign In'}
             </Button>
           </form>
 

@@ -1,61 +1,98 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { User, AuthContextType } from './types';
+import { supabase, checkSupabaseConfig } from './supabase';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const stored = localStorage.getItem('choiceProperties_user');
-    if (stored) {
+    const checkUser = async () => {
       try {
-        setUser(JSON.parse(stored));
-      } catch (e) {
-        console.error('Failed to parse stored user');
+        if (!supabase) {
+          console.warn('Supabase not configured');
+          setLoading(false);
+          return;
+        }
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const userData: User = {
+            id: session.user.id,
+            email: session.user.email || '',
+            name: session.user.user_metadata?.name || '',
+            created_at: session.user.created_at
+          };
+          setUser(userData);
+        }
+      } catch (error) {
+        console.error('Error checking auth session:', error);
+      } finally {
+        setLoading(false);
       }
+    };
+
+    checkUser();
+
+    if (supabase) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (session?.user) {
+          const userData: User = {
+            id: session.user.id,
+            email: session.user.email || '',
+            name: session.user.user_metadata?.name || '',
+            created_at: session.user.created_at
+          };
+          setUser(userData);
+        } else {
+          setUser(null);
+        }
+      });
+
+      return () => {
+        subscription?.unsubscribe();
+      };
     }
   }, []);
 
-  const login = (email: string, password: string) => {
-    if (!email || !password) return;
-    const users = JSON.parse(localStorage.getItem('choiceProperties_users') || '[]');
-    const found = users.find((u: any) => u.email === email && u.password === password);
-    if (found) {
-      const userData: User = { id: found.id, email: found.email, name: found.name, created_at: found.created_at };
-      setUser(userData);
-      localStorage.setItem('choiceProperties_user', JSON.stringify(userData));
+  const login = async (email: string, password: string) => {
+    if (!email || !password || !supabase) return;
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
     }
   };
 
-  const signup = (email: string, name: string, password: string) => {
-    if (!email || !name || !password) return;
-    const users = JSON.parse(localStorage.getItem('choiceProperties_users') || '[]');
-    if (users.find((u: any) => u.email === email)) return;
-    
-    // Create admin user if it doesn't exist
-    if (!users.find((u: any) => u.email === 'admin@choiceproperties.com')) {
-      users.push({ 
-        id: 'admin_user_1', 
-        email: 'admin@choiceproperties.com', 
-        name: 'Admin', 
-        password: 'admin123', 
-        created_at: new Date().toISOString() 
+  const signup = async (email: string, name: string, password: string) => {
+    if (!email || !name || !password || !supabase) return;
+    try {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { name }
+        }
       });
+      if (error) throw error;
+    } catch (error) {
+      console.error('Signup error:', error);
+      throw error;
     }
-
-    const newUser = { id: `user_${Date.now()}`, email, name, password, created_at: new Date().toISOString() };
-    users.push(newUser);
-    localStorage.setItem('choiceProperties_users', JSON.stringify(users));
-
-    const userData: User = { id: newUser.id, email: newUser.email, name: newUser.name, created_at: newUser.created_at };
-    setUser(userData);
-    localStorage.setItem('choiceProperties_user', JSON.stringify(userData));
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('choiceProperties_user');
+  const logout = async () => {
+    try {
+      if (supabase) {
+        await supabase.auth.signOut();
+      }
+      setUser(null);
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
   return (

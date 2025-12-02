@@ -5,47 +5,49 @@ import { Footer } from '@/components/layout/footer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { Mail, Lock, User } from 'lucide-react';
 
 export default function Signup() {
   const { signup } = useAuth();
+  const [, setLocation] = useLocation();
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSignup = (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
     if (!email || !name || !password || !confirmPassword) {
       setError('Please fill in all fields');
+      setLoading(false);
       return;
     }
 
     if (password !== confirmPassword) {
       setError('Passwords do not match');
+      setLoading(false);
       return;
     }
 
     if (password.length < 6) {
       setError('Password must be at least 6 characters');
+      setLoading(false);
       return;
     }
 
     try {
-      const users = JSON.parse(localStorage.getItem('choiceProperties_users') || '[]');
-      if (users.find((u: any) => u.email === email)) {
-        setError('Email already registered');
-        return;
-      }
-
-      signup(email, name, password);
-      window.location.href = '/';
-    } catch (e) {
-      setError('Signup failed');
+      await signup(email, name, password);
+      setLocation('/');
+    } catch (err: any) {
+      setError(err.message || 'Signup failed');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -67,6 +69,7 @@ export default function Signup() {
                 placeholder="John Doe"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                disabled={loading}
               />
             </div>
 
@@ -79,6 +82,7 @@ export default function Signup() {
                 placeholder="you@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                disabled={loading}
               />
             </div>
 
@@ -91,6 +95,7 @@ export default function Signup() {
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                disabled={loading}
               />
             </div>
 
@@ -103,13 +108,14 @@ export default function Signup() {
                 placeholder="••••••••"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
+                disabled={loading}
               />
             </div>
 
             {error && <p className="text-red-600 text-sm bg-red-50 p-3 rounded">{error}</p>}
 
-            <Button type="submit" className="w-full bg-primary">
-              Create Account
+            <Button type="submit" className="w-full bg-green-600 hover:bg-green-700" disabled={loading}>
+              {loading ? 'Creating Account...' : 'Create Account'}
             </Button>
           </form>
 
