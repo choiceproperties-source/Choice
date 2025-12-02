@@ -12,6 +12,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import propertiesData from "@/data/properties.json";
 import type { Property } from "@/lib/types";
 import { MapPin, Bed, Bath, Maximize, Share2, Heart, Calendar, Info, X, ChevronLeft, ChevronRight, CheckCircle2, Mail, Phone, Building2 } from "lucide-react";
+import { useFavorites } from "@/hooks/use-favorites";
 import NotFound from "@/pages/not-found";
 import MapView from "@/components/map-view";
 import { PropertyCard } from "@/components/property-card";
@@ -41,6 +42,7 @@ export default function PropertyDetails() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const { isFavorited, toggleFavorite } = useFavorites();
 
   useEffect(() => {
     if (property) {
