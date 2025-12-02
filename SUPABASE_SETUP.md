@@ -52,7 +52,7 @@ CREATE TABLE applications (
   personal_info JSONB NOT NULL,
   rental_history JSONB,
   employment JSONB,
-  references JSONB,
+  reference_info JSONB,
   disclosures JSONB,
   documents JSONB,
   status TEXT DEFAULT 'pending',
