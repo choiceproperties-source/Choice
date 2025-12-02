@@ -57,7 +57,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string) => {
-    if (!email || !password || !supabase) return;
+    if (!email || !password) throw new Error('Missing email or password');
+    if (!supabase) throw new Error('Supabase not configured. Please check environment variables.');
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
@@ -68,7 +69,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signup = async (email: string, name: string, password: string) => {
-    if (!email || !name || !password || !supabase) return;
+    if (!email || !name || !password) throw new Error('Missing required fields');
+    if (!supabase) throw new Error('Supabase not configured. Please check environment variables.');
     try {
       const { error } = await supabase.auth.signUp({
         email,
