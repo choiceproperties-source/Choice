@@ -34,6 +34,7 @@ const RenterDashboard = lazy(() => import("@/pages/renter-dashboard"));
 const SellerDashboard = lazy(() => import("@/pages/seller-dashboard"));
 const BuyerDashboard = lazy(() => import("@/pages/buyer-dashboard"));
 const PropertyRequirements = lazy(() => import("@/pages/property-requirements"));
+const AgentDashboard = lazy(() => import("@/pages/agent-dashboard"));
 
 function LoadingFallback() {
   return <div className="min-h-screen flex items-center justify-center"><div className="text-gray-500">Loading...</div></div>;
@@ -134,6 +135,11 @@ function Router() {
       <Route path="/property-requirements">
         <ReactSuspense fallback={<LoadingFallback />}>
           <PropertyRequirements />
+        </ReactSuspense>
+      </Route>
+      <Route path="/agent-dashboard">
+        <ReactSuspense fallback={<LoadingFallback />}>
+          <AgentDashboard />
         </ReactSuspense>
       </Route>
       <Route component={NotFound} />

@@ -4,6 +4,20 @@ import { supabase, checkSupabaseConfig } from './supabase';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+async function fetchUserRole(userId: string): Promise<'user' | 'agent' | 'admin'> {
+  if (!supabase) return 'user';
+  try {
+    const { data } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', userId)
+      .single();
+    return (data?.role as 'user' | 'agent' | 'admin') || 'user';
+  } catch {
+    return 'user';
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -18,10 +32,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
+          const role = await fetchUserRole(session.user.id);
           const userData: User = {
             id: session.user.id,
             email: session.user.email || '',
             name: session.user.user_metadata?.name || '',
+            role,
             created_at: session.user.created_at
           };
           setUser(userData);
@@ -36,12 +52,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkUser();
 
     if (supabase) {
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
         if (session?.user) {
+          const role = await fetchUserRole(session.user.id);
           const userData: User = {
             id: session.user.id,
             email: session.user.email || '',
             name: session.user.user_metadata?.name || '',
+            role,
             created_at: session.user.created_at
           };
           setUser(userData);
