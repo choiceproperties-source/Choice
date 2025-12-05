@@ -36,9 +36,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const userData: User = {
             id: session.user.id,
             email: session.user.email || '',
-            name: session.user.user_metadata?.name || '',
+            full_name: session.user.user_metadata?.name || session.user.user_metadata?.full_name || null,
+            phone: null,
             role,
-            created_at: session.user.created_at
+            profile_image: null,
+            bio: null,
+            created_at: session.user.created_at,
+            updated_at: null
           };
           setUser(userData);
         }
@@ -58,9 +62,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const userData: User = {
             id: session.user.id,
             email: session.user.email || '',
-            name: session.user.user_metadata?.name || '',
+            full_name: session.user.user_metadata?.name || session.user.user_metadata?.full_name || null,
+            phone: null,
             role,
-            created_at: session.user.created_at
+            profile_image: null,
+            bio: null,
+            created_at: session.user.created_at,
+            updated_at: null
           };
           setUser(userData);
         } else {
@@ -116,7 +124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, signup, logout, isLoggedIn: !!user }}>
+    <AuthContext.Provider value={{ user, login, signup, logout, isLoggedIn: !!user, isLoading: loading }}>
       {children}
     </AuthContext.Provider>
   );

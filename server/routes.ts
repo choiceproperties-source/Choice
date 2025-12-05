@@ -16,6 +16,9 @@ import {
   insertRequirementSchema,
   insertReviewSchema,
   insertFavoriteSchema,
+  insertSavedSearchSchema,
+  insertNewsletterSubscriberSchema,
+  insertContactMessageSchema,
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -722,6 +725,204 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { data, error } = await supabase
         .from("users")
         .update(updates)
+        .eq("id", req.params.id)
+        .select();
+
+      if (error) throw error;
+      res.json(data[0]);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ===== SAVED SEARCHES =====
+  app.post("/api/saved-searches", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const validation = insertSavedSearchSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error.errors[0].message });
+      }
+
+      const searchData = {
+        ...validation.data,
+        user_id: req.user!.id,
+      };
+
+      const { data, error } = await supabase
+        .from("saved_searches")
+        .insert([searchData])
+        .select();
+
+      if (error) throw error;
+      res.json(data[0]);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/saved-searches/user/:userId", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      if (req.params.userId !== req.user!.id && req.user!.role !== "admin") {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      const { data, error } = await supabase
+        .from("saved_searches")
+        .select("*")
+        .eq("user_id", req.params.userId)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      res.json(data);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/saved-searches/:id", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data: search } = await supabase
+        .from("saved_searches")
+        .select("user_id")
+        .eq("id", req.params.id)
+        .single();
+
+      if (!search) {
+        return res.status(404).json({ error: "Saved search not found" });
+      }
+
+      if (search.user_id !== req.user!.id && req.user!.role !== "admin") {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      // Validate and extract only allowed fields (name and filters)
+      const updateSchema = insertSavedSearchSchema.partial().pick({ name: true, filters: true });
+      const validation = updateSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error.errors[0].message });
+      }
+
+      const { data, error } = await supabase
+        .from("saved_searches")
+        .update({ ...validation.data, updated_at: new Date().toISOString() })
+        .eq("id", req.params.id)
+        .select();
+
+      if (error) throw error;
+      res.json(data[0]);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/saved-searches/:id", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data: search } = await supabase
+        .from("saved_searches")
+        .select("user_id")
+        .eq("id", req.params.id)
+        .single();
+
+      if (!search) {
+        return res.status(404).json({ error: "Saved search not found" });
+      }
+
+      if (search.user_id !== req.user!.id && req.user!.role !== "admin") {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      const { error } = await supabase
+        .from("saved_searches")
+        .delete()
+        .eq("id", req.params.id);
+
+      if (error) throw error;
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ===== NEWSLETTER =====
+  app.post("/api/newsletter/subscribe", async (req, res) => {
+    try {
+      const validation = insertNewsletterSubscriberSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error.errors[0].message });
+      }
+
+      const { data, error } = await supabase
+        .from("newsletter_subscribers")
+        .insert([validation.data])
+        .select();
+
+      if (error) {
+        if (error.code === "23505") {
+          return res.json({ success: true, message: "Already subscribed" });
+        }
+        throw error;
+      }
+
+      res.json({ success: true, message: "Subscribed successfully", data: data[0] });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/newsletter/subscribers", authenticateToken, requireRole("admin"), async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data, error } = await supabase
+        .from("newsletter_subscribers")
+        .select("*")
+        .order("subscribed_at", { ascending: false });
+
+      if (error) throw error;
+      res.json(data);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ===== CONTACT MESSAGES =====
+  app.post("/api/messages", async (req, res) => {
+    try {
+      const validation = insertContactMessageSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error.errors[0].message });
+      }
+
+      const { data, error } = await supabase
+        .from("contact_messages")
+        .insert([validation.data])
+        .select();
+
+      if (error) throw error;
+
+      res.json({ success: true, data: data[0] });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/messages", authenticateToken, requireRole("admin"), async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data, error } = await supabase
+        .from("contact_messages")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      res.json(data);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/messages/:id", authenticateToken, requireRole("admin"), async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data, error } = await supabase
+        .from("contact_messages")
+        .update({ read: req.body.read })
         .eq("id", req.params.id)
         .select();
 

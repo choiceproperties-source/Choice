@@ -6,7 +6,7 @@ import { Link } from "wouter";
 import { PropertyCard } from "@/components/property-card";
 import { Testimonials } from "@/components/testimonials";
 import propertiesData from "@/data/properties.json";
-import type { Property } from "@/lib/types";
+import type { LegacyProperty } from "@/lib/types";
 import { ArrowRight, CheckCircle2, Users, Home as HomeIcon, MapPin, ShieldCheck } from "lucide-react";
 import heroBg from "@assets/generated_images/modern_luxury_home_exterior_with_blue_sky.png";
 import { updateMetaTags, getOrganizationStructuredData, addStructuredData } from "@/lib/seo";
@@ -42,8 +42,8 @@ export default function Home() {
     addStructuredData(getOrganizationStructuredData());
   }, []);
 
-  // Cast JSON data to Property type
-  const properties = propertiesData as Property[];
+  // Cast JSON data to LegacyProperty type (matches properties.json structure)
+  const properties = propertiesData as LegacyProperty[];
   const featuredProperties = properties.filter((p) => p.featured).slice(0, 3);
 
   return (

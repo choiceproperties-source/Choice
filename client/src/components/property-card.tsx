@@ -4,7 +4,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Bed, Bath, Maximize, Heart, CheckCircle2, Share2 } from "lucide-react";
-import type { Property } from "@/lib/types";
+import type { LegacyProperty } from "@/lib/types";
 import placeholderExterior from "@assets/generated_images/modern_luxury_home_exterior_with_blue_sky.png";
 import placeholderLiving from "@assets/generated_images/bright_modern_living_room_interior.png";
 import placeholderKitchen from "@assets/generated_images/modern_kitchen_with_marble_island.png";
@@ -18,8 +18,8 @@ const imageMap: Record<string, string> = {
 };
 
 interface PropertyCardProps {
-  property: Property;
-  onQuickView?: (property: Property) => void;
+  property: LegacyProperty;
+  onQuickView?: (property: LegacyProperty) => void;
 }
 
 export function PropertyCard({ property, onQuickView }: PropertyCardProps) {
@@ -139,22 +139,24 @@ export function PropertyCard({ property, onQuickView }: PropertyCardProps) {
         </div>
       </CardContent>
 
-      <CardFooter className="p-4 pt-3 border-t border-gray-100 bg-gray-50/50">
-        <Link href={`/owner/${property.owner.slug}`}>
-          <div className="flex items-center gap-2 group cursor-pointer w-full" onClick={(e) => e.stopPropagation()}>
-            <Avatar className="h-8 w-8">
-              <AvatarImage src={property.owner.profile_photo_url} alt={property.owner.name} />
-              <AvatarFallback>{property.owner.name.charAt(0)}</AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold text-gray-900 flex items-center gap-1">
-                {property.owner.name}
-                {property.owner.verified && <CheckCircle2 className="h-3.5 w-3.5 text-primary flex-shrink-0" />}
+      {property.owner && (
+        <CardFooter className="p-4 pt-3 border-t border-gray-100 bg-gray-50/50">
+          <Link href={`/owner/${property.owner.slug}`}>
+            <div className="flex items-center gap-2 group cursor-pointer w-full" onClick={(e) => e.stopPropagation()}>
+              <Avatar className="h-8 w-8">
+                <AvatarImage src={property.owner.profile_photo_url} alt={property.owner.name} />
+                <AvatarFallback>{property.owner.name.charAt(0)}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-semibold text-gray-900 flex items-center gap-1">
+                  {property.owner.name}
+                  {property.owner.verified && <CheckCircle2 className="h-3.5 w-3.5 text-primary flex-shrink-0" />}
+                </div>
               </div>
             </div>
-          </div>
-        </Link>
-      </CardFooter>
+          </Link>
+        </CardFooter>
+      )}
     </Card>
   );
 }
