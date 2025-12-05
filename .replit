@@ -35,10 +35,6 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 35027
-externalPort = 4200
-
-[[ports]]
 localPort = 37141
 externalPort = 3002
 
@@ -60,6 +56,7 @@ externalPort = 3001
 VITE_SUPABASE_URL = "https://ehagjurhqgjfzhxkltfu.supabase.co/"
 VITE_SUPABASE_ANON_KEY = "sb_publishable_zxxBqeyRA81tOFIGQahAVA_sWk7I4_h"
 SUPABASE_URL = "https://ehagjurhqgjfzhxkltfu.supabase.co/"
+SUPABASE_SERVICE_ROLE_KEY = "sb_secret_UewleNC-pL_2DAN3rRxhhA_MVdZsSde"
 
 [deployment]
 deploymentTarget = "autoscale"
