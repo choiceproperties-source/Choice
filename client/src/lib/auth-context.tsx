@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { User, AuthContextType } from './types';
-import { supabase, checkSupabaseConfig } from './supabase';
+import { supabase } from './supabase';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -136,4 +136,17 @@ export function useAuth(): AuthContextType {
     throw new Error('useAuth must be used within AuthProvider');
   }
   return context;
+}
+
+export async function getAuthToken(): Promise<string | null> {
+  try {
+    if (!supabase) {
+      return null;
+    }
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.access_token || null;
+  } catch (error) {
+    console.error('Error getting auth token:', error);
+    return null;
+  }
 }
