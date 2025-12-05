@@ -35,6 +35,10 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
+localPort = 35027
+externalPort = 4200
+
+[[ports]]
 localPort = 37141
 externalPort = 3002
 
@@ -53,9 +57,9 @@ externalPort = 3001
 [userenv]
 
 [userenv.shared]
-VITE_SUPABASE_URL = "https://zacmhcaqzwgjlzjwiwjd.supabase.co"
-VITE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InphY21oY2Fxendnamx6andpd2pkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ1OTc5MjgsImV4cCI6MjA4MDE3MzkyOH0.zPRbSpsm-bROBV8r5FoADAl23dEphnpL6WZz1DF1T7E"
-SUPABASE_URL = "https://ixdnkfpaacadcplwaawa.supabase.co"
+VITE_SUPABASE_URL = "https://ehagjurhqgjfzhxkltfu.supabase.co/"
+VITE_SUPABASE_ANON_KEY = "sb_publishable_zxxBqeyRA81tOFIGQahAVA_sWk7I4_h"
+SUPABASE_URL = "https://ehagjurhqgjfzhxkltfu.supabase.co/"
 
 [deployment]
 deploymentTarget = "autoscale"
