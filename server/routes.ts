@@ -1,11 +1,22 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { supabase } from "./supabase";
+import { authenticateToken, optionalAuth, requireRole, type AuthenticatedRequest } from "./auth-middleware";
 import {
   sendEmail,
   getAgentInquiryEmailTemplate,
   getApplicationConfirmationEmailTemplate,
 } from "./email";
+import {
+  signupSchema,
+  loginSchema,
+  insertPropertySchema,
+  insertApplicationSchema,
+  insertInquirySchema,
+  insertRequirementSchema,
+  insertReviewSchema,
+  insertFavoriteSchema,
+} from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
@@ -13,7 +24,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ===== AUTHENTICATION =====
   app.post("/api/auth/signup", async (req, res) => {
     try {
-      const { email, password, fullName } = req.body;
+      const validation = signupSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error.errors[0].message });
+      }
+
+      const { email, password, fullName } = validation.data;
 
       const { data, error } = await supabase.auth.admin.createUser({
         email,
@@ -33,7 +49,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/auth/login", async (req, res) => {
     try {
-      const { email, password } = req.body;
+      const validation = loginSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error.errors[0].message });
+      }
+
+      const { email, password } = validation.data;
 
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -50,10 +71,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/auth/logout", async (req, res) => {
+    try {
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/auth/me", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data, error } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", req.user!.id)
+        .single();
+
+      if (error) throw error;
+      res.json(data);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ===== PROPERTIES =====
   app.get("/api/properties", async (req, res) => {
     try {
-      const { propertyType, city, minPrice, maxPrice } = req.query;
+      const { propertyType, city, minPrice, maxPrice, status } = req.query;
 
       let query = supabase.from("properties").select("*");
 
@@ -61,6 +105,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (city) query = query.ilike("city", `%${city}%`);
       if (minPrice) query = query.gte("price", minPrice);
       if (maxPrice) query = query.lte("price", maxPrice);
+      if (status) {
+        query = query.eq("status", status);
+      } else {
+        query = query.eq("status", "active");
+      }
 
       const { data, error } = await query;
 
@@ -86,39 +135,147 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/properties", async (req, res) => {
+  app.post("/api/properties", authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
+      const validation = insertPropertySchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error.errors[0].message });
+      }
+
+      const propertyData = {
+        ...validation.data,
+        owner_id: req.user!.id,
+      };
+
       const { data, error } = await supabase
         .from("properties")
-        .insert([req.body])
+        .insert([propertyData])
         .select();
 
       if (error) throw error;
       res.json(data[0]);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/properties/:id", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data: existingProperty } = await supabase
+        .from("properties")
+        .select("owner_id")
+        .eq("id", req.params.id)
+        .single();
+
+      if (!existingProperty) {
+        return res.status(404).json({ error: "Property not found" });
+      }
+
+      if (existingProperty.owner_id !== req.user!.id && req.user!.role !== "admin") {
+        return res.status(403).json({ error: "Not authorized to update this property" });
+      }
+
+      const { data, error } = await supabase
+        .from("properties")
+        .update({ ...req.body, updated_at: new Date().toISOString() })
+        .eq("id", req.params.id)
+        .select();
+
+      if (error) throw error;
+      res.json(data[0]);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/properties/:id", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data: existingProperty } = await supabase
+        .from("properties")
+        .select("owner_id")
+        .eq("id", req.params.id)
+        .single();
+
+      if (!existingProperty) {
+        return res.status(404).json({ error: "Property not found" });
+      }
+
+      if (existingProperty.owner_id !== req.user!.id && req.user!.role !== "admin") {
+        return res.status(403).json({ error: "Not authorized to delete this property" });
+      }
+
+      const { error } = await supabase
+        .from("properties")
+        .delete()
+        .eq("id", req.params.id);
+
+      if (error) throw error;
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/properties/user/:userId", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      if (req.params.userId !== req.user!.id && req.user!.role !== "admin") {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      const { data, error } = await supabase
+        .from("properties")
+        .select("*")
+        .eq("owner_id", req.params.userId);
+
+      if (error) throw error;
+      res.json(data);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
   });
 
   // ===== APPLICATIONS =====
-  app.post("/api/applications", async (req, res) => {
+  app.post("/api/applications", authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
+      const validation = insertApplicationSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error.errors[0].message });
+      }
+
+      const applicationData = {
+        ...validation.data,
+        user_id: req.user!.id,
+      };
+
       const { data, error } = await supabase
         .from("applications")
-        .insert([req.body])
+        .insert([applicationData])
         .select();
 
       if (error) throw error;
 
-      // Send confirmation email
-      await sendEmail({
-        to: req.body.applicantEmail || "",
-        subject: "Your Application Has Been Received",
-        html: getApplicationConfirmationEmailTemplate({
-          applicantName: req.body.applicantName || "Applicant",
-          propertyTitle: req.body.propertyTitle || "Your Property",
-        }),
-      });
+      const { data: userData } = await supabase
+        .from("users")
+        .select("email, full_name")
+        .eq("id", req.user!.id)
+        .single();
+
+      const { data: propertyData } = await supabase
+        .from("properties")
+        .select("title")
+        .eq("id", validation.data.propertyId)
+        .single();
+
+      if (userData?.email) {
+        await sendEmail({
+          to: userData.email,
+          subject: "Your Application Has Been Received",
+          html: getApplicationConfirmationEmailTemplate({
+            applicantName: userData.full_name || "Applicant",
+            propertyTitle: propertyData?.title || "Your Property",
+          }),
+        });
+      }
 
       res.json(data[0]);
     } catch (error: any) {
@@ -126,11 +283,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/applications/user/:userId", async (req, res) => {
+  app.get("/api/applications/user/:userId", authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
+      if (req.params.userId !== req.user!.id && req.user!.role !== "admin") {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
       const { data, error } = await supabase
         .from("applications")
-        .select("*")
+        .select("*, properties(*)")
         .eq("user_id", req.params.userId);
 
       if (error) throw error;
@@ -140,11 +301,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/applications/:id", async (req, res) => {
+  app.get("/api/applications/property/:propertyId", authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
+      const { data: property } = await supabase
+        .from("properties")
+        .select("owner_id")
+        .eq("id", req.params.propertyId)
+        .single();
+
+      if (!property) {
+        return res.status(404).json({ error: "Property not found" });
+      }
+
+      if (property.owner_id !== req.user!.id && req.user!.role !== "admin") {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
       const { data, error } = await supabase
         .from("applications")
-        .update(req.body)
+        .select("*, users(id, full_name, email, phone)")
+        .eq("property_id", req.params.propertyId);
+
+      if (error) throw error;
+      res.json(data);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/applications/:id", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data: application } = await supabase
+        .from("applications")
+        .select("user_id, property_id")
+        .eq("id", req.params.id)
+        .single();
+
+      if (!application) {
+        return res.status(404).json({ error: "Application not found" });
+      }
+
+      const { data: property } = await supabase
+        .from("properties")
+        .select("owner_id")
+        .eq("id", application.property_id)
+        .single();
+
+      const isOwner = application.user_id === req.user!.id;
+      const isPropertyOwner = property?.owner_id === req.user!.id;
+      const isAdmin = req.user!.role === "admin";
+
+      if (!isOwner && !isPropertyOwner && !isAdmin) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      const { data, error } = await supabase
+        .from("applications")
+        .update({ ...req.body, updated_at: new Date().toISOString() })
         .eq("id", req.params.id)
         .select();
 
@@ -158,31 +371,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ===== INQUIRIES =====
   app.post("/api/inquiries", async (req, res) => {
     try {
+      const validation = insertInquirySchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error.errors[0].message });
+      }
+
       const { data, error } = await supabase
         .from("inquiries")
-        .insert([req.body])
+        .insert([validation.data])
         .select();
 
       if (error) throw error;
 
-      // Send email to agent
-      const agentData = await supabase
-        .from("users")
-        .select("email")
-        .eq("id", req.body.agent_id)
-        .single();
+      if (validation.data.agentId) {
+        const { data: agentData } = await supabase
+          .from("users")
+          .select("email")
+          .eq("id", validation.data.agentId)
+          .single();
 
-      if (agentData.data?.email) {
-        await sendEmail({
-          to: agentData.data.email,
-          subject: "New Inquiry Received",
-          html: getAgentInquiryEmailTemplate({
-            senderName: req.body.sender_name,
-            senderEmail: req.body.sender_email,
-            senderPhone: req.body.sender_phone,
-            message: req.body.message,
-          }),
-        });
+        if (agentData?.email) {
+          await sendEmail({
+            to: agentData.email,
+            subject: "New Inquiry Received",
+            html: getAgentInquiryEmailTemplate({
+              senderName: validation.data.senderName,
+              senderEmail: validation.data.senderEmail,
+              senderPhone: validation.data.senderPhone || "",
+              message: validation.data.message || "",
+            }),
+          });
+        }
       }
 
       res.json(data[0]);
@@ -191,12 +410,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/inquiries/agent/:agentId", async (req, res) => {
+  app.get("/api/inquiries/agent/:agentId", authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
+      if (req.params.agentId !== req.user!.id && req.user!.role !== "admin") {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
       const { data, error } = await supabase
         .from("inquiries")
-        .select("*")
-        .eq("agent_id", req.params.agentId);
+        .select("*, properties(id, title, address)")
+        .eq("agent_id", req.params.agentId)
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
       res.json(data);
@@ -205,12 +429,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // ===== REQUIREMENTS =====
-  app.post("/api/requirements", async (req, res) => {
+  app.patch("/api/inquiries/:id", authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
+      const { data: inquiry } = await supabase
+        .from("inquiries")
+        .select("agent_id")
+        .eq("id", req.params.id)
+        .single();
+
+      if (!inquiry) {
+        return res.status(404).json({ error: "Inquiry not found" });
+      }
+
+      if (inquiry.agent_id !== req.user!.id && req.user!.role !== "admin") {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
       const { data, error } = await supabase
-        .from("requirements")
-        .insert([req.body])
+        .from("inquiries")
+        .update({ ...req.body, updated_at: new Date().toISOString() })
+        .eq("id", req.params.id)
         .select();
 
       if (error) throw error;
@@ -220,8 +458,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/requirements/user/:userId", async (req, res) => {
+  // ===== REQUIREMENTS =====
+  app.post("/api/requirements", optionalAuth, async (req: AuthenticatedRequest, res) => {
     try {
+      const validation = insertRequirementSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error.errors[0].message });
+      }
+
+      const requirementData = {
+        ...validation.data,
+        user_id: req.user?.id || null,
+      };
+
+      const { data, error } = await supabase
+        .from("requirements")
+        .insert([requirementData])
+        .select();
+
+      if (error) throw error;
+      res.json(data[0]);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/requirements/user/:userId", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      if (req.params.userId !== req.user!.id && req.user!.role !== "admin" && req.user!.role !== "agent") {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
       const { data, error } = await supabase
         .from("requirements")
         .select("*")
@@ -234,12 +501,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // ===== FAVORITES =====
-  app.post("/api/favorites", async (req, res) => {
+  app.get("/api/requirements", authenticateToken, requireRole("admin", "agent"), async (req: AuthenticatedRequest, res) => {
     try {
       const { data, error } = await supabase
+        .from("requirements")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      res.json(data);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ===== FAVORITES =====
+  app.post("/api/favorites", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const validation = insertFavoriteSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error.errors[0].message });
+      }
+
+      const favoriteData = {
+        ...validation.data,
+        user_id: req.user!.id,
+      };
+
+      const { data, error } = await supabase
         .from("favorites")
-        .insert([req.body])
+        .insert([favoriteData])
         .select();
 
       if (error) throw error;
@@ -249,8 +540,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/favorites/:id", async (req, res) => {
+  app.delete("/api/favorites/:id", authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
+      const { data: favorite } = await supabase
+        .from("favorites")
+        .select("user_id")
+        .eq("id", req.params.id)
+        .single();
+
+      if (!favorite) {
+        return res.status(404).json({ error: "Favorite not found" });
+      }
+
+      if (favorite.user_id !== req.user!.id) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
       const { error } = await supabase
         .from("favorites")
         .delete()
@@ -263,11 +568,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/favorites/user/:userId", async (req, res) => {
+  app.get("/api/favorites/user/:userId", authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
+      if (req.params.userId !== req.user!.id && req.user!.role !== "admin") {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
       const { data, error } = await supabase
         .from("favorites")
-        .select("*")
+        .select("*, properties(*)")
         .eq("user_id", req.params.userId);
 
       if (error) throw error;
@@ -282,8 +591,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { data, error } = await supabase
         .from("reviews")
-        .select("*")
-        .eq("property_id", req.params.propertyId);
+        .select("*, users(id, full_name, profile_image)")
+        .eq("property_id", req.params.propertyId)
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
       res.json(data);
@@ -292,11 +602,127 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/reviews", async (req, res) => {
+  app.post("/api/reviews", authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
+      const validation = insertReviewSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error.errors[0].message });
+      }
+
+      const reviewData = {
+        ...validation.data,
+        user_id: req.user!.id,
+      };
+
       const { data, error } = await supabase
         .from("reviews")
-        .insert([req.body])
+        .insert([reviewData])
+        .select();
+
+      if (error) throw error;
+      res.json(data[0]);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/reviews/:id", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data: review } = await supabase
+        .from("reviews")
+        .select("user_id")
+        .eq("id", req.params.id)
+        .single();
+
+      if (!review) {
+        return res.status(404).json({ error: "Review not found" });
+      }
+
+      if (review.user_id !== req.user!.id && req.user!.role !== "admin") {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      const { data, error } = await supabase
+        .from("reviews")
+        .update({ ...req.body, updated_at: new Date().toISOString() })
+        .eq("id", req.params.id)
+        .select();
+
+      if (error) throw error;
+      res.json(data[0]);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/reviews/:id", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data: review } = await supabase
+        .from("reviews")
+        .select("user_id")
+        .eq("id", req.params.id)
+        .single();
+
+      if (!review) {
+        return res.status(404).json({ error: "Review not found" });
+      }
+
+      if (review.user_id !== req.user!.id && req.user!.role !== "admin") {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      const { error } = await supabase
+        .from("reviews")
+        .delete()
+        .eq("id", req.params.id);
+
+      if (error) throw error;
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ===== USERS (Admin only) =====
+  app.get("/api/users", authenticateToken, requireRole("admin"), async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data, error } = await supabase
+        .from("users")
+        .select("id, email, full_name, phone, role, profile_image, created_at")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      res.json(data);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/users/:id", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      if (req.params.id !== req.user!.id && req.user!.role !== "admin") {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      const allowedFields = ["full_name", "phone", "profile_image", "bio"];
+      const updates: Record<string, any> = {};
+      
+      for (const field of allowedFields) {
+        if (req.body[field] !== undefined) {
+          updates[field] = req.body[field];
+        }
+      }
+
+      if (req.user!.role === "admin" && req.body.role !== undefined) {
+        updates.role = req.body.role;
+      }
+
+      updates.updated_at = new Date().toISOString();
+
+      const { data, error } = await supabase
+        .from("users")
+        .update(updates)
+        .eq("id", req.params.id)
         .select();
 
       if (error) throw error;
