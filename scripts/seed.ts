@@ -29,7 +29,7 @@ async function seedProperties() {
     // Transform properties for database
     const transformedProperties = propertiesData.map((prop: any) => ({
       id: uuidv4(),
-      owner_id: prop.owner_id ? uuidv4() : null,
+      owner_id: null,
       title: prop.title,
       price: prop.price,
       address: prop.address,
