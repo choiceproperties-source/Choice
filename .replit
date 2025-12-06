@@ -34,11 +34,15 @@ waitForPort = 5000
 localPort = 5000
 externalPort = 80
 
+[[ports]]
+localPort = 39811
+externalPort = 3000
+
 [userenv]
 
 [userenv.shared]
-VITE_SUPABASE_URL = "https://ehagjurhqgjfzhxkltfu.supabase.co/"
-VITE_SUPABASE_ANON_KEY = "sb_publishable_zxxBqeyRA81tOFIGQahAVA_sWk7I4_h"
+VITE_SUPABASE_URL = "https://igkujtqflvocbpsvpqle.supabase.co/"
+VITE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlna3VqdHFmbHZvY2Jwc3ZwcWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5Nzg2NTAsImV4cCI6MjA4MDU1NDY1MH0.BQC1an2v_QM_VL5bfGEYuqROeH0N9-5hHVJijqudqPM"
 SUPABASE_URL = "https://ehagjurhqgjfzhxkltfu.supabase.co/"
 SUPABASE_SERVICE_ROLE_KEY = "sb_secret_UewleNC-pL_2DAN3rRxhhA_MVdZsSde"
 
