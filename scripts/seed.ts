@@ -1,71 +1,67 @@
-import { createClient } from '@supabase/supabase-js';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
+import { v4 as uuidv4 } from 'uuid';
+import pkg from 'pg';
+const { Client } = pkg;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL;
-const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
+const databaseUrl = process.env.DATABASE_URL;
 
-if (!supabaseUrl || !supabaseKey) {
-  console.error('❌ Error: Missing Supabase credentials. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY');
+if (!databaseUrl) {
+  console.error('❌ Error: Missing DATABASE_URL environment variable');
   process.exit(1);
 }
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+const client = new Client({ connectionString: databaseUrl });
 
 async function seedProperties() {
   try {
     console.log('🌱 Starting data seeding...');
+    await client.connect();
 
     // Read properties JSON
     const propertiesPath = path.join(__dirname, '../client/src/data/properties.json');
     const propertiesData = JSON.parse(fs.readFileSync(propertiesPath, 'utf-8'));
 
-    // Transform properties for Supabase (remove owner object, keep owner_id)
+    // Transform properties for database
     const transformedProperties = propertiesData.map((prop: any) => ({
-      id: prop.id,
-      owner_id: prop.owner_id,
+      id: uuidv4(),
+      owner_id: prop.owner_id ? uuidv4() : null,
       title: prop.title,
       price: prop.price,
       address: prop.address,
       city: prop.city,
       state: prop.state,
-      zip: prop.zip,
+      zip_code: prop.zip,
       bedrooms: prop.bedrooms,
       bathrooms: prop.bathrooms,
-      sqft: prop.sqft,
-      year_built: prop.year_built,
+      square_feet: prop.sqft,
       description: prop.description,
-      features: prop.features,
-      type: prop.type,
-      location: prop.location,
-      images: prop.images,
-      featured: prop.featured,
-      listing_type: prop.listing_type,
-      application_fee: prop.application_fee || null,
-      property_tax_annual: prop.property_tax_annual || null,
-      hoa_fee_monthly: prop.hoa_fee_monthly || null,
+      property_type: prop.type,
+      images: JSON.stringify(prop.images),
       status: prop.status || 'available',
-      pet_friendly: prop.pet_friendly || false,
+      pets_allowed: prop.pet_friendly || false,
       furnished: prop.furnished || false,
-      amenities: prop.amenities || []
+      amenities: JSON.stringify(prop.amenities || [])
     }));
 
     // Insert properties
-    const { data, error } = await supabase
-      .from('properties')
-      .insert(transformedProperties)
-      .select();
-
-    if (error) {
-      console.error('❌ Error inserting properties:', error.message);
-      process.exit(1);
+    for (const prop of transformedProperties) {
+      await client.query(
+        `INSERT INTO properties (id, owner_id, title, price, address, city, state, zip_code, bedrooms, bathrooms, square_feet, description, property_type, images, status, pets_allowed, furnished, amenities)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+         ON CONFLICT (id) DO NOTHING`,
+        [prop.id, prop.owner_id, prop.title, prop.price, prop.address, prop.city, prop.state, prop.zip_code, 
+         prop.bedrooms, prop.bathrooms, prop.square_feet, prop.description, prop.property_type, prop.images, 
+         prop.status, prop.pets_allowed, prop.furnished, prop.amenities]
+      );
     }
 
-    console.log(`✅ Successfully seeded ${data?.length || transformedProperties.length} properties!`);
+    console.log(`✅ Successfully seeded ${transformedProperties.length} properties!`);
+    await client.end();
 
   } catch (error) {
     console.error('❌ Seeding failed:', error);
