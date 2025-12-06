@@ -5,13 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { PropertyCard } from "@/components/property-card";
 import { Testimonials } from "@/components/testimonials";
-import propertiesData from "@/data/properties.json";
-import type { LegacyProperty } from "@/lib/types";
+import { useProperties } from "@/hooks/use-properties";
+import type { Property } from "@/lib/types";
 import { ArrowRight, CheckCircle2, Users, Home as HomeIcon, MapPin, ShieldCheck } from "lucide-react";
 import heroBg from "@assets/generated_images/modern_luxury_home_exterior_with_blue_sky.png";
 import { updateMetaTags, getOrganizationStructuredData, addStructuredData } from "@/lib/seo";
 
 export default function Home() {
+  const { properties, loading } = useProperties();
+
   // Initialize reviews on mount
   useEffect(() => {
     const existing = localStorage.getItem('choiceProperties_reviews');
@@ -42,9 +44,8 @@ export default function Home() {
     addStructuredData(getOrganizationStructuredData());
   }, []);
 
-  // Cast JSON data to LegacyProperty type (matches properties.json structure)
-  const properties = propertiesData as LegacyProperty[];
-  const featuredProperties = properties.filter((p) => p.featured).slice(0, 3);
+  // Show first 3 properties as featured (from backend data)
+  const featuredProperties = properties.slice(0, 3);
 
   return (
     <div className="min-h-screen bg-background flex flex-col overflow-x-hidden">

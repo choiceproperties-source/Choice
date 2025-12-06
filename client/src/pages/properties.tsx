@@ -9,23 +9,28 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import MapView from "@/components/map-view";
-import propertiesData from "@/data/properties.json";
+import { useProperties } from "@/hooks/use-properties";
 import type { Property } from "@/lib/types";
 import { Search, Bookmark } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { updateMetaTags } from "@/lib/seo";
 
 export default function Properties() {
+  const { properties: allProperties, loading } = useProperties();
+  const [filteredProperties, setFilteredProperties] = useState<Property[]>(allProperties);
+
   useEffect(() => {
     updateMetaTags({
       title: "Browse Rental Properties - Choice Properties",
       description: "Search and browse available rental properties. Filter by price, bedrooms, and property type."
     });
   }, []);
-  const allProperties = propertiesData as Property[];
-  const [filteredProperties, setFilteredProperties] = useState<Property[]>(allProperties);
   const [sortBy, setSortBy] = useState("featured");
   const [quickViewProperty, setQuickViewProperty] = useState<Property | null>(null);
+
+  useEffect(() => {
+    setFilteredProperties(allProperties);
+  }, [allProperties]);
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
   const { toast } = useToast();
   
@@ -57,27 +62,29 @@ export default function Properties() {
       result = result.filter(p => 
         p.title.toLowerCase().includes(query) || 
         p.address.toLowerCase().includes(query) ||
-        p.city.toLowerCase().includes(query)
+        (p.city?.toLowerCase().includes(query) || false)
       );
     }
 
     if (priceMin !== "any") {
-      result = result.filter(p => p.price >= parseInt(priceMin));
+      const minVal = parseInt(priceMin);
+      result = result.filter(p => p.price ? parseInt(p.price) >= minVal : false);
     }
 
     if (bedrooms !== "any") {
-      result = result.filter(p => p.bedrooms >= parseInt(bedrooms));
+      const minBeds = parseInt(bedrooms);
+      result = result.filter(p => (p.bedrooms || 0) >= minBeds);
     }
 
     if (homeType !== "any") {
-        result = result.filter(p => p.type === homeType);
+        result = result.filter(p => p.property_type === homeType);
     }
 
     // Apply sorting
     if (sortBy === "price-low") {
-      result = [...result].sort((a, b) => a.price - b.price);
+      result = [...result].sort((a, b) => (parseInt(a.price || "0") || 0) - (parseInt(b.price || "0") || 0));
     } else if (sortBy === "price-high") {
-      result = [...result].sort((a, b) => b.price - a.price);
+      result = [...result].sort((a, b) => (parseInt(b.price || "0") || 0) - (parseInt(a.price || "0") || 0));
     } else if (sortBy === "newest") {
       result = [...result].reverse();
     }
