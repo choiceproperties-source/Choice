@@ -68,25 +68,25 @@ export function getPropertyStructuredData(property: any) {
     '@context': 'https://schema.org',
     '@type': 'Apartment',
     name: property.title,
-    description: property.description,
+    description: property.description || 'Property listing',
     address: {
       '@type': 'PostalAddress',
       streetAddress: property.address,
-      addressLocality: property.city,
-      addressRegion: property.state,
-      postalCode: property.zip || '48083'
+      addressLocality: property.city || '',
+      addressRegion: property.state || '',
+      postalCode: property.zip_code || property.zip || '48083'
     },
     priceCurrency: 'USD',
-    price: property.price.toString(),
+    price: property.price ? property.price.toString() : '0',
     priceSpecification: {
       '@type': 'PriceSpecification',
       priceCurrency: 'USD',
-      price: property.price.toString()
+      price: property.price ? property.price.toString() : '0'
     },
-    numberOfRooms: property.bedrooms.toString(),
+    numberOfRooms: property.bedrooms ? property.bedrooms.toString() : '0',
     floorSize: {
       '@type': 'QuantitativeValue',
-      value: property.sqft.toString(),
+      value: (property.square_feet || property.sqft || 0).toString(),
       unitCode: 'SQM'
     }
   };
