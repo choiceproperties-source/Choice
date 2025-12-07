@@ -146,7 +146,7 @@ export default function Properties() {
     .filter(p => p.price) // Filter out properties without price
     .map((p, idx) => {
       const offset = idx * 0.005;
-      const priceNum = typeof p.price === 'string' ? parseInt(p.price) : p.price;
+      const priceNum = typeof p.price === 'string' ? parseInt(p.price) : (p.price || 0);
       return {
           position: [34.0522 + offset, -118.2437 - offset] as [number, number],
           title: `$${priceNum.toLocaleString()}`,
