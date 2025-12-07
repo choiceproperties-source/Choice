@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { Bed, Bath, Maximize, MapPin, X, Share2, Heart } from "lucide-react";
 import type { Property } from "@/lib/types";
+import { formatPrice, parseDecimal } from "@/lib/types";
 
 interface QuickViewProps {
   property: Property | null;
@@ -30,7 +31,13 @@ export function PropertyQuickView({ property, isOpen, onClose }: QuickViewProps)
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const image = placeholders[property.images[0]] || placeholders["placeholder-exterior"];
+  // Safe access to images array
+  const firstImage = property.images?.[0];
+  const image = firstImage ? placeholders[firstImage] : placeholders["placeholder-exterior"];
+  
+  // Convert price to number for display
+  const priceNum = parseInt(property.price || "0");
+  const bathroomNum = Math.round(parseDecimal(property.bathrooms));
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -55,7 +62,7 @@ export function PropertyQuickView({ property, isOpen, onClose }: QuickViewProps)
 
           <div className="space-y-4">
             <div>
-              <h3 className="text-2xl font-bold">${property.price.toLocaleString()}</h3>
+              <h3 className="text-2xl font-bold">{formatPrice(property.price)}</h3>
               <p className="text-gray-600">/month</p>
             </div>
 
@@ -63,22 +70,22 @@ export function PropertyQuickView({ property, isOpen, onClose }: QuickViewProps)
 
             <div className="flex gap-6 text-sm">
               <div>
-                <div className="font-bold text-primary">{property.bedrooms}</div>
+                <div className="font-bold text-primary">{property.bedrooms || 0}</div>
                 <div className="text-gray-600">Beds</div>
               </div>
               <div>
-                <div className="font-bold text-primary">{property.bathrooms}</div>
+                <div className="font-bold text-primary">{bathroomNum}</div>
                 <div className="text-gray-600">Baths</div>
               </div>
               <div>
-                <div className="font-bold text-primary">{property.sqft.toLocaleString()}</div>
+                <div className="font-bold text-primary">{property.square_feet ? property.square_feet.toLocaleString() : 'N/A'}</div>
                 <div className="text-gray-600">sqft</div>
               </div>
             </div>
 
             <div className="flex items-start gap-2 text-sm text-gray-600">
               <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
-              <span>{property.address}, {property.city}, {property.state} {property.zip}</span>
+              <span>{property.address}, {property.city}, {property.state} {property.zip_code}</span>
             </div>
 
             <p className="text-sm text-gray-700 line-clamp-3">{property.description}</p>

@@ -1,17 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRoute, Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import propertiesData from "@/data/properties.json";
-import type { Property } from "@/lib/types";
-import { MapPin, Bed, Bath, Maximize, Share2, Heart, Calendar, Info, X, ChevronLeft, ChevronRight, CheckCircle2, Mail, Phone, Building2 } from "lucide-react";
+import type { Property, PropertyWithOwner, Review, Owner } from "@/lib/types";
+import { formatPrice, parseDecimal } from "@/lib/types";
+import { MapPin, Bed, Bath, Maximize, Share2, Heart, Calendar, Info, X, ChevronLeft, ChevronRight, CheckCircle2, Mail, Phone, Building2, Star } from "lucide-react";
 import { useFavorites } from "@/hooks/use-favorites";
 import NotFound from "@/pages/not-found";
 import MapView from "@/components/map-view";
@@ -36,7 +35,6 @@ const imageMap: Record<string, string> = {
 export default function PropertyDetails() {
   const [match, params] = useRoute("/property/:id");
   const id = params?.id;
-  const property = (propertiesData as Property[]).find(p => p.id === id);
   
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -44,32 +42,66 @@ export default function PropertyDetails() {
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const { isFavorited, toggleFavorite } = useFavorites();
 
-  useEffect(() => {
-    if (property) {
-      updateMetaTags({
-        title: `${property.title} - ${property.bedrooms}bd, ${property.bathrooms}ba in ${property.city}, MI`,
-        description: `${property.title} - $${property.price}/month. ${property.bedrooms} bedrooms, ${property.bathrooms} bathrooms, ${property.sqft} sqft. Apply online at Choice Properties.`,
-        type: "property"
-      });
-      addStructuredData(getPropertyStructuredData(property));
-    }
-  }, [property]);
+  // Fetch property data from backend
+  const { data: property, isLoading } = useQuery<Property>({
+    queryKey: ['/api/properties', id],
+    enabled: !!id && !!match,
+  });
 
-  if (!match || !property) {
+  // Fetch owner data if available
+  const { data: owner } = useQuery<Owner>({
+    queryKey: ['/api/users', property?.owner_id],
+    enabled: !!property?.owner_id,
+  });
+
+  // Fetch reviews for this property
+  const { data: reviews = [] } = useQuery<Review[]>({
+    queryKey: ['/api/reviews/property', id],
+    enabled: !!id,
+  });
+
+  if (!match) {
     return <NotFound />;
   }
 
-  const allImages = property.images.map(img => imageMap[img] || placeholderExterior);
+  if (isLoading || !property) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading property details...</p>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  // Update SEO tags
+  const bedrooms = property.bedrooms || 0;
+  const bathrooms = Math.round(parseDecimal(property.bathrooms));
+  const sqft = property.square_feet || 0;
+  
+  updateMetaTags({
+    title: `${property.title} - ${bedrooms}bd, ${bathrooms}ba in ${property.city}`,
+    description: `${property.title} - ${formatPrice(property.price)}/month. ${bedrooms} bedrooms, ${bathrooms} bathrooms, ${sqft} sqft. Apply online at Choice Properties.`,
+    type: "property"
+  });
+  addStructuredData(getPropertyStructuredData(property));
+
+  // Build image array
+  const allImages = (property.images || []).length > 0 
+    ? property.images!.map(img => imageMap[img] || placeholderExterior)
+    : [placeholderExterior, placeholderLiving, placeholderKitchen, placeholderBedroom];
+  
   const mainImage = allImages[currentImageIndex];
   
-  const baseLat = 34.0522;
-  const baseLng = -118.2437;
-  const offset = parseInt(property.id) * 0.01;
-  const position: [number, number] = [baseLat + offset, baseLng - offset];
-
-  const similarProperties = (propertiesData as Property[])
-    .filter(p => p.id !== property.id && (p.type === property.type || Math.abs(p.price - property.price) < 1000))
-    .slice(0, 3);
+  // Use real coordinates from database
+  const lat = property.latitude ? parseFloat(property.latitude) : 34.0522;
+  const lng = property.longitude ? parseFloat(property.longitude) : -118.2437;
+  const position: [number, number] = [lat, lng];
 
   const minSwipeDistance = 50;
 
@@ -109,6 +141,11 @@ export default function PropertyDetails() {
       prevImage();
     }
   };
+
+  // Calculate average rating from reviews
+  const averageRating = reviews && reviews.length > 0 
+    ? reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length
+    : 0;
 
   return (
     <div className="min-h-screen bg-white flex flex-col overflow-x-hidden">
@@ -234,21 +271,21 @@ export default function PropertyDetails() {
             <div className="flex justify-between items-start">
               <div>
                 <div className="flex items-baseline gap-3 mb-1">
-                  <h1 className="text-4xl font-bold text-gray-900">${property.price.toLocaleString()}</h1>
+                  <h1 className="text-4xl font-bold text-gray-900">{formatPrice(property.price)}</h1>
                   <span className="text-xl text-gray-600">/mo</span>
                 </div>
                 <div className="flex items-center gap-6 text-lg text-gray-900 font-medium mb-2">
                   <span className="flex items-center gap-1">
-                    <strong>{property.bedrooms}</strong> <span className="text-gray-600 font-normal">bd</span>
+                    <strong>{bedrooms}</strong> <span className="text-gray-600 font-normal">bd</span>
                   </span>
                   <span className="flex items-center gap-1">
-                    <strong>{property.bathrooms}</strong> <span className="text-gray-600 font-normal">ba</span>
+                    <strong>{bathrooms}</strong> <span className="text-gray-600 font-normal">ba</span>
                   </span>
                   <span className="flex items-center gap-1">
-                    <strong>{property.sqft.toLocaleString()}</strong> <span className="text-gray-600 font-normal">sqft</span>
+                    <strong>{sqft ? sqft.toLocaleString() : 'N/A'}</strong> <span className="text-gray-600 font-normal">sqft</span>
                   </span>
                 </div>
-                <p className="text-gray-600 text-lg">{property.address}, {property.city}, {property.state} {property.zip}</p>
+                <p className="text-gray-600 text-lg">{property.address}, {property.city}, {property.state} {property.zip_code}</p>
               </div>
               <div className="flex gap-3 flex-wrap">
                 <Link href={`/apply?propertyId=${property.id}`}>
@@ -257,23 +294,18 @@ export default function PropertyDetails() {
                   </Button>
                 </Link>
                 <Button 
-                  onClick={() => {
-                    const favs = JSON.parse(localStorage.getItem('choiceProperties_favorites') || '[]');
-                    if (!favs.includes(property.id)) {
-                      favs.push(property.id);
-                      localStorage.setItem('choiceProperties_favorites', JSON.stringify(favs));
-                    }
-                  }}
-                  variant="outline" 
-                  className="text-primary border-primary hover:bg-primary/5 gap-2"
+                  onClick={() => toggleFavorite(property.id)}
+                  variant={isFavorited(property.id) ? "default" : "outline"} 
+                  className={isFavorited(property.id) ? "bg-red-500 hover:bg-red-600 text-white gap-2" : "text-primary border-primary hover:bg-primary/5 gap-2"}
                 >
-                  <Heart className="h-4 w-4" /> Save
+                  <Heart className={isFavorited(property.id) ? "h-4 w-4 fill-white" : "h-4 w-4"} /> 
+                  {isFavorited(property.id) ? "Saved" : "Save"}
                 </Button>
                 <Button 
                   onClick={() => {
                     navigator.share?.({
                       title: property.title,
-                      text: `Check out this property: ${property.title} - $${property.price}/mo`,
+                      text: `Check out this property: ${property.title} - ${formatPrice(property.price)}/mo`,
                       url: window.location.href
                     });
                   }}
@@ -289,7 +321,7 @@ export default function PropertyDetails() {
 
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-4">Overview</h2>
-              <p className="text-gray-700 leading-relaxed text-lg">{property.description}</p>
+              <p className="text-gray-700 leading-relaxed text-lg">{property.description || 'No description available.'}</p>
             </div>
 
             <div>
@@ -299,81 +331,108 @@ export default function PropertyDetails() {
                   <div className="mt-1"><Bed className="h-5 w-5 text-gray-500" /></div>
                   <div>
                     <p className="font-bold text-gray-900 text-sm">Bedrooms</p>
-                    <p className="text-gray-600 text-sm">{property.bedrooms}</p>
+                    <p className="text-gray-600 text-sm">{bedrooms}</p>
                   </div>
                 </div>
                 <div className="flex gap-3 items-start">
                   <div className="mt-1"><Bath className="h-5 w-5 text-gray-500" /></div>
                   <div>
                     <p className="font-bold text-gray-900 text-sm">Bathrooms</p>
-                    <p className="text-gray-600 text-sm">{property.bathrooms}</p>
+                    <p className="text-gray-600 text-sm">{bathrooms}</p>
                   </div>
                 </div>
                 <div className="flex gap-3 items-start">
                   <div className="mt-1"><Maximize className="h-5 w-5 text-gray-500" /></div>
                   <div>
                     <p className="font-bold text-gray-900 text-sm">Square Footage</p>
-                    <p className="text-gray-600 text-sm">{property.sqft.toLocaleString()}</p>
-                  </div>
-                </div>
-                <div className="flex gap-3 items-start">
-                  <div className="mt-1"><Calendar className="h-5 w-5 text-gray-500" /></div>
-                  <div>
-                    <p className="font-bold text-gray-900 text-sm">Year Built</p>
-                    <p className="text-gray-600 text-sm">{property.year_built}</p>
+                    <p className="text-gray-600 text-sm">{sqft ? sqft.toLocaleString() : 'N/A'}</p>
                   </div>
                 </div>
                 <div className="flex gap-3 items-start">
                   <div className="mt-1"><Info className="h-5 w-5 text-gray-500" /></div>
                   <div>
                     <p className="font-bold text-gray-900 text-sm">Property Type</p>
-                    <p className="text-gray-600 text-sm">{property.type}</p>
+                    <p className="text-gray-600 text-sm">{property.property_type || 'Not specified'}</p>
                   </div>
                 </div>
                 <div className="flex gap-3 items-start">
                   <div className="mt-1"><Building2 className="h-5 w-5 text-gray-500" /></div>
                   <div>
-                    <p className="font-bold text-gray-900 text-sm">Application Fee</p>
-                    <p className="text-gray-600 text-sm">${property.application_fee}</p>
+                    <p className="font-bold text-gray-900 text-sm">Status</p>
+                    <p className="text-gray-600 text-sm capitalize">{property.status || 'Active'}</p>
                   </div>
                 </div>
               </div>
 
-              <div className="mt-8">
-                <h3 className="font-bold text-gray-900 mb-4 text-lg">Amenities</h3>
-                <div className="flex flex-wrap gap-3">
-                  {property.features.map((feature, i) => (
-                    <Badge
-                      key={i}
-                      variant="secondary"
-                      className="bg-gray-100 text-gray-700 hover:bg-gray-200 text-sm py-1 px-3 font-normal"
-                    >
-                      {feature}
-                    </Badge>
-                  ))}
+              {property.amenities && property.amenities.length > 0 && (
+                <div className="mt-8">
+                  <h3 className="font-bold text-gray-900 mb-4 text-lg">Amenities</h3>
+                  <div className="flex flex-wrap gap-3">
+                    {property.amenities.map((amenity: string, i: number) => (
+                      <Badge
+                        key={i}
+                        variant="secondary"
+                        className="bg-gray-100 text-gray-700 hover:bg-gray-200 text-sm py-1 px-3 font-normal"
+                      >
+                        {amenity}
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             <Separator />
 
-            {/* Similar Properties - More Prominent */}
-            {similarProperties.length > 0 && (
-              <div className="bg-gradient-to-r from-primary/5 to-secondary/5 rounded-lg p-8 border border-primary/10">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">Similar Properties</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {similarProperties.map(prop => (
-                    <PropertyCard 
-                      key={prop.id} 
-                      property={prop}
-                      onQuickView={() => {}}
-                    />
-                  ))}
+            {/* Reviews Section */}
+            {reviews && reviews.length > 0 && (
+              <>
+                <div>
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-2xl font-bold text-gray-900">Reviews</h2>
+                    <div className="flex items-center gap-2">
+                      <div className="flex gap-1">
+                        {[1, 2, 3, 4, 5].map(i => (
+                          <Star
+                            key={i}
+                            className={`h-5 w-5 ${i <= Math.round(averageRating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
+                          />
+                        ))}
+                      </div>
+                      <span className="text-sm text-gray-600">({reviews.length} reviews)</span>
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    {reviews.slice(0, 3).map((review) => (
+                      <Card key={review.id} className="border-gray-200">
+                        <CardContent className="p-4">
+                          <div className="flex items-start gap-3 mb-2">
+                            <div className="flex-1">
+                              <div className="flex gap-1 mb-1">
+                                {[1, 2, 3, 4, 5].map(i => (
+                                  <Star
+                                    key={i}
+                                    className={`h-4 w-4 ${i <= (review.rating || 0) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
+                                  />
+                                ))}
+                              </div>
+                              <p className="font-bold text-gray-900">{review.title || 'Review'}</p>
+                              {review.users && (
+                                <p className="text-sm text-gray-600">{review.users.full_name || 'Anonymous'}</p>
+                              )}
+                            </div>
+                          </div>
+                          {review.comment && (
+                            <p className="text-gray-700 text-sm">{review.comment}</p>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
                 </div>
-              </div>
+                <Separator />
+              </>
             )}
-
-            <Separator />
 
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-4">Map</h2>
@@ -387,39 +446,37 @@ export default function PropertyDetails() {
 
             <Separator />
 
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Property Manager</h2>
-              <Link href={`/owner/${property.owner.slug}`}>
+            {/* Property Owner/Manager */}
+            {owner && (
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">Property Manager</h2>
                 <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 hover:border-primary/50">
                   <CardContent className="p-6">
                     <div className="flex items-start gap-4">
                       <Avatar className="h-16 w-16">
-                        <AvatarImage src={property.owner.profile_photo_url} alt={property.owner.name} />
-                        <AvatarFallback>{property.owner.name.charAt(0)}</AvatarFallback>
+                        <AvatarImage src={owner.profile_image || undefined} alt={owner.full_name || 'Manager'} />
+                        <AvatarFallback>{owner.full_name?.charAt(0) || 'M'}</AvatarFallback>
                       </Avatar>
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <h3 className="text-xl font-bold text-gray-900">{property.owner.name}</h3>
-                          {property.owner.verified && (
-                            <CheckCircle2 className="h-5 w-5 text-blue-500" />
-                          )}
+                          <h3 className="text-xl font-bold text-gray-900">{owner.full_name || 'Property Manager'}</h3>
                         </div>
-                        <p className="text-gray-600 text-sm mb-3">{property.owner.description}</p>
+                        <p className="text-gray-600 text-sm mb-3">{owner.bio || 'Professional property manager'}</p>
                         <div className="flex flex-wrap gap-4 text-sm">
                           <a
-                            href={`mailto:${property.owner.email}`}
+                            href={`mailto:${owner.email}`}
                             className="flex items-center gap-1 text-primary hover:underline"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <Mail className="h-4 w-4" /> {property.owner.email}
+                            <Mail className="h-4 w-4" /> {owner.email}
                           </a>
-                          {property.owner.phone && (
+                          {owner.phone && (
                             <a
-                              href={`tel:${property.owner.phone}`}
+                              href={`tel:${owner.phone}`}
                               className="flex items-center gap-1 text-primary hover:underline"
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <Phone className="h-4 w-4" /> {property.owner.phone}
+                              <Phone className="h-4 w-4" /> {owner.phone}
                             </a>
                           )}
                         </div>
@@ -430,21 +487,7 @@ export default function PropertyDetails() {
                     </div>
                   </CardContent>
                 </Card>
-              </Link>
-            </div>
-
-            {similarProperties.length > 0 && (
-              <>
-                <Separator />
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-6">Similar Properties</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {similarProperties.map((prop) => (
-                      <PropertyCard key={prop.id} property={prop} />
-                    ))}
-                  </div>
-                </div>
-              </>
+              </div>
             )}
           </div>
 
@@ -455,17 +498,19 @@ export default function PropertyDetails() {
                 <p className="text-primary-foreground/80 text-sm">As early as today at 3:00 pm</p>
               </div>
               <CardContent className="p-6 space-y-4">
-                <AgentContactDialog 
-                  agent={{
-                    id: property.owner.id,
-                    name: property.owner.name,
-                    email: property.owner.email,
-                    phone: property.owner.phone || ''
-                  }}
-                  propertyId={property.id}
-                  propertyTitle={property.title}
-                  triggerText="Request a Tour"
-                />
+                {owner && (
+                  <AgentContactDialog 
+                    agent={{
+                      id: owner.id,
+                      name: owner.full_name || 'Property Manager',
+                      email: owner.email,
+                      phone: owner.phone || ''
+                    }}
+                    propertyId={property.id}
+                    propertyTitle={property.title}
+                    triggerText="Request a Tour"
+                  />
+                )}
 
                 <div className="flex items-center gap-2 my-4">
                   <div className="h-px bg-gray-200 flex-1"></div>

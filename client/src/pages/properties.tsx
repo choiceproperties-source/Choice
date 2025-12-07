@@ -141,14 +141,15 @@ export default function Properties() {
     setIsQuickViewOpen(true);
   };
 
-  // Mock map markers
+  // Use real map markers with actual property coordinates
   const mapMarkers = filteredProperties
-    .filter(p => p.price) // Filter out properties without price
-    .map((p, idx) => {
-      const offset = idx * 0.005;
+    .filter(p => p.price && p.latitude && p.longitude) // Filter properties with coordinates
+    .map((p) => {
+      const lat = parseFloat(p.latitude || '34.0522');
+      const lng = parseFloat(p.longitude || '-118.2437');
       const priceNum = typeof p.price === 'string' ? parseInt(p.price) : (p.price || 0);
       return {
-          position: [34.0522 + offset, -118.2437 - offset] as [number, number],
+          position: [lat, lng] as [number, number],
           title: `$${priceNum.toLocaleString()}`,
           description: p.address
       }
