@@ -155,7 +155,7 @@ export default function Properties() {
   });
 
   return (
-    <div className="h-screen flex flex-col bg-background overflow-hidden">
+    <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
       <Breadcrumb items={[{ label: "Properties" }]} />
       
@@ -166,7 +166,7 @@ export default function Properties() {
       )}
       
       {/* Zillow-style Subheader Filter Bar */}
-      <div className="border-b bg-white shadow-sm p-3 z-20">
+      <div className="border-b bg-white shadow-sm p-3 z-20 sticky top-0">
         <div className="container mx-auto max-w-7xl flex flex-col md:flex-row gap-3 items-center">
             <div className="relative flex-1 w-full md:w-auto">
                 <Input 
@@ -258,7 +258,7 @@ export default function Properties() {
          </div>
 
          {/* Left Side List */}
-         <div className="w-full lg:w-1/2 h-full overflow-y-auto p-4 shadow-2xl z-10 bg-white">
+         <div className="w-full lg:w-1/2 overflow-y-auto p-4 shadow-2xl z-10 bg-white">
              <div className="flex justify-between items-center mb-4 px-2">
                  <h2 className="text-xl font-bold text-gray-900">Real Estate & Homes For Rent</h2>
                  <span className="text-gray-500 text-sm">{filteredProperties.length} results</span>
