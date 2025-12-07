@@ -42,28 +42,28 @@ export function Footer() {
             <h4 className="font-heading text-lg font-semibold text-secondary">Quick Links</h4>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link href="/properties">
-                  <a className="hover:text-secondary transition-colors">All Properties</a>
+                <Link href="/properties" className="hover:text-secondary transition-colors">
+                  All Properties
                 </Link>
               </li>
               <li>
-                <Link href="/about">
-                  <a className="hover:text-secondary transition-colors">About Us</a>
+                <Link href="/about" className="hover:text-secondary transition-colors">
+                  About Us
                 </Link>
               </li>
               <li>
-                <Link href="/contact">
-                  <a className="hover:text-secondary transition-colors">Contact</a>
+                <Link href="/contact" className="hover:text-secondary transition-colors">
+                  Contact
                 </Link>
               </li>
               <li>
-                <Link href="/privacy">
-                  <a className="hover:text-secondary transition-colors">Privacy Policy</a>
+                <Link href="/privacy" className="hover:text-secondary transition-colors">
+                  Privacy Policy
                 </Link>
               </li>
               <li>
-                <Link href="/terms">
-                  <a className="hover:text-secondary transition-colors">Terms & Conditions</a>
+                <Link href="/terms" className="hover:text-secondary transition-colors">
+                  Terms & Conditions
                 </Link>
               </li>
             </ul>

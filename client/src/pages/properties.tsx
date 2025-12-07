@@ -77,7 +77,7 @@ export default function Properties() {
     }
 
     if (homeType !== "any") {
-        result = result.filter(p => p.property_type === homeType);
+        result = result.filter(p => p.property_type?.toLowerCase() === homeType.toLowerCase());
     }
 
     // Apply sorting
@@ -142,11 +142,14 @@ export default function Properties() {
   };
 
   // Mock map markers
-  const mapMarkers = filteredProperties.map(p => {
-      const offset = parseInt(p.id) * 0.005;
+  const mapMarkers = filteredProperties
+    .filter(p => p.price) // Filter out properties without price
+    .map((p, idx) => {
+      const offset = idx * 0.005;
+      const priceNum = typeof p.price === 'string' ? parseInt(p.price) : p.price;
       return {
           position: [34.0522 + offset, -118.2437 - offset] as [number, number],
-          title: `$${p.price.toLocaleString()}`,
+          title: `$${priceNum.toLocaleString()}`,
           description: p.address
       }
   });
