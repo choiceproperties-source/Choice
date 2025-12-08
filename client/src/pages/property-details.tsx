@@ -10,11 +10,13 @@ import type { Property, PropertyWithOwner, Review, Owner } from "@/lib/types";
 import { formatPrice, parseDecimal } from "@/lib/types";
 import { Share2, Heart, Mail, Phone, Star } from "lucide-react";
 import { useFavorites } from "@/hooks/use-favorites";
+import { useNearbyPlaces } from "@/hooks/use-nearby-places";
 import { PhotoGallery } from "@/components/photo-gallery";
 import { PropertyOverview } from "@/components/property-overview";
 import { AmenitiesGrid } from "@/components/amenities-grid";
+import { MapSection } from "@/components/map-section";
+import { NearbyPlaces } from "@/components/nearby-places";
 import NotFound from "@/pages/not-found";
-import MapView from "@/components/map-view";
 import { PropertyCard } from "@/components/property-card";
 import { AgentContactDialog } from "@/components/agent-contact-dialog";
 import { updateMetaTags, getPropertyStructuredData, addStructuredData } from "@/lib/seo";
@@ -221,14 +223,27 @@ export default function PropertyDetails() {
               </>
             )}
 
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Map</h2>
-              <MapView
-                center={position}
-                zoom={15}
-                markers={[{ position, title: property.title, description: property.address }]}
-                className="h-[300px] w-full rounded-lg border"
-              />
+            {/* Location & Nearby Places Section */}
+            <div data-testid="section-location-nearby">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Location & Nearby Places</h2>
+              
+              {/* Map */}
+              <div className="mb-8">
+                <MapSection 
+                  center={position} 
+                  title={property.title} 
+                  address={property.address}
+                />
+              </div>
+
+              {/* Nearby Places */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Nearby Places</h3>
+                <NearbyPlaces places={useNearbyPlaces(
+                  property.latitude ? parseFloat(String(property.latitude)) : undefined,
+                  property.longitude ? parseFloat(String(property.longitude)) : undefined
+                )} />
+              </div>
             </div>
 
             <Separator />

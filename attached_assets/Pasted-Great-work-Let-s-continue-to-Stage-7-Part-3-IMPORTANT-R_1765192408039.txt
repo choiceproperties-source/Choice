@@ -1,0 +1,67 @@
+Great work. Let’s continue to Stage 7 Part 3.
+
+IMPORTANT RULES:
+- Do NOT modify any dashboards (Renter, Owner, Agent, Buyer).
+- Do NOT modify backend APIs.
+- Do NOT refactor any existing components.
+- Only modify property-details.tsx and NEW map-related components.
+- Keep the output efficient to avoid usage limits.
+- DO NOT touch PhotoGallery, PropertyOverview, or AmenitiesGrid.
+
+------------------------------------------------
+STAGE 7 — PART 3: INTERACTIVE MAP + NEARBY PLACES
+
+Goal:
+Add a modern map section to the property-details page with an interactive map showing nearby points of interest.
+
+DELIVER ONLY THE FOLLOWING:
+
+1. NEW COMPONENT: MapSection
+   Features:
+   - Full-width map container (400–450px tall).
+   - Use React Leaflet (preferred) or a lightweight alternative if already installed.
+   - Marker placed at the property’s coordinates.
+   - Smooth zoom and drag.
+   - Dark mode styles (adjust tiles automatically if needed).
+   - data-testid attributes.
+
+2. Nearby Places Fetcher (Client-Side Only)
+   - Create a new hook: useNearbyPlaces.ts
+   - Input: latitude, longitude.
+   - Output: an array of places grouped by category:
+       • Restaurants
+       • Groceries
+       • Schools
+       • Transit
+   - Use a mock dataset OR a static local JSON file since we’re avoiding new APIs.
+   - Ensure deterministic results so there is no API key needed.
+
+3. NEW COMPONENT: NearbyPlaces
+   Features:
+   - 2-column layout mobile → 4 columns desktop.
+   - Each category shows:
+       • Category icon
+       • List of 3–5 nearby places
+       • Distance badge (e.g., "0.4 mi")
+   - Hover elevation on desktop.
+   - Dark mode support.
+   - data-testid attributes.
+
+4. Integration in property-details.tsx
+   - Add “Location & Nearby Places” section below Amenities.
+   - Order:
+       • Section Header
+       • MapSection
+       • NearbyPlaces
+   - Match spacing & UI style of previous sections.
+
+5. Empty / fallback handling
+   - If missing coordinates → show an empty state:  
+     “Location data unavailable.”
+   - If no nearby places → show:  
+     “No nearby places found.”
+
+STOP after completing Part 3 and show me the result.
+
+------------------------------------------------
+WAIT for my instruction before moving to Part 4.
