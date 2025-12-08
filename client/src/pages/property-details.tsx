@@ -3,15 +3,16 @@ import { useQuery } from "@tanstack/react-query";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import type { Property, PropertyWithOwner, Review, Owner } from "@/lib/types";
 import { formatPrice, parseDecimal } from "@/lib/types";
-import { MapPin, Bed, Bath, Maximize, Share2, Heart, Calendar, Info, Mail, Phone, Building2, Star } from "lucide-react";
+import { Share2, Heart, Mail, Phone, Star } from "lucide-react";
 import { useFavorites } from "@/hooks/use-favorites";
 import { PhotoGallery } from "@/components/photo-gallery";
+import { PropertyOverview } from "@/components/property-overview";
+import { AmenitiesGrid } from "@/components/amenities-grid";
 import NotFound from "@/pages/not-found";
 import MapView from "@/components/map-view";
 import { PropertyCard } from "@/components/property-card";
@@ -116,118 +117,56 @@ export default function PropertyDetails() {
       <div className="container mx-auto px-4 max-w-[1200px] py-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
           <div className="lg:col-span-2 space-y-8">
-            <div className="flex justify-between items-start">
-              <div>
-                <div className="flex items-baseline gap-3 mb-1">
-                  <h1 className="text-4xl font-bold text-gray-900">{formatPrice(property.price)}</h1>
-                  <span className="text-xl text-gray-600">/mo</span>
-                </div>
-                <div className="flex items-center gap-6 text-lg text-gray-900 font-medium mb-2">
-                  <span className="flex items-center gap-1">
-                    <strong>{bedrooms}</strong> <span className="text-gray-600 font-normal">bd</span>
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <strong>{bathrooms}</strong> <span className="text-gray-600 font-normal">ba</span>
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <strong>{sqft ? sqft.toLocaleString() : 'N/A'}</strong> <span className="text-gray-600 font-normal">sqft</span>
-                  </span>
-                </div>
-                <p className="text-gray-600 text-lg">{property.address}, {property.city}, {property.state} {property.zip_code}</p>
-              </div>
-              <div className="flex gap-3 flex-wrap">
-                <Link href={`/apply?propertyId=${property.id}`}>
-                  <Button className="bg-primary hover:bg-primary/90 text-white gap-2 font-bold">
-                    Apply Now
-                  </Button>
-                </Link>
+            {/* Property Overview Section */}
+            <PropertyOverview property={property} />
+
+            {/* Action Buttons */}
+            <div className="flex gap-3 flex-wrap" data-testid="section-actions">
+              <Link href={`/apply?propertyId=${property.id}`}>
                 <Button 
-                  onClick={() => toggleFavorite(property.id)}
-                  variant={isFavorited(property.id) ? "default" : "outline"} 
-                  className={isFavorited(property.id) ? "bg-red-500 hover:bg-red-600 text-white gap-2" : "text-primary border-primary hover:bg-primary/5 gap-2"}
+                  className="bg-primary hover:bg-primary/90 text-white gap-2 font-bold"
+                  data-testid="button-apply-now"
                 >
-                  <Heart className={isFavorited(property.id) ? "h-4 w-4 fill-white" : "h-4 w-4"} /> 
-                  {isFavorited(property.id) ? "Saved" : "Save"}
+                  Apply Now
                 </Button>
-                <Button 
-                  onClick={() => {
-                    navigator.share?.({
-                      title: property.title,
-                      text: `Check out this property: ${property.title} - ${formatPrice(property.price)}/mo`,
-                      url: window.location.href
-                    });
-                  }}
-                  variant="outline" 
-                  className="text-primary border-primary hover:bg-primary/5 gap-2"
-                >
-                  <Share2 className="h-4 w-4" /> Share
-                </Button>
-              </div>
+              </Link>
+              <Button 
+                onClick={() => toggleFavorite(property.id)}
+                variant={isFavorited(property.id) ? "default" : "outline"} 
+                className={isFavorited(property.id) ? "bg-red-500 hover:bg-red-600 text-white gap-2" : "text-primary border-primary hover:bg-primary/5 gap-2"}
+                data-testid={isFavorited(property.id) ? "button-unsave" : "button-save"}
+              >
+                <Heart className={isFavorited(property.id) ? "h-4 w-4 fill-white" : "h-4 w-4"} /> 
+                {isFavorited(property.id) ? "Saved" : "Save"}
+              </Button>
+              <Button 
+                onClick={() => {
+                  navigator.share?.({
+                    title: property.title,
+                    text: `Check out this property: ${property.title} - ${formatPrice(property.price)}/mo`,
+                    url: window.location.href
+                  });
+                }}
+                variant="outline" 
+                className="text-primary border-primary hover:bg-primary/5 gap-2"
+                data-testid="button-share"
+              >
+                <Share2 className="h-4 w-4" /> Share
+              </Button>
             </div>
 
             <Separator />
 
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Overview</h2>
-              <p className="text-gray-700 leading-relaxed text-lg">{property.description || 'No description available.'}</p>
+            {/* Description Section */}
+            <div data-testid="section-overview">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Overview</h2>
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-lg">{property.description || 'No description available.'}</p>
             </div>
 
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Facts and features</h2>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-y-6 gap-x-4">
-                <div className="flex gap-3 items-start">
-                  <div className="mt-1"><Bed className="h-5 w-5 text-gray-500" /></div>
-                  <div>
-                    <p className="font-bold text-gray-900 text-sm">Bedrooms</p>
-                    <p className="text-gray-600 text-sm">{bedrooms}</p>
-                  </div>
-                </div>
-                <div className="flex gap-3 items-start">
-                  <div className="mt-1"><Bath className="h-5 w-5 text-gray-500" /></div>
-                  <div>
-                    <p className="font-bold text-gray-900 text-sm">Bathrooms</p>
-                    <p className="text-gray-600 text-sm">{bathrooms}</p>
-                  </div>
-                </div>
-                <div className="flex gap-3 items-start">
-                  <div className="mt-1"><Maximize className="h-5 w-5 text-gray-500" /></div>
-                  <div>
-                    <p className="font-bold text-gray-900 text-sm">Square Footage</p>
-                    <p className="text-gray-600 text-sm">{sqft ? sqft.toLocaleString() : 'N/A'}</p>
-                  </div>
-                </div>
-                <div className="flex gap-3 items-start">
-                  <div className="mt-1"><Info className="h-5 w-5 text-gray-500" /></div>
-                  <div>
-                    <p className="font-bold text-gray-900 text-sm">Property Type</p>
-                    <p className="text-gray-600 text-sm">{property.property_type || 'Not specified'}</p>
-                  </div>
-                </div>
-                <div className="flex gap-3 items-start">
-                  <div className="mt-1"><Building2 className="h-5 w-5 text-gray-500" /></div>
-                  <div>
-                    <p className="font-bold text-gray-900 text-sm">Status</p>
-                    <p className="text-gray-600 text-sm capitalize">{property.status || 'Active'}</p>
-                  </div>
-                </div>
-              </div>
-
-              {property.amenities && property.amenities.length > 0 && (
-                <div className="mt-8">
-                  <h3 className="font-bold text-gray-900 mb-4 text-lg">Amenities</h3>
-                  <div className="flex flex-wrap gap-3">
-                    {property.amenities.map((amenity: string, i: number) => (
-                      <Badge
-                        key={i}
-                        variant="secondary"
-                        className="bg-gray-100 text-gray-700 hover:bg-gray-200 text-sm py-1 px-3 font-normal"
-                      >
-                        {amenity}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
+            {/* Amenities Section */}
+            <div data-testid="section-amenities">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Amenities</h2>
+              <AmenitiesGrid amenities={property.amenities as string[] | undefined} />
             </div>
 
             <Separator />
