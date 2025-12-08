@@ -11,11 +11,13 @@ import { formatPrice, parseDecimal } from "@/lib/types";
 import { Share2, Heart, Mail, Phone, Star } from "lucide-react";
 import { useFavorites } from "@/hooks/use-favorites";
 import { useNearbyPlaces } from "@/hooks/use-nearby-places";
+import { usePropertyReviews } from "@/hooks/use-property-reviews";
 import { PhotoGallery } from "@/components/photo-gallery";
 import { PropertyOverview } from "@/components/property-overview";
 import { AmenitiesGrid } from "@/components/amenities-grid";
 import { MapSection } from "@/components/map-section";
 import { NearbyPlaces } from "@/components/nearby-places";
+import { ReviewsSection } from "@/components/reviews-section";
 import NotFound from "@/pages/not-found";
 import { PropertyCard } from "@/components/property-card";
 import { AgentContactDialog } from "@/components/agent-contact-dialog";
@@ -247,6 +249,9 @@ export default function PropertyDetails() {
             </div>
 
             <Separator />
+
+            {/* Reviews & Ratings Section */}
+            <ReviewsSection data={usePropertyReviews()} />
 
             {/* Property Owner/Manager */}
             {owner && (
