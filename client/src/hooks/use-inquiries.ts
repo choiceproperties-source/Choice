@@ -10,6 +10,7 @@ export function useInquiries() {
   const { data: agentInquiries = [], isLoading } = useQuery<Inquiry[]>({
     queryKey: ['/api/inquiries/agent', user?.id],
     enabled: !!user?.id && user?.role === 'agent',
+    select: (res: any) => res?.data ?? [],
   });
 
   // Submit inquiry mutation

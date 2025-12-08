@@ -60,8 +60,8 @@ export function useOwnedProperties() {
         }
 
         const data = await response.json();
-        // Handle standardized response format
-        const propertyList = data.data || data.properties || [];
+        // Handle standardized response format (success wrapper)
+        const propertyList = data.data || [];
         setProperties(propertyList);
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Error fetching properties';
