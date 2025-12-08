@@ -702,6 +702,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/users/:id", async (req, res) => {
+    try {
+      const { data, error: dbError } = await supabase
+        .from("users")
+        .select("id, full_name, profile_image, bio")
+        .eq("id", req.params.id)
+        .single();
+
+      if (dbError || !data) {
+        return res.status(404).json(error("User not found"));
+      }
+
+      return res.json(success(data, "User fetched successfully"));
+    } catch (error: any) {
+      return res.status(500).json(error("Failed to fetch user"));
+    }
+  });
+
   app.patch("/api/users/:id", authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
       if (req.params.id !== req.user!.id && req.user!.role !== "admin") {
