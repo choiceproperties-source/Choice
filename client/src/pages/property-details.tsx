@@ -48,19 +48,28 @@ export default function PropertyDetails() {
   const { data: property, isLoading } = useQuery<Property>({
     queryKey: ['/api/properties', id],
     enabled: !!id && !!match,
+    select: (res: any) => res?.data,
   });
 
   // Fetch owner data if available
   const { data: owner } = useQuery<Owner>({
     queryKey: ['/api/users', property?.owner_id],
     enabled: !!property?.owner_id,
+    select: (res: any) => res?.data,
   });
 
   // Fetch reviews for this property
   const { data: reviews = [] } = useQuery<Review[]>({
     queryKey: ['/api/reviews/property', id],
     enabled: !!id,
+    select: (res: any) => res?.data ?? [],
   });
+
+  // Move hooks to top level (CRITICAL FIX #2)
+  const lat = property?.latitude ? parseFloat(String(property.latitude)) : 34.0522;
+  const lng = property?.longitude ? parseFloat(String(property.longitude)) : -118.2437;
+  const nearbyPlaces = useNearbyPlaces(lat, lng);
+  const propertyReviews = usePropertyReviews();
 
   if (!match) {
     return <NotFound />;
@@ -94,8 +103,6 @@ export default function PropertyDetails() {
     : [placeholderExterior, placeholderLiving, placeholderKitchen, placeholderBedroom];
   
   // Use real coordinates from database
-  const lat = property.latitude ? parseFloat(property.latitude) : 34.0522;
-  const lng = property.longitude ? parseFloat(property.longitude) : -118.2437;
   const position: [number, number] = [lat, lng];
 
   // Calculate average rating from reviews
@@ -243,17 +250,14 @@ export default function PropertyDetails() {
               {/* Nearby Places */}
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Nearby Places</h3>
-                <NearbyPlaces places={useNearbyPlaces(
-                  property.latitude ? parseFloat(String(property.latitude)) : undefined,
-                  property.longitude ? parseFloat(String(property.longitude)) : undefined
-                )} />
+                <NearbyPlaces places={nearbyPlaces} />
               </div>
             </div>
 
             <Separator />
 
             {/* Reviews & Ratings Section */}
-            <ReviewsSection data={usePropertyReviews()} />
+            <ReviewsSection data={propertyReviews} />
 
             {/* Property Owner/Manager */}
             {owner && (
