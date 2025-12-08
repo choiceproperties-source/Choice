@@ -440,9 +440,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .select();
 
       if (error) throw error;
-      res.json(data[0]);
+      return res.json(success(data[0], "Requirement created successfully"));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      return res.status(500).json(error("Failed to create requirement"));
     }
   });
 
@@ -458,9 +458,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .eq("user_id", req.params.userId);
 
       if (error) throw error;
-      res.json(data);
+      return res.json(success(data, "User requirements fetched successfully"));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      return res.status(500).json(error("Failed to fetch user requirements"));
     }
   });
 
@@ -472,9 +472,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      res.json(data);
+      return res.json(success(data, "Requirements fetched successfully"));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      return res.status(500).json(error("Failed to fetch requirements"));
     }
   });
 
@@ -613,9 +613,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      res.json(data);
+      return res.json(success(data, "Users fetched successfully"));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      return res.status(500).json(error("Failed to fetch users"));
     }
   });
 
@@ -690,9 +690,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .select();
 
       if (error) throw error;
-      res.json(data[0]);
+      return res.json(success(data[0], "Saved search created successfully"));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      return res.status(500).json(error("Failed to create saved search"));
     }
   });
 
@@ -709,9 +709,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      res.json(data);
+      return res.json(success(data, "Saved searches fetched successfully"));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      return res.status(500).json(error("Failed to fetch saved searches"));
     }
   });
 
@@ -739,15 +739,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/saved-searches/:id", authenticateToken, requireOwnership("saved_search"), async (req: AuthenticatedRequest, res) => {
     try {
-      const { error } = await supabase
+      const { error: delError } = await supabase
         .from("saved_searches")
         .delete()
         .eq("id", req.params.id);
 
-      if (error) throw error;
-      res.json({ success: true });
+      if (delError) throw delError;
+      return res.json(success(null, "Saved search deleted successfully"));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      return res.status(500).json(error("Failed to delete saved search"));
     }
   });
 
@@ -766,14 +766,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (error) {
         if (error.code === "23505") {
-          return res.json({ success: true, message: "Already subscribed" });
+          return res.json(success(null, "Already subscribed"));
         }
         throw error;
       }
 
-      res.json({ success: true, message: "Subscribed successfully", data: data[0] });
+      return res.json(success(data[0], "Subscribed successfully"));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      return res.status(500).json(error("Failed to subscribe to newsletter"));
     }
   });
 
@@ -785,9 +785,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .order("subscribed_at", { ascending: false });
 
       if (error) throw error;
-      res.json(data);
+      return res.json(success(data, "Newsletter subscribers fetched successfully"));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      return res.status(500).json(error("Failed to fetch newsletter subscribers"));
     }
   });
 
@@ -805,10 +805,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .select();
 
       if (error) throw error;
-
-      res.json({ success: true, data: data[0] });
+      return res.json(success(data[0], "Message sent successfully"));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      return res.status(500).json(error("Failed to send message"));
     }
   });
 
@@ -820,9 +819,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      res.json(data);
+      return res.json(success(data, "Contact messages fetched successfully"));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      return res.status(500).json(error("Failed to fetch contact messages"));
     }
   });
 
@@ -835,9 +834,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .select();
 
       if (error) throw error;
-      res.json(data[0]);
+      return res.json(success(data[0], "Message updated successfully"));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      return res.status(500).json(error("Failed to update message"));
     }
   });
 
