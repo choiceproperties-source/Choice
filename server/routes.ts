@@ -21,13 +21,13 @@ import {
   insertNewsletterSubscriberSchema,
   insertContactMessageSchema,
 } from "@shared/schema";
-import { authLimiter, inquiryLimiter, newsletterLimiter } from "./rate-limit";
+import { authLimiter, signupLimiter, inquiryLimiter, newsletterLimiter } from "./rate-limit";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
 
   // ===== AUTHENTICATION =====
-  app.post("/api/auth/signup", async (req, res) => {
+  app.post("/api/auth/signup", signupLimiter, async (req, res) => {
     try {
       const validation = signupSchema.safeParse(req.body);
       if (!validation.success) {

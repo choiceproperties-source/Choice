@@ -15,6 +15,19 @@ export const authLimiter = rateLimit({
   skip: () => isDev,
 });
 
+export const signupLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: isDev ? 1000 : 5,
+  message: {
+    success: false,
+    message: "Too many signup attempts. Please try again in 1 hour.",
+    data: null,
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => isDev,
+});
+
 export const inquiryLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: isDev ? 1000 : 10,

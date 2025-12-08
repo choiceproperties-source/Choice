@@ -23,12 +23,16 @@ declare module 'http' {
   }
 }
 
-// CORS configuration
+// CORS configuration - Tightened for security
 const isDev = process.env.NODE_ENV !== "production";
-const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",") || ["https://choiceproperties.com"];
+const allowedOrigins = isDev 
+  ? ["http://localhost:5000", "http://127.0.0.1:5000"]
+  : process.env.PRODUCTION_DOMAIN 
+    ? [process.env.PRODUCTION_DOMAIN]
+    : ["https://choiceproperties.com"];
 
 app.use(cors({
-  origin: isDev ? true : allowedOrigins,
+  origin: allowedOrigins,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
