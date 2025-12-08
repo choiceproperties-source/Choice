@@ -254,9 +254,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      res.json(data[0]);
+      return res.json(success(data[0], "Application submitted successfully"));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      return res.status(500).json(error("Failed to submit application"));
     }
   });
 
@@ -272,22 +272,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .eq("user_id", req.params.userId);
 
       if (error) throw error;
-      res.json(data);
+      return res.json(success(data, "User applications fetched successfully"));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      return res.status(500).json(error("Failed to fetch user applications"));
     }
   });
 
   app.get("/api/applications/property/:propertyId", authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
-      const { data: property } = await supabase
+      const { data: property, error: propertyError } = await supabase
         .from("properties")
         .select("owner_id")
         .eq("id", req.params.propertyId)
         .single();
 
-      if (!property) {
-        return res.status(404).json({ error: "Property not found" });
+      if (propertyError || !property) {
+        return res.status(404).json(error("Property not found"));
       }
 
       if (property.owner_id !== req.user!.id && req.user!.role !== "admin") {
@@ -300,9 +300,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .eq("property_id", req.params.propertyId);
 
       if (error) throw error;
-      res.json(data);
+      return res.json(success(data, "Property applications fetched successfully"));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      return res.status(500).json(error("Failed to fetch property applications"));
     }
   });
 
@@ -381,9 +381,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      res.json(data[0]);
+      return res.json(success(data[0], "Inquiry submitted successfully"));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      return res.status(500).json(error("Failed to submit inquiry"));
     }
   });
 
@@ -400,9 +400,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      res.json(data);
+      return res.json(success(data, "Agent inquiries fetched successfully"));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      return res.status(500).json(error("Failed to fetch agent inquiries"));
     }
   });
 
