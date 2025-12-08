@@ -86,6 +86,8 @@ export function PhotoGallery({ images, title }: PhotoGalleryProps) {
               key={currentImageIndex}
               src={mainImage}
               alt={`${title} - Photo ${currentImageIndex + 1}`}
+              loading="lazy"
+              decoding="async"
               className="max-h-[calc(100vh-160px)] max-w-[90vw] object-contain select-none animate-in fade-in duration-300"
               draggable={false}
             />
@@ -118,6 +120,8 @@ export function PhotoGallery({ images, title }: PhotoGalleryProps) {
                 <img
                   src={img}
                   alt={`Thumbnail ${idx + 1}`}
+                  loading="lazy"
+                  decoding="async"
                   className="w-20 h-16 object-cover"
                 />
               </button>
@@ -139,6 +143,8 @@ export function PhotoGallery({ images, title }: PhotoGalleryProps) {
             <img
               src={images[0]}
               alt={`${title} - Main`}
+              loading="lazy"
+              decoding="async"
               className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
             />
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
@@ -162,6 +168,8 @@ export function PhotoGallery({ images, title }: PhotoGalleryProps) {
               <img
                 src={img}
                 alt={`${title} - Photo ${idx + 2}`}
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
               />
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
@@ -189,6 +197,8 @@ export function PhotoGallery({ images, title }: PhotoGalleryProps) {
               key={currentImageIndex}
               src={mainImage}
               alt={`${title} - Photo ${currentImageIndex + 1}`}
+              loading="lazy"
+              decoding="async"
               className="w-full h-full object-cover animate-in fade-in duration-300"
             />
 
@@ -249,7 +259,7 @@ export function PhotoGallery({ images, title }: PhotoGalleryProps) {
                 }`}
                 data-testid={`mobile-thumbnail-${idx}`}
               >
-                <img src={img} alt={`Thumbnail ${idx + 1}`} className="w-full h-full object-cover" />
+                <img src={img} alt={`Thumbnail ${idx + 1}`} loading="lazy" decoding="async" className="w-full h-full object-cover" />
               </button>
             ))}
           </div>

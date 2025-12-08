@@ -102,9 +102,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ===== PROPERTIES =====
   app.get("/api/properties", async (req, res) => {
     try {
-      const { propertyType, city, minPrice, maxPrice, status } = req.query;
+      const { propertyType, city, minPrice, maxPrice, status, page = "1", limit = "20" } = req.query;
 
-      let query = supabase.from("properties").select("*");
+      const pageNum = Math.max(1, parseInt(page as string) || 1);
+      const limitNum = Math.min(100, Math.max(1, parseInt(limit as string) || 20));
+      const offset = (pageNum - 1) * limitNum;
+
+      let query = supabase.from("properties").select("*", { count: "exact" });
 
       if (propertyType) query = query.eq("property_type", propertyType);
       if (city) query = query.ilike("city", `%${city}%`);
@@ -116,10 +120,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         query = query.eq("status", "active");
       }
 
-      const { data, error } = await query;
+      query = query.order("created_at", { ascending: false })
+        .range(offset, offset + limitNum - 1);
+
+      const { data, error, count } = await query;
 
       if (error) throw error;
-      return res.json(success(data, "Properties fetched successfully"));
+      
+      const totalPages = Math.ceil((count || 0) / limitNum);
+      
+      return res.json(success({
+        properties: data,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total: count || 0,
+          totalPages,
+          hasNextPage: pageNum < totalPages,
+          hasPrevPage: pageNum > 1,
+        }
+      }, "Properties fetched successfully"));
     } catch (err: any) {
       return res.status(500).json(errorResponse("Failed to fetch properties"));
     }
@@ -840,9 +860,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== CONTACT (alias for messages) =====
+  app.post("/api/contact", inquiryLimiter, async (req, res) => {
+    try {
+      const validation = insertContactMessageSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json(errorResponse(validation.error.errors[0].message));
+      }
+
+      const { data, error } = await supabase
+        .from("contact_messages")
+        .insert([validation.data])
+        .select();
+
+      if (error) throw error;
+      return res.json(success(data[0], "Message sent successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to send message"));
+    }
+  });
+
   // ===== HEALTH CHECK =====
   app.get("/api/health", (_req, res) => {
-    res.json({ status: "ok", timestamp: new Date().toISOString() });
+    return res.json(success({ status: "ok", timestamp: new Date().toISOString() }, "Server is healthy"));
   });
 
   return httpServer;

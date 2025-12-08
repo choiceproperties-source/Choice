@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { Navbar } from '@/components/layout/navbar';
 import { Footer } from '@/components/layout/footer';
@@ -7,45 +6,44 @@ import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Link, useLocation } from 'wouter';
 import { Mail, Lock, User } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { signupSchema, type SignupInput } from '@shared/schema';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { useState } from 'react';
+import { z } from 'zod';
+
+const extendedSignupSchema = signupSchema.extend({
+  confirmPassword: z.string().min(1, 'Please confirm your password'),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+
+type ExtendedSignupInput = z.infer<typeof extendedSignupSchema>;
 
 export default function Signup() {
   const { signup } = useAuth();
   const [, setLocation] = useLocation();
-  const [email, setEmail] = useState('');
-  const [name, setName] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
+  const form = useForm<ExtendedSignupInput>({
+    resolver: zodResolver(extendedSignupSchema),
+    defaultValues: {
+      email: '',
+      fullName: '',
+      password: '',
+      confirmPassword: '',
+    },
+  });
+
+  const onSubmit = async (data: ExtendedSignupInput) => {
     setLoading(true);
-
-    if (!email || !name || !password || !confirmPassword) {
-      setError('Please fill in all fields');
-      setLoading(false);
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      setLoading(false);
-      return;
-    }
-
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters');
-      setLoading(false);
-      return;
-    }
-
     try {
-      await signup(email, name, password);
+      await signup(data.email, data.fullName, data.password);
       setLocation('/');
     } catch (err: any) {
-      setError(err.message || 'Signup failed');
+      form.setError('root', { message: err.message || 'Signup failed' });
     } finally {
       setLoading(false);
     }
@@ -59,70 +57,117 @@ export default function Signup() {
           <h2 className="text-3xl font-bold text-primary mb-2">Create Account</h2>
           <p className="text-muted-foreground mb-6">Join Choice Properties today</p>
 
-          <form onSubmit={handleSignup} className="space-y-4">
-            <div>
-              <label className="font-semibold text-sm mb-2 flex items-center gap-2">
-                <User className="h-4 w-4" /> Full Name
-              </label>
-              <Input
-                type="text"
-                placeholder="John Doe"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                disabled={loading}
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="fullName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-semibold text-sm flex items-center gap-2">
+                      <User className="h-4 w-4" /> Full Name
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type="text"
+                        placeholder="John Doe"
+                        disabled={loading}
+                        data-testid="input-fullname"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
 
-            <div>
-              <label className="font-semibold text-sm mb-2 flex items-center gap-2">
-                <Mail className="h-4 w-4" /> Email
-              </label>
-              <Input
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={loading}
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-semibold text-sm flex items-center gap-2">
+                      <Mail className="h-4 w-4" /> Email
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type="email"
+                        placeholder="you@example.com"
+                        disabled={loading}
+                        data-testid="input-email"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
 
-            <div>
-              <label className="font-semibold text-sm mb-2 flex items-center gap-2">
-                <Lock className="h-4 w-4" /> Password
-              </label>
-              <Input
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={loading}
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-semibold text-sm flex items-center gap-2">
+                      <Lock className="h-4 w-4" /> Password
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type="password"
+                        placeholder="At least 6 characters"
+                        disabled={loading}
+                        data-testid="input-password"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
 
-            <div>
-              <label className="font-semibold text-sm mb-2 flex items-center gap-2">
-                <Lock className="h-4 w-4" /> Confirm Password
-              </label>
-              <Input
-                type="password"
-                placeholder="••••••••"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                disabled={loading}
+              <FormField
+                control={form.control}
+                name="confirmPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-semibold text-sm flex items-center gap-2">
+                      <Lock className="h-4 w-4" /> Confirm Password
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type="password"
+                        placeholder="Confirm your password"
+                        disabled={loading}
+                        data-testid="input-confirm-password"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
 
-            {error && <p className="text-red-600 text-sm bg-red-50 p-3 rounded">{error}</p>}
+              {form.formState.errors.root && (
+                <p className="text-red-600 text-sm bg-red-50 dark:bg-red-950/50 p-3 rounded" data-testid="text-error">
+                  {form.formState.errors.root.message}
+                </p>
+              )}
 
-            <Button type="submit" className="w-full bg-green-600 hover:bg-green-700" disabled={loading}>
-              {loading ? 'Creating Account...' : 'Create Account'}
-            </Button>
-          </form>
+              <Button 
+                type="submit" 
+                className="w-full bg-green-600 hover:bg-green-700" 
+                disabled={loading}
+                data-testid="button-submit"
+              >
+                {loading ? 'Creating Account...' : 'Create Account'}
+              </Button>
+            </form>
+          </Form>
 
           <p className="text-center text-sm text-muted-foreground mt-6">
             Already have an account?{' '}
             <Link href="/login">
-              <span className="text-primary font-semibold cursor-pointer hover:underline">Sign in</span>
+              <span className="text-primary font-semibold cursor-pointer hover:underline" data-testid="link-login">Sign in</span>
             </Link>
           </p>
         </Card>
