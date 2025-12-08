@@ -3,24 +3,40 @@ import { useLocation } from 'wouter';
 import { Navbar } from '@/components/layout/navbar';
 import { Footer } from '@/components/layout/footer';
 import { useAuth } from '@/lib/auth-context';
+import { useOwnedProperties } from '@/hooks/use-owned-properties';
+import { usePropertyApplications } from '@/hooks/use-property-applications';
+import { usePropertyInquiries } from '@/hooks/use-property-inquiries';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Plus, Edit2, Trash2, Eye, Home, TrendingUp, Users, LogOut } from 'lucide-react';
-import propertiesData from '@/data/properties.json';
-import type { Property } from '@/lib/types';
+import { useToast } from '@/hooks/use-toast';
+import {
+  Home,
+  FileText,
+  MessageSquare,
+  LogOut,
+  Plus,
+  Trash2,
+  CheckCircle,
+  XCircle,
+  Clock,
+  MapPin,
+  DollarSign,
+  Bed,
+  Bath,
+  Loader2,
+  ArrowRight,
+} from 'lucide-react';
 
 export default function SellerDashboard() {
   const { user, logout, isLoggedIn } = useAuth();
   const [, navigate] = useLocation();
-  const [activeTab, setActiveTab] = useState('listings');
-  const [listings, setListings] = useState<Property[]>(propertiesData as Property[]);
-  const [editingListing, setEditingListing] = useState<Property | null>(null);
-  const [showNewForm, setShowNewForm] = useState(false);
-  const [newListing, setNewListing] = useState({
+  const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState('properties');
+  const [showNewPropertyForm, setShowNewPropertyForm] = useState(false);
+  const [newProperty, setNewProperty] = useState({
     title: '',
     address: '',
     city: '',
@@ -28,82 +44,102 @@ export default function SellerDashboard() {
     price: 0,
     bedrooms: 1,
     bathrooms: 1,
-    listing_type: 'rent' as 'rent' | 'buy' | 'sell'
+    description: '',
   });
 
+  // Fetch hooks
+  const { properties, loading: propsLoading, createProperty, deleteProperty } = useOwnedProperties();
+  const { applications, loading: appsLoading, updateApplicationStatus } = usePropertyApplications();
+  const { inquiries, loading: inquiriesLoading, updateInquiryStatus } = usePropertyInquiries();
+
+  // Redirect if not logged in
   if (!isLoggedIn || !user) {
     navigate('/login');
     return null;
   }
 
-  // Simulated listing performance data
-  const listingPerformance = useMemo(() => {
-    return listings.map(p => ({
-      title: p.title.substring(0, 20),
-      views: Math.floor(Math.random() * 500) + 50,
-      inquiries: Math.floor(Math.random() * 30) + 5,
-      id: p.id
-    }));
-  }, [listings]);
+  // Calculate stats
+  const stats = useMemo(() => ({
+    properties: properties.length,
+    applications: applications.length,
+    inquiries: inquiries.length,
+    approvedApps: applications.filter((a: any) => a.status === 'approved').length,
+    pendingApps: applications.filter((a: any) => a.status === 'pending').length,
+    pendingInquiries: inquiries.filter((i: any) => i.status === 'pending').length,
+  }), [properties, applications, inquiries]);
 
-  const stats = {
-    activeListings: listings.length,
-    totalViews: listingPerformance.reduce((sum, p) => sum + p.views, 0),
-    totalInquiries: listingPerformance.reduce((sum, p) => sum + p.inquiries, 0),
-    avgViewsPerListing: Math.round(listingPerformance.reduce((sum, p) => sum + p.views, 0) / Math.max(listings.length, 1))
+  // Handle add property
+  const handleAddProperty = async () => {
+    if (!newProperty.title || !newProperty.address) {
+      toast({
+        title: 'Error',
+        description: 'Please fill in title and address',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const result = await createProperty({
+      title: newProperty.title,
+      address: newProperty.address,
+      city: newProperty.city,
+      state: newProperty.state,
+      price: newProperty.price,
+      bedrooms: newProperty.bedrooms,
+      bathrooms: newProperty.bathrooms,
+      description: newProperty.description,
+      status: 'active',
+    });
+
+    if (result) {
+      setNewProperty({ title: '', address: '', city: '', state: '', price: 0, bedrooms: 1, bathrooms: 1, description: '' });
+      setShowNewPropertyForm(false);
+    }
   };
 
-  const listingTypeData = [
-    { name: 'For Rent', value: listings.filter(p => p.listing_type === 'rent').length, fill: '#3b82f6' },
-    { name: 'For Sale', value: listings.filter(p => p.listing_type === 'buy').length, fill: '#10b981' },
-    { name: 'Selling', value: listings.filter(p => p.listing_type === 'sell').length, fill: '#f59e0b' }
-  ];
+  // Handle delete property
+  const handleDeleteProperty = async (propertyId: string) => {
+    if (confirm('Are you sure you want to delete this property?')) {
+      await deleteProperty(propertyId);
+    }
+  };
 
-  const handleAddListing = () => {
-    if (!newListing.title || !newListing.address) return;
-    const property: Property = {
-      id: `prop_${Date.now()}`,
-      owner_id: user.id,
-      owner: {
-        id: user.id,
-        name: user.name,
-        slug: user.name.toLowerCase().replace(/\s+/g, '-'),
-        profile_photo_url: '',
-        email: user.email,
-        verified: false,
-        description: '',
-        created_at: new Date().toISOString()
-      },
-      title: newListing.title,
-      price: newListing.price,
-      address: newListing.address,
-      city: newListing.city,
-      state: newListing.state,
-      zip: '00000',
-      bedrooms: newListing.bedrooms,
-      bathrooms: newListing.bathrooms,
-      sqft: 0,
-      year_built: new Date().getFullYear(),
-      description: '',
-      features: [],
-      type: 'House',
-      location: newListing.city,
-      images: [],
-      featured: false,
-      listing_type: newListing.listing_type,
-      status: 'available'
+  // Handle approve application
+  const handleApproveApplication = async (appId: string) => {
+    await updateApplicationStatus(appId, 'approved');
+  };
+
+  // Handle reject application
+  const handleRejectApplication = async (appId: string) => {
+    await updateApplicationStatus(appId, 'rejected');
+  };
+
+  // Get status color
+  const getStatusColor = (status: string) => {
+    const colors: Record<string, string> = {
+      pending: 'bg-yellow-50 dark:bg-yellow-950 text-yellow-800 dark:text-yellow-200 border-yellow-200 dark:border-yellow-800',
+      approved: 'bg-green-50 dark:bg-green-950 text-green-800 dark:text-green-200 border-green-200 dark:border-green-800',
+      rejected: 'bg-red-50 dark:bg-red-950 text-red-800 dark:text-red-200 border-red-200 dark:border-red-800',
+      responded: 'bg-blue-50 dark:bg-blue-950 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800',
+      closed: 'bg-gray-50 dark:bg-gray-950 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-gray-800',
     };
-    setListings([...listings, property]);
-    setNewListing({ title: '', address: '', city: '', state: '', price: 0, bedrooms: 1, bathrooms: 1, listing_type: 'rent' });
-    setShowNewForm(false);
+    return colors[status] || colors.pending;
   };
 
-  const handleDeleteListing = (id: string) => {
-    setListings(listings.filter(p => p.id !== id));
+  // Get status badge
+  const getStatusBadge = (status: string) => {
+    const styles: Record<string, string> = {
+      pending: 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200',
+      approved: 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200',
+      rejected: 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200',
+      responded: 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200',
+      closed: 'bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200',
+    };
+    return styles[status] || styles.pending;
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
 
       {/* Header */}
@@ -111,12 +147,16 @@ export default function SellerDashboard() {
         <div className="container mx-auto px-4 flex justify-between items-center">
           <div>
             <h1 className="text-4xl font-bold">Property Manager Dashboard</h1>
-            <p className="text-white/80 mt-2">Manage your listings and track performance</p>
+            <p className="text-white/80 mt-2">Manage listings, applications, and inquiries</p>
           </div>
           <Button
-            onClick={logout}
+            onClick={() => {
+              logout();
+              navigate('/');
+            }}
             variant="ghost"
             className="text-white hover:bg-white/20"
+            data-testid="button-logout"
           >
             <LogOut className="h-5 w-5 mr-2" />
             Sign Out
@@ -124,220 +164,380 @@ export default function SellerDashboard() {
         </div>
       </div>
 
-      {/* Stats */}
+      {/* Stats Cards */}
       <div className="container mx-auto px-4 -mt-8 relative z-10">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card className="p-4 bg-white">
-            <p className="text-gray-600 text-sm font-semibold">Active Listings</p>
-            <p className="text-3xl font-bold text-green-600">{stats.activeListings}</p>
+          <Card className="p-4" data-testid="stat-properties">
+            <p className="text-sm font-semibold text-muted-foreground">Active Listings</p>
+            <p className="text-3xl font-bold text-green-600 dark:text-green-400">{stats.properties}</p>
+            <Home className="h-4 w-4 text-green-500 mt-2" />
           </Card>
-          <Card className="p-4 bg-white">
-            <p className="text-gray-600 text-sm font-semibold">Total Views</p>
-            <p className="text-3xl font-bold text-blue-600">{stats.totalViews}</p>
+          <Card className="p-4" data-testid="stat-applications">
+            <p className="text-sm font-semibold text-muted-foreground">Applications</p>
+            <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">{stats.applications}</p>
+            <p className="text-xs text-muted-foreground mt-1">{stats.pendingApps} pending</p>
           </Card>
-          <Card className="p-4 bg-white">
-            <p className="text-gray-600 text-sm font-semibold">Inquiries</p>
-            <p className="text-3xl font-bold text-purple-600">{stats.totalInquiries}</p>
+          <Card className="p-4" data-testid="stat-inquiries">
+            <p className="text-sm font-semibold text-muted-foreground">Inquiries</p>
+            <p className="text-3xl font-bold text-purple-600 dark:text-purple-400">{stats.inquiries}</p>
+            <p className="text-xs text-muted-foreground mt-1">{stats.pendingInquiries} pending</p>
           </Card>
-          <Card className="p-4 bg-white">
-            <p className="text-gray-600 text-sm font-semibold">Avg Views/Listing</p>
-            <p className="text-3xl font-bold text-orange-600">{stats.avgViewsPerListing}</p>
+          <Card className="p-4" data-testid="stat-approved">
+            <p className="text-sm font-semibold text-muted-foreground">Approved Apps</p>
+            <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
+              {stats.approvedApps}
+            </p>
+            <CheckCircle className="h-4 w-4 text-emerald-500 mt-2" />
           </Card>
         </div>
       </div>
 
       {/* Tabs */}
       <div className="container mx-auto px-4 mt-12 flex-1">
-        <div className="flex gap-2 mb-8 flex-wrap border-b">
+        <div className="flex gap-2 mb-8 flex-wrap border-b border-border">
           {[
-            { id: 'listings', label: 'My Listings', icon: '🏠' },
-            { id: 'performance', label: 'Performance', icon: '📊' },
-            { id: 'profile', label: 'Profile', icon: '👤' }
-          ].map(tab => (
+            { id: 'properties', label: 'My Properties', icon: Home },
+            { id: 'applications', label: 'Applications', icon: FileText },
+            { id: 'inquiries', label: 'Inquiries', icon: MessageSquare },
+          ].map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-3 font-semibold transition-all border-b-2 ${
+              className={`px-4 py-3 font-semibold transition-all border-b-2 flex items-center gap-2 ${
                 activeTab === tab.id
-                  ? 'border-b-green-600 text-green-600'
-                  : 'border-b-transparent text-gray-600 hover:text-gray-900'
+                  ? 'border-b-green-600 text-green-600 dark:text-green-400'
+                  : 'border-b-transparent text-muted-foreground hover:text-foreground'
               }`}
+              data-testid={`tab-${tab.id}`}
             >
-              {tab.icon} {tab.label}
+              <tab.icon className="h-4 w-4" />
+              {tab.label}
             </button>
           ))}
         </div>
 
-        {/* My Listings */}
-        {activeTab === 'listings' && (
-          <div className="space-y-6 pb-12">
-            {!showNewForm ? (
-              <Button onClick={() => setShowNewForm(true)} className="bg-green-600">
-                <Plus className="h-4 w-4 mr-2" /> Add New Listing
+        {/* My Properties */}
+        {activeTab === 'properties' && (
+          <div className="space-y-4 pb-12" data-testid="section-properties">
+            {!showNewPropertyForm ? (
+              <Button
+                onClick={() => setShowNewPropertyForm(true)}
+                className="bg-green-600 hover:bg-green-700"
+                data-testid="button-add-property"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add New Property
               </Button>
             ) : (
-              <Card className="p-6 bg-green-50 border-green-200">
-                <h3 className="font-bold text-lg mb-4">Create New Listing</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Card className="p-6 border-l-4 border-green-500">
+                <h3 className="font-bold text-lg mb-4 text-foreground">Add New Property</h3>
+                <div className="space-y-4">
                   <Input
                     placeholder="Property Title"
-                    value={newListing.title}
-                    onChange={(e) => setNewListing({...newListing, title: e.target.value})}
+                    value={newProperty.title}
+                    onChange={(e) => setNewProperty({ ...newProperty, title: e.target.value })}
+                    data-testid="input-property-title"
                   />
                   <Input
                     placeholder="Address"
-                    value={newListing.address}
-                    onChange={(e) => setNewListing({...newListing, address: e.target.value})}
+                    value={newProperty.address}
+                    onChange={(e) => setNewProperty({ ...newProperty, address: e.target.value })}
+                    data-testid="input-property-address"
                   />
-                  <Input
-                    placeholder="City"
-                    value={newListing.city}
-                    onChange={(e) => setNewListing({...newListing, city: e.target.value})}
+                  <div className="grid grid-cols-2 gap-4">
+                    <Input
+                      placeholder="City"
+                      value={newProperty.city}
+                      onChange={(e) => setNewProperty({ ...newProperty, city: e.target.value })}
+                      data-testid="input-property-city"
+                    />
+                    <Input
+                      placeholder="State"
+                      value={newProperty.state}
+                      onChange={(e) => setNewProperty({ ...newProperty, state: e.target.value })}
+                      data-testid="input-property-state"
+                    />
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <Input
+                      type="number"
+                      placeholder="Monthly Price"
+                      value={newProperty.price}
+                      onChange={(e) => setNewProperty({ ...newProperty, price: Number(e.target.value) })}
+                      data-testid="input-property-price"
+                    />
+                    <Input
+                      type="number"
+                      placeholder="Bedrooms"
+                      value={newProperty.bedrooms}
+                      onChange={(e) => setNewProperty({ ...newProperty, bedrooms: Number(e.target.value) })}
+                      data-testid="input-property-bedrooms"
+                    />
+                    <Input
+                      type="number"
+                      placeholder="Bathrooms"
+                      value={newProperty.bathrooms}
+                      onChange={(e) => setNewProperty({ ...newProperty, bathrooms: Number(e.target.value) })}
+                      data-testid="input-property-bathrooms"
+                    />
+                  </div>
+                  <Textarea
+                    placeholder="Property Description"
+                    value={newProperty.description}
+                    onChange={(e) => setNewProperty({ ...newProperty, description: e.target.value })}
+                    data-testid="textarea-property-description"
                   />
-                  <Input
-                    placeholder="State"
-                    value={newListing.state}
-                    onChange={(e) => setNewListing({...newListing, state: e.target.value})}
-                  />
-                  <Input
-                    type="number"
-                    placeholder="Price"
-                    value={newListing.price}
-                    onChange={(e) => setNewListing({...newListing, price: parseInt(e.target.value)})}
-                  />
-                  <Input
-                    type="number"
-                    placeholder="Bedrooms"
-                    value={newListing.bedrooms}
-                    onChange={(e) => setNewListing({...newListing, bedrooms: parseInt(e.target.value)})}
-                  />
-                  <Input
-                    type="number"
-                    placeholder="Bathrooms"
-                    value={newListing.bathrooms}
-                    onChange={(e) => setNewListing({...newListing, bathrooms: parseInt(e.target.value)})}
-                  />
-                  <select
-                    value={newListing.listing_type}
-                    onChange={(e) => setNewListing({...newListing, listing_type: e.target.value as any})}
-                    className="px-3 py-2 border rounded"
-                  >
-                    <option value="rent">For Rent</option>
-                    <option value="buy">For Sale</option>
-                    <option value="sell">Selling</option>
-                  </select>
-                </div>
-                <div className="flex gap-2 mt-4">
-                  <Button onClick={handleAddListing} className="bg-green-600">Create Listing</Button>
-                  <Button onClick={() => setShowNewForm(false)} variant="outline">Cancel</Button>
+                  <div className="flex gap-3">
+                    <Button
+                      onClick={handleAddProperty}
+                      className="bg-green-600 hover:bg-green-700"
+                      data-testid="button-save-property"
+                    >
+                      Save Property
+                    </Button>
+                    <Button
+                      onClick={() => setShowNewPropertyForm(false)}
+                      variant="outline"
+                      data-testid="button-cancel-property"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
                 </div>
               </Card>
             )}
 
-            <div className="grid gap-4">
-              {listings.map(listing => (
-                <Card key={listing.id} className="p-6 hover:shadow-lg transition-shadow">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <h3 className="font-bold text-lg text-gray-900">{listing.title}</h3>
-                      <p className="text-sm text-gray-600 mt-1">{listing.address}, {listing.city}, {listing.state}</p>
-                      <div className="flex gap-2 mt-3">
-                        <Badge className="bg-green-100 text-green-800">${listing.price?.toLocaleString()}</Badge>
-                        <Badge className={listing.listing_type === 'rent' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}>
-                          {listing.listing_type === 'rent' ? '🔑 Rent' : listing.listing_type === 'buy' ? '🏠 Buy' : '📍 Sell'}
+            {propsLoading ? (
+              <Card className="p-12 text-center">
+                <Loader2 className="h-12 w-12 text-muted-foreground mx-auto mb-4 animate-spin" />
+                <p className="text-foreground font-semibold">Loading properties...</p>
+              </Card>
+            ) : properties.length === 0 ? (
+              <Card className="p-12 text-center">
+                <Home className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-foreground font-semibold">No properties yet</p>
+                <p className="text-muted-foreground text-sm mt-2">Add your first property to get started</p>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {properties.map((property) => (
+                  <Card key={property.id} className="overflow-hidden" data-testid={`card-property-${property.id}`}>
+                    <div className="aspect-video bg-muted relative flex items-center justify-center">
+                      <Home className="h-12 w-12 text-muted-foreground" />
+                    </div>
+                    <div className="p-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="font-bold text-lg text-foreground">{property.title}</h3>
+                        <Badge className="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
+                          Active
                         </Badge>
-                        <Badge className="bg-purple-100 text-purple-800">{listing.bedrooms} bed • {listing.bathrooms} bath</Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground flex items-center gap-1 mb-3">
+                        <MapPin className="h-4 w-4" />
+                        {property.city}, {property.state}
+                      </p>
+                      <div className="flex gap-4 mb-4 text-sm text-foreground">
+                        <span className="flex items-center gap-1">
+                          <Bed className="h-4 w-4" /> {property.bedrooms} bed
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Bath className="h-4 w-4" /> {property.bathrooms} bath
+                        </span>
+                      </div>
+                      <p className="font-bold text-green-600 dark:text-green-400 text-lg mb-4 flex items-center gap-1">
+                        <DollarSign className="h-4 w-4" />
+                        {(property.price || 0).toLocaleString()}/mo
+                      </p>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => navigate(`/property/${property.id}`)}
+                          data-testid={`button-view-property-${property.id}`}
+                        >
+                          View
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleDeleteProperty(property.id)}
+                          data-testid={`button-delete-property-${property.id}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Button variant="ghost" size="sm" onClick={() => setEditingListing(listing)}>
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleDeleteListing(listing.id)}>
-                        <Trash2 className="h-4 w-4 text-red-600" />
-                      </Button>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Applications */}
+        {activeTab === 'applications' && (
+          <div className="space-y-4 pb-12" data-testid="section-applications">
+            {appsLoading ? (
+              <Card className="p-12 text-center">
+                <Loader2 className="h-12 w-12 text-muted-foreground mx-auto mb-4 animate-spin" />
+                <p className="text-foreground font-semibold">Loading applications...</p>
+              </Card>
+            ) : applications.length === 0 ? (
+              <Card className="p-12 text-center">
+                <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-foreground font-semibold">No applications yet</p>
+                <p className="text-muted-foreground text-sm mt-2">Applications from renters will appear here</p>
+              </Card>
+            ) : (
+              applications.map((app) => (
+                <Card
+                  key={app.id}
+                  className={`p-6 border-l-4 ${getStatusColor(app.status)}`}
+                  data-testid={`card-application-${app.id}`}
+                >
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <h3 className="font-bold text-lg text-foreground">
+                        Application from {app.userName || 'Applicant'}
+                      </h3>
+                      <p className="text-sm text-muted-foreground mt-1">{app.userEmail}</p>
+                    </div>
+                    <Badge className={getStatusBadge(app.status)} data-testid={`badge-status-${app.status}`}>
+                      {app.status.charAt(0).toUpperCase() + app.status.slice(1)}
+                    </Badge>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Application Fee</p>
+                      <p className="font-semibold text-foreground">
+                        ${(app.applicationFee || 0).toLocaleString()}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Submitted</p>
+                      <p className="font-semibold text-foreground">
+                        {new Date(app.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Employment Verified</p>
+                      <p className="font-semibold text-foreground">
+                        {app.employment ? 'Yes' : 'No'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Documents</p>
+                      <p className="font-semibold text-foreground">
+                        {app.documents?.length || 0} files
+                      </p>
                     </div>
                   </div>
+
+                  {app.status === 'pending' && (
+                    <div className="flex gap-3">
+                      <Button
+                        size="sm"
+                        onClick={() => handleApproveApplication(app.id)}
+                        className="bg-green-600 hover:bg-green-700"
+                        data-testid={`button-approve-${app.id}`}
+                      >
+                        <CheckCircle className="h-4 w-4 mr-1" />
+                        Approve
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleRejectApplication(app.id)}
+                        data-testid={`button-reject-${app.id}`}
+                      >
+                        <XCircle className="h-4 w-4 mr-1" />
+                        Reject
+                      </Button>
+                    </div>
+                  )}
                 </Card>
-              ))}
-            </div>
+              ))
+            )}
           </div>
         )}
 
-        {/* Performance */}
-        {activeTab === 'performance' && (
-          <div className="space-y-8 pb-12">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <Card className="p-6">
-                <h3 className="font-bold text-lg mb-4">Views & Inquiries by Listing</h3>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={listingPerformance.slice(0, 5)}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="title" />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="views" fill="#3b82f6" name="Views" />
-                    <Bar dataKey="inquiries" fill="#10b981" name="Inquiries" />
-                  </BarChart>
-                </ResponsiveContainer>
+        {/* Inquiries */}
+        {activeTab === 'inquiries' && (
+          <div className="space-y-4 pb-12" data-testid="section-inquiries">
+            {inquiriesLoading ? (
+              <Card className="p-12 text-center">
+                <Loader2 className="h-12 w-12 text-muted-foreground mx-auto mb-4 animate-spin" />
+                <p className="text-foreground font-semibold">Loading inquiries...</p>
               </Card>
-
-              <Card className="p-6">
-                <h3 className="font-bold text-lg mb-4">Listing Type Distribution</h3>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie data={listingTypeData} cx="50%" cy="50%" labelLine={false} outerRadius={80} fill="#8884d8" dataKey="value">
-                      {listingTypeData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.fill} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
+            ) : inquiries.length === 0 ? (
+              <Card className="p-12 text-center">
+                <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-foreground font-semibold">No inquiries yet</p>
+                <p className="text-muted-foreground text-sm mt-2">Visitor inquiries will appear here</p>
               </Card>
-            </div>
-          </div>
-        )}
+            ) : (
+              inquiries.map((inquiry) => (
+                <Card
+                  key={inquiry.id}
+                  className={`p-6 border-l-4 ${getStatusColor(inquiry.status)}`}
+                  data-testid={`card-inquiry-${inquiry.id}`}
+                >
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <h3 className="font-bold text-lg text-foreground">{inquiry.senderName}</h3>
+                      <p className="text-sm text-muted-foreground mt-1">{inquiry.senderEmail}</p>
+                      {inquiry.senderPhone && (
+                        <p className="text-sm text-muted-foreground">{inquiry.senderPhone}</p>
+                      )}
+                    </div>
+                    <Badge className={getStatusBadge(inquiry.status)} data-testid={`badge-inquiry-status-${inquiry.status}`}>
+                      {inquiry.status.charAt(0).toUpperCase() + inquiry.status.slice(1)}
+                    </Badge>
+                  </div>
 
-        {/* Profile */}
-        {activeTab === 'profile' && (
-          <div className="max-w-2xl pb-12">
-            <Card className="p-8">
-              <div className="flex items-center gap-4 mb-8 pb-8 border-b">
-                <div className="h-16 w-16 rounded-full bg-gradient-to-br from-green-600 to-emerald-600 flex items-center justify-center text-white text-2xl font-bold">
-                  {user?.name?.charAt(0).toUpperCase()}
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">{user?.name}</h2>
-                  <p className="text-gray-600">{user?.email}</p>
-                </div>
-              </div>
+                  {inquiry.message && (
+                    <div className="bg-muted p-4 rounded mb-4">
+                      <p className="text-foreground text-sm">{inquiry.message}</p>
+                    </div>
+                  )}
 
-              <div className="grid grid-cols-2 gap-6 mb-8">
-                <div>
-                  <p className="text-sm text-gray-600 font-semibold">Member Since</p>
-                  <p className="text-lg font-semibold text-gray-900 mt-1">
-                    {new Date(user.created_at || Date.now()).toLocaleDateString()}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600 font-semibold">Active Listings</p>
-                  <p className="text-lg font-semibold text-green-600 mt-1">{stats.activeListings}</p>
-                </div>
-              </div>
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Inquiry Type</p>
+                      <p className="font-semibold text-foreground">{inquiry.inquiryType || 'General'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Submitted</p>
+                      <p className="font-semibold text-foreground">
+                        {new Date(inquiry.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
 
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-                <h3 className="font-semibold text-gray-900 mb-2">Verification Status</h3>
-                <Badge className="bg-blue-100 text-blue-800">Not Verified (Coming Soon)</Badge>
-                <p className="text-sm text-gray-700 mt-3">
-                  Verify your account to increase buyer/renter confidence and visibility.
-                </p>
-              </div>
-
-              <Button variant="outline" className="w-full justify-start text-red-600 border-red-200 hover:bg-red-50">
-                🚪 Sign Out
-              </Button>
-            </Card>
+                  {inquiry.status === 'pending' && (
+                    <div className="flex gap-3">
+                      <Button
+                        size="sm"
+                        onClick={() => updateInquiryStatus(inquiry.id, 'responded')}
+                        className="bg-blue-600 hover:bg-blue-700"
+                        data-testid={`button-respond-${inquiry.id}`}
+                      >
+                        Mark as Responded
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => updateInquiryStatus(inquiry.id, 'closed')}
+                        data-testid={`button-close-${inquiry.id}`}
+                      >
+                        Close
+                      </Button>
+                    </div>
+                  )}
+                </Card>
+              ))
+            )}
           </div>
         )}
       </div>

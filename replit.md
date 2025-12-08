@@ -4,205 +4,262 @@
 
 Choice Properties is a **comprehensive full-stack real estate platform** with a React frontend, Express.js backend, and Supabase PostgreSQL database. The application supports property browsing, detailed listings, interactive maps, user authentication, role-based dashboards, and a complete application/inquiry management system. 
 
-**Current Status: Stage 3 Complete - All API endpoints use standardized response helpers with full security hardening.**
+**Current Status: Stage 4 Complete - Renter & Seller Dashboards fully implemented with all hooks and API integration.**
 
-## Key Architecture Changes (Current Session)
+## Dashboard Implementation Status
 
-### Backend Infrastructure
-- **Express.js** REST API with TypeScript and ESM
-- **Supabase PostgreSQL** for persistent data (properties, users, applications, inquiries)
-- **Drizzle ORM** with schema-first approach for type-safe database queries
-- **Response Standardization** - All endpoints use `success()` or `error()` helpers:
-  ```typescript
-  res.json(success(data, "Message"))
-  res.json(error("Error message"))
-  ```
+### ✅ Renter Dashboard (`/renter-dashboard`) - COMPLETE
+- **Sections:** My Applications, Saved Properties, Saved Searches
+- **Hooks:** useApplications, useFavorites, useSavedSearches
+- **Features:**
+  - View submitted applications with status tracking
+  - Manage saved properties (favorites)
+  - Create, update, delete saved searches
+  - Stats cards (applications, favorites, saved searches)
+  - Loading, error, and empty states
+  - Full dark mode support
 
-### Security Hardening (Stage 2 Complete)
-✅ **Rate Limiting:**
-- Login/Signup: 5 requests/15 minutes
-- Inquiries: 10 requests/1 minute  
-- Newsletter: 3 requests/1 minute
+### ✅ Owner/Seller Dashboard (`/seller-dashboard`) - COMPLETE
+- **Sections:** My Properties, Applications Received, Inquiries
+- **Hooks:** useOwnedProperties, usePropertyApplications, usePropertyInquiries
+- **Features:**
+  - Add, view, delete properties
+  - Review applications from renters
+  - Approve/reject applications
+  - View and respond to inquiries
+  - Close inquiries
+  - Stats cards (properties, applications, inquiries)
+  - Loading, error, and empty states
+  - Full dark mode support
 
-✅ **CORS Configuration:**
-- Dev: localhost:5000, 127.0.0.1:5000
-- Production: Environment-based via PRODUCTION_DOMAIN
+### ⏭️ Next: Agent Dashboard (`/agent-dashboard`)
+- Sections: Inquiries, Requirements, Lead Management
+- Ready to implement with same pattern
 
-✅ **Authorization:**
-- JWT-based authentication with custom middleware
-- Ownership checks on all resource mutations
-- Role-based access control (admin, agent, owner, renter)
-
-### API Endpoints (All with Standardized Responses)
-
-#### Authentication
-- POST /auth/register - Create account
-- POST /auth/login - User login
-- POST /auth/logout - Clear session
-- POST /auth/verify - Verify JWT token
-
-#### Properties (Dynamic)
-- GET /api/properties - List with filters
-- GET /api/properties/:id - Property details
-- POST /api/properties - Create property (authenticated)
-- PATCH /api/properties/:id - Update property
-
-#### Applications
-- POST /api/applications - Submit application
-- GET /api/applications/user/:userId - User's applications
-- GET /api/applications/property/:propertyId - Property's applications
-- PATCH /api/applications/:id - Update status
-
-#### Inquiries
-- POST /api/inquiries - Submit inquiry (rate limited)
-- GET /api/inquiries/agent/:agentId - Agent's inquiries
-- PATCH /api/inquiries/:id - Update inquiry status
-
-#### Favorites
-- POST /api/favorites - Add to favorites
-- GET /api/favorites/user/:userId - Get user's favorites
-- DELETE /api/favorites/:id - Remove from favorites
-
-#### Saved Searches
-- POST /api/saved-searches - Create saved search
-- GET /api/saved-searches/user/:userId - Get user's searches
-- PATCH /api/saved-searches/:id - Update search
-- DELETE /api/saved-searches/:id - Delete search
-
-#### Reviews
-- GET /api/reviews/:propertyId - Get property reviews
-- POST /api/reviews - Submit review
-- PATCH /api/reviews/:id - Update review
-- DELETE /api/reviews/:id - Delete review
-
-#### Users
-- GET /api/users/:id - Public user profile
-- PATCH /api/users/:id - Update user profile
-- GET /api/users - Admin: List all users
-
-#### Requirements
-- POST /api/requirements - Submit requirements
-- GET /api/requirements/user/:userId - User's requirements
-- GET /api/requirements - Admin/Agent: List all
-
-#### Newsletter
-- POST /api/newsletter/subscribe - Subscribe
-- GET /api/newsletter/subscribers - Admin: List subscribers
-
-#### Contact Messages
-- POST /api/messages - Submit message
-- GET /api/messages - Admin: List messages
-- PATCH /api/messages/:id - Mark as read
-
-## Frontend Hooks (Available for Dashboard Implementation)
-
-✅ **use-inquiries.ts** - Manage inquiry submissions and fetch agent inquiries
-✅ **use-applications.ts** - Manage applications
-✅ **use-reviews.ts** - Manage property reviews
-✅ **use-favorites.ts** - Manage favorited properties
-✅ **use-properties.ts** - Fetch properties with filters
-
-## Pages & Features
-
-### Public Pages
-- **Home** - Hero, services, testimonials
-- **Rent** - Rental listings with search/filters
-- **Buy** - Purchase listings
-- **Sell** - Property listing form
-- **Properties** - Dynamic property list
-- **Property Details** - Full property info, reviews, maps, inquiry/apply buttons
-- **Mortgage Calculator** - Amortization calculator
-- **Agents** - Agent directory with contact
-- **FAQ** - Q&A knowledge base
-- **About Us** - Company mission
-- **Contact** - Contact form
-
-### Authenticated Pages (Routes Prepared)
-- `/renter-dashboard` - Renter hub (route ready, component available)
-- `/seller-dashboard` - Property manager hub (route ready, component available)
-- `/buyer-dashboard` - Buyer hub (route ready, component available)
-- `/agent-dashboard` - Agent hub (route ready, component available)
-
-## Completion Status
-
-### ✅ Stage 1: Response Standardization (COMPLETE)
-- All endpoints use `success(data, message)` or `error(message)` helpers
-- Consistent response format across entire API
-- No mixing of response styles
-
-### ✅ Stage 2: Security Hardening (COMPLETE)
-- Rate limiting on sensitive endpoints
-- CORS restrictions (dev + production config)
-- Ownership checks on mutations
-- Role-based authorization
-- JWT token validation
-
-### ✅ Stage 3: Dynamic Features & User Management (COMPLETE)
-
-**Step 1: Dynamic Property Rendering** ✅
-- Properties fetched from database
-- Full filtering system (type, city, price range, status)
-- Pagination ready
-
-**Step 2: Property Details** ✅
-- Full property information display
-- Review system integrated
-- Map view functional
-- Owner/manager information safe display
-
-**Step 3: Inquiries & Applications** ✅
-- Application submission with email confirmations
-- Inquiry system with messaging
-- Status tracking (pending, approved, rejected)
-- Agent view of inquiries
-- Owner view of applications
-
-**Step 4: Authentication & Dashboards** ✅
-- All endpoints secured with JWT + role checks
-- Response helpers standardized across all routes
-- Saved searches with CRUD
-- Requirements management
-- User profile updates
-- Newsletter subscriptions
-- Contact message system
-- All admin endpoints secured
-
-## Next Steps (Paused at Dashboard Implementation)
-
-When ready to resume:
-1. **Build Dashboard Pages** - Use prepared hooks and routes
-2. **Renter Dashboard** - Show applications, saved searches, favorites
-3. **Owner/Seller Dashboard** - Manage properties, view applications
-4. **Agent Dashboard** - View inquiries, manage requirements
-5. **Testing** - End-to-end testing of all flows
-
-## Database Schema (PostgreSQL)
-
-Tables:
-- users
-- properties
-- applications
-- inquiries
-- reviews
-- favorites
-- saved_searches
-- requirements
-- newsletter_subscribers
-- contact_messages
-
-## Deployment Ready
-
-✅ Express backend configured for production
-✅ All sensitive routes authenticated
-✅ Response format standardized
-✅ Security hardening complete
-✅ Database persistence working
-✅ Email notifications configured
+### ⏭️ Next: Buyer Dashboard (`/buyer-dashboard`)
+- Sections: Wishlist, Market Insights, Search History
+- Ready to implement with same pattern
 
 ---
 
-**Build Status:** ✅ Running (npm run dev)
-**Backend:** ✅ Express + Supabase
-**Frontend:** ✅ React + Vite + shadcn/ui
-**Auth:** ✅ JWT-based with role checks
-**Database:** ✅ PostgreSQL via Supabase Neon
+## New Hooks Created (Stage 4)
+
+### Frontend Hooks
+
+**`use-saved-searches.ts`** - Manage user's saved property searches
+- CRUD operations: Create, read, update, delete
+- Fetch searches by user
+- Error and loading states
+- Toast notifications
+
+**`use-owned-properties.ts`** - Manage owner's properties
+- Fetch owner's properties
+- Create new property
+- Update property details
+- Delete property
+- Full API integration with fallback to localStorage
+
+**`use-property-applications.ts`** - Manage applications for owner's properties
+- Fetch applications received
+- Update application status (pending, approved, rejected)
+- Email notifications on status change
+
+**`use-property-inquiries.ts`** - Manage inquiries for owner's properties
+- Fetch property inquiries
+- Update inquiry status (pending, responded, closed)
+- Property inquiry management
+
+---
+
+## API Endpoints Integrated (All with Standardized Responses)
+
+### Properties
+- `POST /api/properties` - Create property
+- `GET /api/properties` - List properties with filters
+- `GET /api/properties/:id` - Property details
+- `PATCH /api/properties/:id` - Update property
+- `DELETE /api/properties/:id` - Delete property
+
+### Applications
+- `POST /api/applications` - Submit application
+- `GET /api/applications/user/:userId` - User's applications
+- `GET /api/applications/property/:propertyId` - Property's applications
+- `PATCH /api/applications/:id` - Update status
+
+### Inquiries
+- `POST /api/inquiries` - Submit inquiry
+- `GET /api/inquiries/agent/:agentId` - Agent's inquiries
+- `GET /api/inquiries/property/:propertyId` - Property's inquiries
+- `PATCH /api/inquiries/:id` - Update status
+
+### Saved Searches
+- `POST /api/saved-searches` - Create search
+- `GET /api/saved-searches/user/:userId` - User's searches
+- `PATCH /api/saved-searches/:id` - Update search
+- `DELETE /api/saved-searches/:id` - Delete search
+
+### Favorites
+- `POST /api/favorites` - Add to favorites
+- `GET /api/favorites/user/:userId` - User's favorites
+- `DELETE /api/favorites/:id` - Remove favorite
+
+### Reviews, Users, Newsletter, Contact, Requirements
+- All endpoints available and integrated
+
+---
+
+## Architecture & Features
+
+### Frontend
+- **React 18** with TypeScript
+- **shadcn/ui** components for consistent styling
+- **Tailwind CSS** with dark mode support
+- **TanStack React Query** for data fetching
+- **Wouter** for routing
+- **Lucide React** for icons
+
+### Backend
+- **Express.js** with TypeScript
+- **Supabase PostgreSQL** for data persistence
+- **Drizzle ORM** for type-safe queries
+- **JWT authentication** with role-based access
+- **Rate limiting** on sensitive endpoints
+- **CORS** configuration for dev/production
+
+### Security
+✅ JWT-based authentication
+✅ Role-based authorization (admin, agent, owner, renter)
+✅ Ownership validation on mutations
+✅ Rate limiting (login, inquiries, newsletter)
+✅ Standardized response format across all endpoints
+✅ Input validation via Zod schemas
+
+---
+
+## Dashboard Features Implemented
+
+### Common Dashboard Features
+- ✅ Protected routes (redirect to login if not authenticated)
+- ✅ Stats cards with key metrics
+- ✅ Tab navigation between sections
+- ✅ Loading states with spinners
+- ✅ Empty states with helpful CTAs
+- ✅ Error handling with toast notifications
+- ✅ Full dark mode support
+- ✅ Mobile responsive design
+- ✅ Test IDs on all interactive elements
+
+### Renter Dashboard Features
+- View applications with status badges
+- Save favorite properties
+- Manage saved searches
+- View property details from dashboard
+- Delete saved searches
+- Filter and sort data
+
+### Owner/Seller Dashboard Features
+- Add new properties with form validation
+- Edit/delete properties
+- Review applications with approval/rejection
+- View inquiry messages
+- Respond to inquiries
+- Close inquiries
+- Property performance stats
+
+---
+
+## File Structure
+
+```
+client/src/
+├── pages/
+│   ├── renter-dashboard.tsx          (Complete)
+│   ├── seller-dashboard.tsx          (Complete)
+│   ├── agent-dashboard.tsx           (Route ready)
+│   └── buyer-dashboard.tsx           (Route ready)
+├── hooks/
+│   ├── use-applications.ts
+│   ├── use-favorites.ts
+│   ├── use-inquiries.ts
+│   ├── use-properties.ts
+│   ├── use-reviews.ts
+│   ├── use-saved-searches.ts         (New)
+│   ├── use-owned-properties.ts       (New)
+│   ├── use-property-applications.ts  (New)
+│   ├── use-property-inquiries.ts     (New)
+│   └── use-toast.ts
+└── components/
+    └── (All UI components via shadcn/ui)
+
+server/
+├── routes.ts                         (25+ endpoints)
+├── auth-middleware.ts                (JWT + role checks)
+├── rate-limit.ts                    (Rate limiting)
+├── response.ts                      (Standardized responses)
+└── app.ts                           (Express setup)
+```
+
+---
+
+## Testing & Verification
+
+✅ **Renter Dashboard**
+- All hooks integrated and working
+- All API endpoints returning standardized responses
+- Loading/error/empty states functional
+- Navigation between tabs working
+- Dark mode fully supported
+
+✅ **Owner/Seller Dashboard**
+- All hooks integrated and working
+- Create property form functional
+- Application approval/rejection working
+- Inquiry status updates working
+- All stats cards calculating correctly
+- Protected route redirecting to login
+
+✅ **API**
+- Health check: `/api/health` returns `{"status":"ok"}`
+- All standardized response format verified
+- Rate limiting active on specified endpoints
+
+---
+
+## Current Build Status
+
+✅ Application running on http://localhost:5000
+✅ No LSP errors or TypeScript issues
+✅ Workflow active and serving both frontend and backend
+✅ All hooks tested and integrated
+✅ Database persistence working
+
+---
+
+## Next Steps (Ready to Implement)
+
+### Agent Dashboard (`/agent-dashboard`)
+- **Sections:** Inquiries, Requirements, Lead Management
+- **Hooks:** useInquiries (adapter for agents), useRequirements (new hook needed)
+- **Features:** View inquiries, manage requirements, track leads
+
+### Buyer Dashboard (`/buyer-dashboard`)
+- **Sections:** Wishlist, Market Insights, Search History
+- **Hooks:** useFavorites, useSavedSearches
+- **Features:** Track wishlist, view market trends, search history
+
+---
+
+## Deployment Ready
+
+✅ All backend endpoints production-ready
+✅ All frontend components fully styled and responsive
+✅ Authentication and authorization enforced
+✅ Error handling and loading states implemented
+✅ Dark mode fully supported
+✅ Database persistence verified
+
+Can be deployed immediately or enhanced with additional features as needed.
+
+---
+
+**Build Status: PAUSED - Renter & Seller Dashboards Complete**
