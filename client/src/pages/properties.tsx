@@ -166,22 +166,23 @@ export default function Properties() {
         </div>
       )}
       
-      {/* Zillow-style Subheader Filter Bar */}
-      <div className="border-b bg-white shadow-sm p-3 z-20 sticky top-0">
+      {/* Zillow-style Subheader Filter Bar - Enhanced */}
+      <div className="border-b bg-white dark:bg-gray-950 shadow-sm p-3 z-20 sticky top-0 transition-all duration-300">
         <div className="container mx-auto max-w-7xl flex flex-col md:flex-row gap-3 items-center">
             <div className="relative flex-1 w-full md:w-auto">
                 <Input 
                   placeholder="Address, Neighborhood, or Zip" 
-                  className="pl-3 pr-10 h-10 border-gray-300 focus:border-primary" 
+                  className="pl-3 pr-10 h-10 border-gray-300 dark:border-gray-700 focus:border-primary dark:bg-gray-800 dark:text-white" 
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
+                  data-testid="input-search-address"
                 />
-                <Search className="absolute right-3 top-2.5 h-5 w-5 text-primary cursor-pointer" />
+                <Search className="absolute right-3 top-2.5 h-5 w-5 text-primary dark:text-blue-400 cursor-pointer" />
             </div>
 
             <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
                 <Select value={priceMin} onValueChange={setPriceMin}>
-                    <SelectTrigger className="w-[140px] h-10 border-gray-300">
+                    <SelectTrigger className={`w-[140px] h-10 border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white transition-all duration-200 ${priceMin !== 'any' ? 'border-primary dark:border-blue-400 ring-2 ring-primary/20 dark:ring-blue-500/20' : ''}`} data-testid="select-price-min">
                         <SelectValue placeholder="Min Price" />
                     </SelectTrigger>
                     <SelectContent>
@@ -195,7 +196,7 @@ export default function Properties() {
                 </Select>
 
                 <Select value={bedrooms} onValueChange={setBedrooms}>
-                    <SelectTrigger className="w-[120px] h-10 border-gray-300">
+                    <SelectTrigger className={`w-[120px] h-10 border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white transition-all duration-200 ${bedrooms !== 'any' ? 'border-primary dark:border-blue-400 ring-2 ring-primary/20 dark:ring-blue-500/20' : ''}`} data-testid="select-bedrooms">
                         <SelectValue placeholder="Beds" />
                     </SelectTrigger>
                     <SelectContent>
@@ -208,7 +209,7 @@ export default function Properties() {
                 </Select>
 
                 <Select value={homeType} onValueChange={setHomeType}>
-                    <SelectTrigger className="w-[140px] h-10 border-gray-300">
+                    <SelectTrigger className={`w-[140px] h-10 border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white transition-all duration-200 ${homeType !== 'any' ? 'border-primary dark:border-blue-400 ring-2 ring-primary/20 dark:ring-blue-500/20' : ''}`} data-testid="select-home-type">
                         <SelectValue placeholder="Home Type" />
                     </SelectTrigger>
                     <SelectContent>
@@ -221,7 +222,7 @@ export default function Properties() {
                 </Select>
                 
                 <Select value={sortBy} onValueChange={setSortBy}>
-                    <SelectTrigger className="w-[140px] h-10 border-gray-300">
+                    <SelectTrigger className="w-[140px] h-10 border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white" data-testid="select-sort-by">
                         <SelectValue placeholder="Sort" />
                     </SelectTrigger>
                     <SelectContent>
@@ -232,11 +233,23 @@ export default function Properties() {
                     </SelectContent>
                 </Select>
                 
-                <Button variant="outline" className="h-10 border-primary text-primary hover:bg-primary/5 flex items-center gap-2" onClick={saveSearch}>
+                <Button 
+                  variant="outline" 
+                  className="h-10 border-primary text-primary hover:bg-primary/5 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-950/20 flex items-center gap-2 transition-all duration-200" 
+                  onClick={saveSearch}
+                  data-testid="button-save-search"
+                >
                   <Bookmark className="h-4 w-4" /> Save
                 </Button>
                 
-                <Button variant="outline" className="h-10 border-gray-300 text-gray-700 hover:bg-gray-50" onClick={resetFilters}>Clear</Button>
+                <Button 
+                  variant="outline" 
+                  className="h-10 border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200" 
+                  onClick={resetFilters}
+                  data-testid="button-reset-filters"
+                >
+                  Clear
+                </Button>
             </div>
         </div>
       </div>
@@ -259,10 +272,10 @@ export default function Properties() {
          </div>
 
          {/* Left Side List */}
-         <div className="w-full lg:w-1/2 overflow-y-auto p-4 shadow-2xl z-10 bg-white">
+         <div className="w-full lg:w-1/2 overflow-y-auto p-4 shadow-2xl z-10 bg-white dark:bg-gray-950 border-l dark:border-gray-800">
              <div className="flex justify-between items-center mb-4 px-2">
-                 <h2 className="text-xl font-bold text-gray-900">Real Estate & Homes For Rent</h2>
-                 <span className="text-gray-500 text-sm">{filteredProperties.length} results</span>
+                 <h2 className="text-xl font-bold text-gray-900 dark:text-white">Real Estate & Homes For Rent</h2>
+                 <span className="text-gray-500 dark:text-gray-400 text-sm font-semibold bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded-full" data-testid="text-results-count">{filteredProperties.length} results</span>
              </div>
              
              {savedSearches.length > 0 && (
@@ -286,9 +299,9 @@ export default function Properties() {
                </div>
              )}
              
-             <div className="mb-4 flex gap-2 px-2">
-                 <span className="text-sm font-semibold text-primary border-b-2 border-primary cursor-pointer pb-1">Agent Listings</span>
-                 <span className="text-sm text-gray-500 hover:text-gray-800 cursor-pointer pb-1">Other Listings</span>
+             <div className="mb-4 flex gap-2 px-2 transition-all duration-300">
+                 <span className="text-sm font-semibold text-primary dark:text-blue-400 border-b-2 border-primary dark:border-blue-400 cursor-pointer pb-1 hover:text-primary/80 dark:hover:text-blue-300 transition-colors duration-200" data-testid="tab-agent-listings">Agent Listings</span>
+                 <span className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300 cursor-pointer pb-1 transition-colors duration-200" data-testid="tab-other-listings">Other Listings</span>
              </div>
 
              {filteredProperties.length > 0 ? (
@@ -301,7 +314,7 @@ export default function Properties() {
                 <NoResults onReset={resetFilters} />
              )}
              
-             <div className="mt-8 text-center text-xs text-gray-400 py-4 border-t">
+             <div className="mt-8 text-center text-xs text-gray-400 dark:text-gray-600 py-4 border-t dark:border-gray-800">
                  Choice Properties Inc. | Updated every 5 minutes.
              </div>
          </div>

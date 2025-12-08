@@ -26,6 +26,7 @@ export function PropertyCard({ property, onQuickView }: PropertyCardProps) {
   const mainImage = property.images?.[0] ? (imageMap[property.images[0]] || placeholderExterior) : placeholderExterior;
   const [isFavorited, setIsFavorited] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   useEffect(() => {
     const favorites = JSON.parse(localStorage.getItem("choiceProperties_favorites") || "[]") as string[];
@@ -59,9 +60,15 @@ export function PropertyCard({ property, onQuickView }: PropertyCardProps) {
   };
 
   return (
-    <Card className="overflow-hidden hover:shadow-lg transition-shadow duration-200 group border border-gray-200 bg-white rounded-lg cursor-pointer" onClick={() => onQuickView?.(property)}>
-      {/* Zillow-style image with top-left badge and top-right heart */}
-      <div className="relative aspect-[1.6/1] overflow-hidden bg-gray-100">
+    <Card 
+      className="overflow-hidden group border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 cursor-pointer transition-all duration-300 hover:shadow-xl hover:-translate-y-1 dark:hover:shadow-2xl dark:hover:shadow-black/50"
+      onClick={() => onQuickView?.(property)}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      data-testid={`card-property-${property.id}`}
+    >
+      {/* Image with enhanced hover effects */}
+      <div className="relative aspect-[1.6/1] overflow-hidden bg-gray-100 dark:bg-gray-800">
         <Link href={`/property/${property.id}`}>
           <span className="block w-full h-full" onClick={(e) => e.stopPropagation()}>
             <img
@@ -69,72 +76,84 @@ export function PropertyCard({ property, onQuickView }: PropertyCardProps) {
               alt={property.title}
               loading="lazy"
               decoding="async"
-              className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500"
+              className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-500 ease-out"
+              data-testid="img-property-preview"
             />
           </span>
         </Link>
         
-        <div className="absolute top-2 left-2 flex gap-2">
-          <Badge className="bg-secondary text-primary-foreground font-bold text-xs uppercase tracking-wider border border-secondary shadow-md">
+        {/* Badges with smooth animation */}
+        <div className="absolute top-2 left-2 flex gap-2 transition-all duration-300" style={{
+          opacity: isHovered ? 0.9 : 1,
+          transform: isHovered ? 'translateY(-2px)' : 'translateY(0)'
+        }}>
+          <Badge className="bg-secondary text-primary-foreground font-bold text-xs uppercase tracking-wider border border-secondary shadow-md hover-elevate" data-testid="badge-for-rent">
             For Rent
           </Badge>
-          <Badge className="bg-white/90 text-primary font-bold text-xs uppercase tracking-wider border border-gray-200 shadow-sm">
+          <Badge className="bg-white/90 dark:bg-gray-800/90 text-primary dark:text-blue-400 font-bold text-xs uppercase tracking-wider border border-gray-200 dark:border-gray-700 shadow-sm hover-elevate" data-testid="badge-property-type">
             {property.property_type || 'Property'}
           </Badge>
         </div>
 
-        <div className="absolute top-2 right-2 flex gap-2 z-10" onClick={(e) => e.stopPropagation()}>
+        {/* Action buttons with enhanced visibility */}
+        <div className="absolute top-2 right-2 flex gap-2 z-10 transition-all duration-300" onClick={(e) => e.stopPropagation()} style={{
+          opacity: isHovered ? 1 : 0.7,
+        }}>
           <button 
             onClick={handleShare}
-            className="p-1.5 rounded-full bg-black/30 hover:bg-black/50 transition-colors text-white"
+            className="p-2 rounded-full bg-black/40 hover:bg-black/60 active:scale-95 transition-all text-white shadow-lg hover-elevate"
             title={copied ? "Copied!" : "Share property"}
+            data-testid="button-share-card"
           >
             <Share2 className="h-5 w-5" />
           </button>
           <button 
             onClick={toggleFavorite}
-            className="p-1.5 rounded-full bg-black/30 hover:bg-black/50 transition-colors text-white"
+            className="p-2 rounded-full bg-black/40 hover:bg-black/60 active:scale-95 transition-all text-white shadow-lg hover-elevate"
             title={isFavorited ? "Remove from favorites" : "Add to favorites"}
+            data-testid={isFavorited ? "button-unsave-card" : "button-save-card"}
           >
             {isFavorited ? (
-              <Heart className="h-5 w-5 fill-red-500 text-red-500" />
+              <Heart className="h-5 w-5 fill-red-500 text-red-500 transition-all duration-200" />
             ) : (
-              <Heart className="h-5 w-5" />
+              <Heart className="h-5 w-5 transition-all duration-200" />
             )}
           </button>
         </div>
       </div>
 
       <CardContent className="p-4 pb-2">
-        {/* Price Line */}
-        <div className="flex items-baseline gap-1 mb-1">
-            <span className="text-2xl font-bold text-gray-900">${property.price ? parseInt(property.price).toLocaleString() : 'N/A'}</span>
-            <span className="text-gray-600 text-sm">/mo</span>
+        {/* Price Line with smooth transition */}
+        <div className="flex items-baseline gap-1 mb-1 transition-colors duration-300" style={{
+          color: isHovered ? 'hsl(var(--primary))' : 'rgb(17, 24, 39)'
+        }}>
+            <span className="text-2xl font-bold dark:text-white">${property.price ? parseInt(property.price).toLocaleString() : 'N/A'}</span>
+            <span className="text-gray-600 dark:text-gray-400 text-sm">/mo</span>
         </div>
 
         {/* Stats Line */}
-        <div className="flex items-center gap-4 text-sm text-gray-700 mb-2 font-medium">
+        <div className="flex items-center gap-4 text-sm text-gray-700 dark:text-gray-300 mb-2 font-medium">
             <div className="flex items-center gap-1">
-                <Bed className="h-4 w-4 text-primary" />
+                <Bed className="h-4 w-4 text-primary dark:text-blue-400 transition-colors duration-300" />
                 <span className="font-bold">{property.bedrooms || 0}</span>
                 <span className="font-normal">bds</span>
             </div>
-            <div className="w-px h-3 bg-gray-300"></div>
+            <div className="w-px h-3 bg-gray-300 dark:bg-gray-700"></div>
             <div className="flex items-center gap-1">
-                <Bath className="h-4 w-4 text-primary" />
+                <Bath className="h-4 w-4 text-primary dark:text-blue-400 transition-colors duration-300" />
                 <span className="font-bold">{property.bathrooms || 0}</span>
                 <span className="font-normal">ba</span>
             </div>
-            <div className="w-px h-3 bg-gray-300"></div>
+            <div className="w-px h-3 bg-gray-300 dark:bg-gray-700"></div>
             <div className="flex items-center gap-1">
-                <Maximize className="h-4 w-4 text-primary" />
+                <Maximize className="h-4 w-4 text-primary dark:text-blue-400 transition-colors duration-300" />
                 <span className="font-bold">{property.square_feet ? property.square_feet.toLocaleString() : 'N/A'}</span>
                 <span className="font-normal">sqft</span>
             </div>
         </div>
 
         {/* Address */}
-        <div className="text-sm text-gray-600 truncate">
+        <div className="text-sm text-gray-600 dark:text-gray-400 truncate" data-testid="text-property-address">
             {property.address}, {property.city || 'N/A'}, {property.state || ''}
         </div>
       </CardContent>
