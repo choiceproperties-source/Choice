@@ -12,7 +12,7 @@ import heroBg from "@assets/generated_images/modern_luxury_home_exterior_with_bl
 import { updateMetaTags, getOrganizationStructuredData, addStructuredData } from "@/lib/seo";
 
 export default function Home() {
-  const { properties, loading } = useProperties();
+  const { properties = [], loading } = useProperties();
 
   // Initialize reviews on mount
   useEffect(() => {
@@ -45,7 +45,7 @@ export default function Home() {
   }, []);
 
   // Show first 3 properties as featured (from backend data)
-  const featuredProperties = properties.slice(0, 3);
+  const featuredProperties = Array.isArray(properties) ? properties.slice(0, 3) : [];
 
   return (
     <div className="min-h-screen bg-background flex flex-col overflow-x-hidden">
