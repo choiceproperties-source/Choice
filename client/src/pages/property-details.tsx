@@ -24,6 +24,8 @@ import { AgentContactDialog } from "@/components/agent-contact-dialog";
 import { updateMetaTags, getPropertyStructuredData, addStructuredData } from "@/lib/seo";
 import { Breadcrumb } from "@/components/breadcrumb";
 import { trackEvent } from "@/lib/pwa";
+import { PropertyDetailsSkeleton } from "@/components/property-details-skeleton";
+import { MobileActionBar } from "@/components/mobile-action-bar";
 
 import placeholderExterior from "@assets/generated_images/modern_luxury_home_exterior_with_blue_sky.png";
 import placeholderLiving from "@assets/generated_images/bright_modern_living_room_interior.png";
@@ -68,12 +70,7 @@ export default function PropertyDetails() {
     return (
       <div className="min-h-screen flex flex-col">
         <Navbar />
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading property details...</p>
-          </div>
-        </div>
+        <PropertyDetailsSkeleton />
         <Footer />
       </div>
     );
@@ -107,18 +104,23 @@ export default function PropertyDetails() {
     : 0;
 
   return (
-    <div className="min-h-screen bg-white flex flex-col overflow-x-hidden">
+    <div className="min-h-screen bg-white dark:bg-gray-950 flex flex-col overflow-x-hidden">
       <Navbar />
       <Breadcrumb items={[
         { label: "Properties", href: "/properties" },
         { label: property.title }
       ]} />
+      <MobileActionBar
+        property={property}
+        isFavorited={isFavorited(property.id)}
+        onToggleFavorite={() => toggleFavorite(property.id)}
+      />
 
       <div className="max-w-[1400px] mx-auto w-full p-2 md:p-4">
         <PhotoGallery images={allImages} title={property.title} />
       </div>
 
-      <div className="container mx-auto px-4 max-w-[1200px] py-6">
+      <div className="container mx-auto px-4 max-w-[1200px] py-6 pb-32 md:pb-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
           <div className="lg:col-span-2 space-y-8">
             {/* Property Overview Section */}
