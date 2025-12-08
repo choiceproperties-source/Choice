@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useRoute, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Navbar } from "@/components/layout/navbar";
@@ -10,8 +9,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import type { Property, PropertyWithOwner, Review, Owner } from "@/lib/types";
 import { formatPrice, parseDecimal } from "@/lib/types";
-import { MapPin, Bed, Bath, Maximize, Share2, Heart, Calendar, Info, X, ChevronLeft, ChevronRight, CheckCircle2, Mail, Phone, Building2, Star } from "lucide-react";
+import { MapPin, Bed, Bath, Maximize, Share2, Heart, Calendar, Info, Mail, Phone, Building2, Star } from "lucide-react";
 import { useFavorites } from "@/hooks/use-favorites";
+import { PhotoGallery } from "@/components/photo-gallery";
 import NotFound from "@/pages/not-found";
 import MapView from "@/components/map-view";
 import { PropertyCard } from "@/components/property-card";
@@ -35,11 +35,6 @@ const imageMap: Record<string, string> = {
 export default function PropertyDetails() {
   const [match, params] = useRoute("/property/:id");
   const id = params?.id;
-  
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [touchStart, setTouchStart] = useState<number | null>(null);
-  const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const { isFavorited, toggleFavorite } = useFavorites();
 
   // Fetch property data from backend
@@ -96,51 +91,10 @@ export default function PropertyDetails() {
     ? property.images!.map(img => imageMap[img] || placeholderExterior)
     : [placeholderExterior, placeholderLiving, placeholderKitchen, placeholderBedroom];
   
-  const mainImage = allImages[currentImageIndex];
-  
   // Use real coordinates from database
   const lat = property.latitude ? parseFloat(property.latitude) : 34.0522;
   const lng = property.longitude ? parseFloat(property.longitude) : -118.2437;
   const position: [number, number] = [lat, lng];
-
-  const minSwipeDistance = 50;
-
-  const nextImage = () => {
-    setCurrentImageIndex((prev) => (prev + 1) % allImages.length);
-  };
-
-  const prevImage = () => {
-    setCurrentImageIndex((prev) => (prev - 1 + allImages.length) % allImages.length);
-  };
-
-  const openFullscreen = (index: number) => {
-    setCurrentImageIndex(index);
-    setIsFullscreen(true);
-  };
-
-  const onTouchStart = (e: React.TouchEvent) => {
-    setTouchEnd(null);
-    setTouchStart(e.targetTouches[0].clientX);
-  };
-
-  const onTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientX);
-  };
-
-  const onTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
-    
-    const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > minSwipeDistance;
-    const isRightSwipe = distance < -minSwipeDistance;
-    
-    if (isLeftSwipe) {
-      nextImage();
-    }
-    if (isRightSwipe) {
-      prevImage();
-    }
-  };
 
   // Calculate average rating from reviews
   const averageRating = reviews && reviews.length > 0 
@@ -155,114 +109,8 @@ export default function PropertyDetails() {
         { label: property.title }
       ]} />
 
-      {isFullscreen && (
-        <div className="fixed inset-0 z-[9999] bg-black flex flex-col">
-          <div className="flex justify-between items-center p-4 text-white">
-            <span className="text-lg font-semibold">
-              {currentImageIndex + 1} / {allImages.length}
-            </span>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-white hover:bg-white/20"
-              onClick={() => setIsFullscreen(false)}
-            >
-              <X className="h-6 w-6" />
-            </Button>
-          </div>
-
-          <div 
-            className="flex-1 flex items-center justify-center relative"
-            onTouchStart={onTouchStart}
-            onTouchMove={onTouchMove}
-            onTouchEnd={onTouchEnd}
-          >
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute left-4 text-white hover:bg-white/20 h-12 w-12 z-10"
-              onClick={prevImage}
-            >
-              <ChevronLeft className="h-8 w-8" />
-            </Button>
-
-            <img
-              src={allImages[currentImageIndex]}
-              alt={`Property ${currentImageIndex + 1}`}
-              className="max-h-[calc(100vh-180px)] max-w-[90vw] object-contain select-none"
-              draggable={false}
-            />
-
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute right-4 text-white hover:bg-white/20 h-12 w-12 z-10"
-              onClick={nextImage}
-            >
-              <ChevronRight className="h-8 w-8" />
-            </Button>
-          </div>
-
-          <div className="flex gap-2 p-4 overflow-x-auto">
-            {allImages.map((img, idx) => (
-              <div
-                key={idx}
-                className={`flex-shrink-0 cursor-pointer border-2 ${
-                  idx === currentImageIndex ? 'border-white' : 'border-transparent'
-                }`}
-                onClick={() => setCurrentImageIndex(idx)}
-              >
-                <img
-                  src={img}
-                  alt={`Thumbnail ${idx + 1}`}
-                  className="w-20 h-16 object-cover"
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       <div className="max-w-[1400px] mx-auto w-full p-2 md:p-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-2 h-[400px] md:h-[500px] rounded-xl overflow-hidden">
-          <div className="md:col-span-2 h-full relative group cursor-pointer" onClick={() => openFullscreen(0)}>
-            <img
-              src={allImages[0]}
-              alt="Main"
-              className="w-full h-full object-cover hover:brightness-105 transition-all"
-            />
-            <div className="absolute bottom-4 left-4 bg-black/70 text-white px-3 py-1 rounded-md text-sm font-bold flex items-center gap-2 cursor-pointer hover:bg-black/90">
-              <Maximize className="h-4 w-4" />
-              {allImages.length} Photos
-            </div>
-          </div>
-
-          <div className="hidden md:grid grid-cols-1 grid-rows-2 gap-2 md:col-span-2 h-full">
-            <div className="relative h-full cursor-pointer" onClick={() => openFullscreen(1)}>
-              <img
-                src={allImages[1] || placeholderLiving}
-                alt="Interior"
-                className="w-full h-full object-cover hover:brightness-105 transition-all"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-2 h-full">
-              <div className="cursor-pointer" onClick={() => openFullscreen(2)}>
-                <img
-                  src={allImages[2] || placeholderKitchen}
-                  alt="Kitchen"
-                  className="w-full h-full object-cover hover:brightness-105 transition-all"
-                />
-              </div>
-              <div className="cursor-pointer" onClick={() => openFullscreen(3)}>
-                <img
-                  src={allImages[3] || placeholderBedroom}
-                  alt="Bedroom"
-                  className="w-full h-full object-cover hover:brightness-105 transition-all"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
+        <PhotoGallery images={allImages} title={property.title} />
       </div>
 
       <div className="container mx-auto px-4 max-w-[1200px] py-6">
