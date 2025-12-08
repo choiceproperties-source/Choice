@@ -7,32 +7,12 @@ import { PropertyCard } from "@/components/property-card";
 import { Testimonials } from "@/components/testimonials";
 import { useProperties } from "@/hooks/use-properties";
 import type { Property } from "@/lib/types";
-import { ArrowRight, CheckCircle2, Users, Home as HomeIcon, MapPin, ShieldCheck } from "lucide-react";
+import { ArrowRight, CheckCircle2, Users, Home as HomeIcon, MapPin, ShieldCheck, Key, TrendingUp } from "lucide-react";
 import heroBg from "@assets/generated_images/modern_luxury_home_exterior_with_blue_sky.png";
 import { updateMetaTags, getOrganizationStructuredData, addStructuredData } from "@/lib/seo";
 
 export default function Home() {
   const { properties = [], loading } = useProperties();
-
-  // Initialize reviews on mount
-  useEffect(() => {
-    const existing = localStorage.getItem('choiceProperties_reviews');
-    if (!existing) {
-      const sampleReviews = [
-        { id: "rev1", property_id: "1", user_name: "Sarah Johnson", rating: 5, comment: "Amazing place! Exactly as described. The owner was very responsive and helpful.", created_at: "2024-11-28T10:30:00Z" },
-        { id: "rev2", property_id: "1", user_name: "Michael Lee", rating: 4, comment: "Great location and amenities. Slight issue with water pressure but was fixed quickly.", created_at: "2024-11-25T14:15:00Z" },
-        { id: "rev3", property_id: "2", user_name: "Emma Wilson", rating: 5, comment: "The luxury touches everywhere. Felt like staying in a 5-star resort!", created_at: "2024-11-20T09:00:00Z" },
-        { id: "rev4", property_id: "3", user_name: "James Chen", rating: 5, comment: "Perfect downtown location. Love being able to walk everywhere.", created_at: "2024-11-18T16:45:00Z" },
-        { id: "rev5", property_id: "3", user_name: "Lisa Anderson", rating: 4, comment: "Great apartment, very modern. A bit pricey but worth it.", created_at: "2024-11-15T11:20:00Z" },
-        { id: "rev6", property_id: "4", user_name: "David Martinez", rating: 5, comment: "Family loved the backyard and quiet neighborhood. Highly recommend!", created_at: "2024-11-12T13:30:00Z" },
-        { id: "rev7", property_id: "5", user_name: "Rachel Green", rating: 5, comment: "Waterfront condo is breathtaking! Beach access is perfect for weekends.", created_at: "2024-11-10T15:00:00Z" },
-        { id: "rev8", property_id: "5", user_name: "Kevin Park", rating: 4, comment: "Beautiful view, only minor issue with elevator maintenance.", created_at: "2024-11-08T10:15:00Z" },
-        { id: "rev9", property_id: "6", user_name: "Nina Patel", rating: 5, comment: "Perfect for tech professionals. Love the co-working space!", created_at: "2024-11-05T12:00:00Z" },
-        { id: "rev10", property_id: "6", user_name: "Tyler Brooks", rating: 5, comment: "Amazing value for money. Great management team too.", created_at: "2024-11-01T14:30:00Z" }
-      ];
-      localStorage.setItem('choiceProperties_reviews', JSON.stringify(sampleReviews));
-    }
-  }, []);
 
   useEffect(() => {
     updateMetaTags({
@@ -107,8 +87,10 @@ export default function Home() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
             <Link href="/properties">
-              <div className="group p-8 rounded-2xl bg-blue-50 border-2 border-primary hover:border-primary hover:shadow-xl transition-all duration-300 cursor-pointer">
-                <div className="text-4xl font-bold text-primary mb-4">🏠</div>
+              <div className="group p-8 rounded-2xl bg-blue-50 dark:bg-blue-950/30 border-2 border-primary hover:border-primary hover:shadow-xl transition-all duration-300 cursor-pointer">
+                <div className="mb-4">
+                  <HomeIcon className="h-10 w-10 text-primary" />
+                </div>
                 <h3 className="font-heading text-2xl font-bold mb-3 text-primary group-hover:text-primary">For Rent</h3>
                 <p className="text-muted-foreground leading-relaxed">
                   Browse thousands of rental properties across the country. Find your perfect home with our easy application process.
@@ -116,8 +98,10 @@ export default function Home() {
               </div>
             </Link>
             <Link href="/buy">
-              <div className="group p-8 rounded-2xl bg-green-50 border-2 border-green-600 hover:border-green-600 hover:shadow-xl transition-all duration-300 cursor-pointer">
-                <div className="text-4xl font-bold text-green-600 mb-4">🔑</div>
+              <div className="group p-8 rounded-2xl bg-green-50 dark:bg-green-950/30 border-2 border-green-600 hover:border-green-600 hover:shadow-xl transition-all duration-300 cursor-pointer">
+                <div className="mb-4">
+                  <Key className="h-10 w-10 text-green-600" />
+                </div>
                 <h3 className="font-heading text-2xl font-bold mb-3 text-green-600 group-hover:text-green-700">For Sale</h3>
                 <p className="text-muted-foreground leading-relaxed">
                   Discover properties for purchase. Use our mortgage calculator to estimate your monthly payments and find your dream home.
@@ -125,8 +109,10 @@ export default function Home() {
               </div>
             </Link>
             <Link href="/sell">
-              <div className="group p-8 rounded-2xl bg-amber-50 border-2 border-amber-600 hover:border-amber-600 hover:shadow-xl transition-all duration-300 cursor-pointer">
-                <div className="text-4xl font-bold text-amber-600 mb-4">📈</div>
+              <div className="group p-8 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border-2 border-amber-600 hover:border-amber-600 hover:shadow-xl transition-all duration-300 cursor-pointer">
+                <div className="mb-4">
+                  <TrendingUp className="h-10 w-10 text-amber-600" />
+                </div>
                 <h3 className="font-heading text-2xl font-bold mb-3 text-amber-600 group-hover:text-amber-700">Sell or List</h3>
                 <p className="text-muted-foreground leading-relaxed">
                   List your property in minutes. Reach thousands of qualified buyers and renters through our trusted network.

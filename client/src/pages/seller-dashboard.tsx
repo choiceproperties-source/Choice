@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useToast } from '@/hooks/use-toast';
 import {
   Home,
@@ -99,9 +100,7 @@ export default function SellerDashboard() {
 
   // Handle delete property
   const handleDeleteProperty = async (propertyId: string) => {
-    if (confirm('Are you sure you want to delete this property?')) {
-      await deleteProperty(propertyId);
-    }
+    await deleteProperty(propertyId);
   };
 
   // Handle approve application
@@ -357,14 +356,20 @@ export default function SellerDashboard() {
                         >
                           View
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleDeleteProperty(property.id)}
-                          data-testid={`button-delete-property-${property.id}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <ConfirmDialog
+                          title="Delete Property"
+                          description="Are you sure you want to delete this property? All applications and inquiries associated with this property will also be removed. This action cannot be undone."
+                          onConfirm={() => handleDeleteProperty(property.id)}
+                          trigger={
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              data-testid={`button-delete-property-${property.id}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          }
+                        />
                       </div>
                     </div>
                   </Card>

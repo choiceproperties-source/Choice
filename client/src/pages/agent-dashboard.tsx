@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useToast } from '@/hooks/use-toast';
 import {
   BarChart,
@@ -214,9 +215,7 @@ export default function AgentDashboard() {
 
   // Handle delete requirement
   const handleDeleteRequirement = async (requirementId: string) => {
-    if (confirm('Are you sure you want to delete this requirement?')) {
-      await deleteRequirement(requirementId);
-    }
+    await deleteRequirement(requirementId);
   };
 
   // Get status color
@@ -565,14 +564,20 @@ export default function AgentDashboard() {
                         )}
                       </div>
                     </div>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleDeleteRequirement(req.id)}
-                      data-testid={`button-delete-requirement-${req.id}`}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <ConfirmDialog
+                      title="Delete Requirement"
+                      description="Are you sure you want to delete this requirement? This action cannot be undone."
+                      onConfirm={() => handleDeleteRequirement(req.id)}
+                      trigger={
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          data-testid={`button-delete-requirement-${req.id}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      }
+                    />
                   </div>
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">

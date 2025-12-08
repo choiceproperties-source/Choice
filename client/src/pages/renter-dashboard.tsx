@@ -9,6 +9,7 @@ import { useSavedSearches } from '@/hooks/use-saved-searches';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useToast } from '@/hooks/use-toast';
 import {
   Heart,
@@ -104,14 +105,12 @@ export default function RenterDashboard() {
 
   // Handle delete search
   const handleDeleteSearch = async (searchId: string) => {
-    if (confirm('Delete this saved search?')) {
-      const success = await deleteSearch(searchId);
-      if (success) {
-        toast({
-          title: 'Deleted',
-          description: 'Saved search removed',
-        });
-      }
+    const success = await deleteSearch(searchId);
+    if (success) {
+      toast({
+        title: 'Deleted',
+        description: 'Saved search removed',
+      });
     }
   };
 
@@ -651,14 +650,20 @@ export default function RenterDashboard() {
                           <Eye className="h-4 w-4 mr-1" />
                           View Results
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteSearch(search.id)}
-                          data-testid={`button-delete-search-${search.id}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <ConfirmDialog
+                          title="Delete Saved Search"
+                          description="Are you sure you want to delete this saved search? This action cannot be undone."
+                          onConfirm={() => handleDeleteSearch(search.id)}
+                          trigger={
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              data-testid={`button-delete-search-${search.id}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          }
+                        />
                       </div>
                     </div>
                   </Card>
