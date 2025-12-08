@@ -186,9 +186,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .select();
 
       if (error) throw error;
-      res.json(data[0]);
+      return res.json(success(data[0], "Property updated successfully"));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      return res.status(500).json(error("Failed to update property"));
     }
   });
 
@@ -366,9 +366,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .select();
 
       if (error) throw error;
-      res.json(data[0]);
+      return res.json(success(data[0], "Application updated successfully"));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      return res.status(500).json(error("Failed to update application"));
     }
   });
 
@@ -456,9 +456,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .select();
 
       if (error) throw error;
-      res.json(data[0]);
+      return res.json(success(data[0], "Inquiry updated successfully"));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      return res.status(500).json(error("Failed to update inquiry"));
     }
   });
 
@@ -748,9 +748,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .select();
 
       if (error) throw error;
-      res.json(data[0]);
+      return res.json(success(data[0], "User updated successfully"));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      return res.status(500).json(error("Failed to update user"));
     }
   });
 
@@ -828,9 +828,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .select();
 
       if (error) throw error;
-      res.json(data[0]);
+      return res.json(success(data[0], "Saved search updated successfully"));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      return res.status(500).json(error("Failed to update saved search"));
     }
   });
 
