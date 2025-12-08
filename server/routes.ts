@@ -133,9 +133,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .single();
 
       if (error) throw error;
-      res.json(data);
+      return res.json(success(data, "Property fetched successfully"));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      return res.status(500).json(error("Failed to fetch property"));
     }
   });
 
@@ -232,9 +232,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .eq("owner_id", req.params.userId);
 
       if (error) throw error;
-      res.json(data);
+      return res.json(success(data, "User properties fetched successfully"));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      return res.status(500).json(error("Failed to fetch user properties"));
     }
   });
 
