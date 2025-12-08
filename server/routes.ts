@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { supabase } from "./supabase";
 import { authenticateToken, optionalAuth, requireRole, type AuthenticatedRequest } from "./auth-middleware";
+import { success, error } from "./response";
 import {
   sendEmail,
   getAgentInquiryEmailTemplate,
@@ -117,9 +118,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { data, error } = await query;
 
       if (error) throw error;
-      res.json(data);
+      return res.json(success(data, "Properties fetched successfully"));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      return res.status(500).json(error("Failed to fetch properties"));
     }
   });
 
