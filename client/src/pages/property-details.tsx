@@ -69,7 +69,6 @@ export default function PropertyDetails() {
   const lat = property?.latitude ? parseFloat(String(property.latitude)) : 34.0522;
   const lng = property?.longitude ? parseFloat(String(property.longitude)) : -118.2437;
   const nearbyPlaces = useNearbyPlaces(lat, lng);
-  const propertyReviews = usePropertyReviews();
 
   if (!match) {
     return <NotFound />;
@@ -253,11 +252,6 @@ export default function PropertyDetails() {
                 <NearbyPlaces places={nearbyPlaces} />
               </div>
             </div>
-
-            <Separator />
-
-            {/* Reviews & Ratings Section */}
-            <ReviewsSection data={propertyReviews} />
 
             {/* Property Owner/Manager */}
             {owner && (

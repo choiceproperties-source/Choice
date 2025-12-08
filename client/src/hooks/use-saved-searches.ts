@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/lib/auth-context';
+import { useAuth, getAuthToken } from '@/lib/auth-context';
 import { useToast } from '@/hooks/use-toast';
 
 export interface SavedSearch {
@@ -39,11 +39,12 @@ export function useSavedSearches() {
       setLoading(true);
       setError(null);
       try {
+        const token = await getAuthToken();
         const response = await fetch(
           `/api/saved-searches/user/${user.id}`,
           {
             headers: {
-              'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+              'Authorization': token ? `Bearer ${token}` : '',
             },
           }
         );
@@ -96,11 +97,12 @@ export function useSavedSearches() {
     }
 
     try {
+      const token = await getAuthToken();
       const response = await fetch('/api/saved-searches', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          'Authorization': token ? `Bearer ${token}` : '',
         },
         body: JSON.stringify({
           userId: user.id,
@@ -147,10 +149,11 @@ export function useSavedSearches() {
     }
 
     try {
+      const token = await getAuthToken();
       const response = await fetch(`/api/saved-searches/${searchId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          'Authorization': token ? `Bearer ${token}` : '',
         },
       });
 
@@ -196,11 +199,12 @@ export function useSavedSearches() {
     }
 
     try {
+      const token = await getAuthToken();
       const response = await fetch(`/api/saved-searches/${searchId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          'Authorization': token ? `Bearer ${token}` : '',
         },
         body: JSON.stringify({ name, filters }),
       });

@@ -15,12 +15,7 @@ export function useInquiries() {
   // Submit inquiry mutation
   const submitInquiryMutation = useMutation({
     mutationFn: async (inquiryData: Record<string, any>) => {
-      const response = await fetch('/api/inquiries', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(inquiryData),
-      });
-      if (!response.ok) throw new Error('Failed to submit inquiry');
+      const response = await apiRequest('POST', '/api/inquiries', inquiryData);
       return response.json();
     },
     onSuccess: () => {

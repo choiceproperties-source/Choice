@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/lib/auth-context';
+import { useAuth, getAuthToken } from '@/lib/auth-context';
 import { useToast } from '@/hooks/use-toast';
 
 export interface Requirement {
@@ -44,11 +44,12 @@ export function useRequirements() {
       setLoading(true);
       setError(null);
       try {
+        const token = await getAuthToken();
         const response = await fetch(
           `/api/requirements/user/${user.id}`,
           {
             headers: {
-              'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+              'Authorization': token ? `Bearer ${token}` : '',
             },
           }
         );
@@ -102,11 +103,12 @@ export function useRequirements() {
     }
 
     try {
+      const token = await getAuthToken();
       const response = await fetch('/api/requirements', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          'Authorization': token ? `Bearer ${token}` : '',
         },
         body: JSON.stringify({
           ...requirementData,
@@ -157,11 +159,12 @@ export function useRequirements() {
     }
 
     try {
+      const token = await getAuthToken();
       const response = await fetch(`/api/requirements/${requirementId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          'Authorization': token ? `Bearer ${token}` : '',
         },
         body: JSON.stringify(requirementData),
       });
@@ -207,10 +210,11 @@ export function useRequirements() {
     }
 
     try {
+      const token = await getAuthToken();
       const response = await fetch(`/api/requirements/${requirementId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          'Authorization': token ? `Bearer ${token}` : '',
         },
       });
 
