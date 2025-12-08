@@ -24,10 +24,14 @@ declare module 'http' {
 }
 
 // CORS configuration
+const isDev = process.env.NODE_ENV !== "production";
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",") || ["https://choiceproperties.com"];
+
 app.use(cors({
-  origin: '*',
+  origin: isDev ? true : allowedOrigins,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
 }));
 
 app.use(express.json({

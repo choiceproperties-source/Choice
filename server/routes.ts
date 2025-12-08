@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { supabase } from "./supabase";
-import { authenticateToken, optionalAuth, requireRole, type AuthenticatedRequest } from "./auth-middleware";
+import { authenticateToken, optionalAuth, requireRole, requireOwnership, type AuthenticatedRequest } from "./auth-middleware";
 import { success, error } from "./response";
 import {
   sendEmail,
@@ -21,6 +21,7 @@ import {
   insertNewsletterSubscriberSchema,
   insertContactMessageSchema,
 } from "@shared/schema";
+import { authLimiter, inquiryLimiter, newsletterLimiter } from "./rate-limit";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
@@ -51,7 +52,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/auth/login", async (req, res) => {
+  app.post("/api/auth/login", authLimiter, async (req, res) => {
     try {
       const validation = loginSchema.safeParse(req.body);
       if (!validation.success) {
@@ -163,22 +164,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/properties/:id", authenticateToken, async (req: AuthenticatedRequest, res) => {
+  app.patch("/api/properties/:id", authenticateToken, requireOwnership("property"), async (req: AuthenticatedRequest, res) => {
     try {
-      const { data: existingProperty } = await supabase
-        .from("properties")
-        .select("owner_id")
-        .eq("id", req.params.id)
-        .single();
-
-      if (!existingProperty) {
-        return res.status(404).json({ error: "Property not found" });
-      }
-
-      if (existingProperty.owner_id !== req.user!.id && req.user!.role !== "admin") {
-        return res.status(403).json({ error: "Not authorized to update this property" });
-      }
-
       const { data, error } = await supabase
         .from("properties")
         .update({ ...req.body, updated_at: new Date().toISOString() })
@@ -192,22 +179,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/properties/:id", authenticateToken, async (req: AuthenticatedRequest, res) => {
+  app.delete("/api/properties/:id", authenticateToken, requireOwnership("property"), async (req: AuthenticatedRequest, res) => {
     try {
-      const { data: existingProperty } = await supabase
-        .from("properties")
-        .select("owner_id")
-        .eq("id", req.params.id)
-        .single();
-
-      if (!existingProperty) {
-        return res.status(404).json({ error: "Property not found" });
-      }
-
-      if (existingProperty.owner_id !== req.user!.id && req.user!.role !== "admin") {
-        return res.status(403).json({ error: "Not authorized to delete this property" });
-      }
-
       const { error } = await supabase
         .from("properties")
         .delete()
@@ -373,7 +346,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ===== INQUIRIES =====
-  app.post("/api/inquiries", async (req, res) => {
+  app.post("/api/inquiries", inquiryLimiter, async (req, res) => {
     try {
       const validation = insertInquirySchema.safeParse(req.body);
       if (!validation.success) {
@@ -433,22 +406,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/inquiries/:id", authenticateToken, async (req: AuthenticatedRequest, res) => {
+  app.patch("/api/inquiries/:id", authenticateToken, requireOwnership("inquiry"), async (req: AuthenticatedRequest, res) => {
     try {
-      const { data: inquiry } = await supabase
-        .from("inquiries")
-        .select("agent_id")
-        .eq("id", req.params.id)
-        .single();
-
-      if (!inquiry) {
-        return res.status(404).json({ error: "Inquiry not found" });
-      }
-
-      if (inquiry.agent_id !== req.user!.id && req.user!.role !== "admin") {
-        return res.status(403).json({ error: "Not authorized" });
-      }
-
       const { data, error } = await supabase
         .from("inquiries")
         .update({ ...req.body, updated_at: new Date().toISOString() })
@@ -544,22 +503,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/favorites/:id", authenticateToken, async (req: AuthenticatedRequest, res) => {
+  app.delete("/api/favorites/:id", authenticateToken, requireOwnership("favorite"), async (req: AuthenticatedRequest, res) => {
     try {
-      const { data: favorite } = await supabase
-        .from("favorites")
-        .select("user_id")
-        .eq("id", req.params.id)
-        .single();
-
-      if (!favorite) {
-        return res.status(404).json({ error: "Favorite not found" });
-      }
-
-      if (favorite.user_id !== req.user!.id) {
-        return res.status(403).json({ error: "Not authorized" });
-      }
-
       const { error } = await supabase
         .from("favorites")
         .delete()
@@ -630,22 +575,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/reviews/:id", authenticateToken, async (req: AuthenticatedRequest, res) => {
+  app.patch("/api/reviews/:id", authenticateToken, requireOwnership("review"), async (req: AuthenticatedRequest, res) => {
     try {
-      const { data: review } = await supabase
-        .from("reviews")
-        .select("user_id")
-        .eq("id", req.params.id)
-        .single();
-
-      if (!review) {
-        return res.status(404).json({ error: "Review not found" });
-      }
-
-      if (review.user_id !== req.user!.id && req.user!.role !== "admin") {
-        return res.status(403).json({ error: "Not authorized" });
-      }
-
       const { data, error } = await supabase
         .from("reviews")
         .update({ ...req.body, updated_at: new Date().toISOString() })
@@ -659,22 +590,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/reviews/:id", authenticateToken, async (req: AuthenticatedRequest, res) => {
+  app.delete("/api/reviews/:id", authenticateToken, requireOwnership("review"), async (req: AuthenticatedRequest, res) => {
     try {
-      const { data: review } = await supabase
-        .from("reviews")
-        .select("user_id")
-        .eq("id", req.params.id)
-        .single();
-
-      if (!review) {
-        return res.status(404).json({ error: "Review not found" });
-      }
-
-      if (review.user_id !== req.user!.id && req.user!.role !== "admin") {
-        return res.status(403).json({ error: "Not authorized" });
-      }
-
       const { error } = await supabase
         .from("reviews")
         .delete()
@@ -798,22 +715,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/saved-searches/:id", authenticateToken, async (req: AuthenticatedRequest, res) => {
+  app.patch("/api/saved-searches/:id", authenticateToken, requireOwnership("saved_search"), async (req: AuthenticatedRequest, res) => {
     try {
-      const { data: search } = await supabase
-        .from("saved_searches")
-        .select("user_id")
-        .eq("id", req.params.id)
-        .single();
-
-      if (!search) {
-        return res.status(404).json({ error: "Saved search not found" });
-      }
-
-      if (search.user_id !== req.user!.id && req.user!.role !== "admin") {
-        return res.status(403).json({ error: "Not authorized" });
-      }
-
       // Validate and extract only allowed fields (name and filters)
       const updateSchema = insertSavedSearchSchema.partial().pick({ name: true, filters: true });
       const validation = updateSchema.safeParse(req.body);
@@ -834,22 +737,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/saved-searches/:id", authenticateToken, async (req: AuthenticatedRequest, res) => {
+  app.delete("/api/saved-searches/:id", authenticateToken, requireOwnership("saved_search"), async (req: AuthenticatedRequest, res) => {
     try {
-      const { data: search } = await supabase
-        .from("saved_searches")
-        .select("user_id")
-        .eq("id", req.params.id)
-        .single();
-
-      if (!search) {
-        return res.status(404).json({ error: "Saved search not found" });
-      }
-
-      if (search.user_id !== req.user!.id && req.user!.role !== "admin") {
-        return res.status(403).json({ error: "Not authorized" });
-      }
-
       const { error } = await supabase
         .from("saved_searches")
         .delete()
@@ -863,7 +752,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ===== NEWSLETTER =====
-  app.post("/api/newsletter/subscribe", async (req, res) => {
+  app.post("/api/newsletter/subscribe", newsletterLimiter, async (req, res) => {
     try {
       const validation = insertNewsletterSubscriberSchema.safeParse(req.body);
       if (!validation.success) {
@@ -903,7 +792,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ===== CONTACT MESSAGES =====
-  app.post("/api/messages", async (req, res) => {
+  app.post("/api/messages", inquiryLimiter, async (req, res) => {
     try {
       const validation = insertContactMessageSchema.safeParse(req.body);
       if (!validation.success) {

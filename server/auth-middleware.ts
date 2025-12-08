@@ -97,7 +97,7 @@ export function requireRole(...roles: string[]) {
   };
 }
 
-export function requireOwnership(resourceType: "property" | "application" | "review") {
+export function requireOwnership(resourceType: "property" | "application" | "review" | "inquiry" | "saved_search" | "user" | "favorite") {
   return async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     if (!req.user) {
       return res.status(401).json({ error: "Authentication required" });
@@ -108,30 +108,74 @@ export function requireOwnership(resourceType: "property" | "application" | "rev
     }
 
     const resourceId = req.params.id;
+    let data: any = null;
     let isOwner = false;
+    const resourceNames: Record<string, string> = {
+      property: "Property",
+      application: "Application",
+      review: "Review",
+      inquiry: "Inquiry",
+      saved_search: "Saved search",
+      user: "User",
+      favorite: "Favorite",
+    };
 
     try {
       if (resourceType === "property") {
-        const { data } = await supabase
+        const result = await supabase
           .from("properties")
           .select("owner_id")
           .eq("id", resourceId)
           .single();
+        data = result.data;
         isOwner = data?.owner_id === req.user.id;
       } else if (resourceType === "application") {
-        const { data } = await supabase
+        const result = await supabase
           .from("applications")
           .select("user_id")
           .eq("id", resourceId)
           .single();
+        data = result.data;
         isOwner = data?.user_id === req.user.id;
       } else if (resourceType === "review") {
-        const { data } = await supabase
+        const result = await supabase
           .from("reviews")
           .select("user_id")
           .eq("id", resourceId)
           .single();
+        data = result.data;
         isOwner = data?.user_id === req.user.id;
+      } else if (resourceType === "inquiry") {
+        const result = await supabase
+          .from("inquiries")
+          .select("agent_id")
+          .eq("id", resourceId)
+          .single();
+        data = result.data;
+        isOwner = data?.agent_id === req.user.id;
+      } else if (resourceType === "saved_search") {
+        const result = await supabase
+          .from("saved_searches")
+          .select("user_id")
+          .eq("id", resourceId)
+          .single();
+        data = result.data;
+        isOwner = data?.user_id === req.user.id;
+      } else if (resourceType === "user") {
+        isOwner = resourceId === req.user.id;
+        data = isOwner ? { id: resourceId } : null;
+      } else if (resourceType === "favorite") {
+        const result = await supabase
+          .from("favorites")
+          .select("user_id")
+          .eq("id", resourceId)
+          .single();
+        data = result.data;
+        isOwner = data?.user_id === req.user.id;
+      }
+
+      if (!data) {
+        return res.status(404).json({ error: `${resourceNames[resourceType]} not found` });
       }
 
       if (!isOwner) {
