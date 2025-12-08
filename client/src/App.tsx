@@ -38,7 +38,14 @@ const PropertyRequirements = lazy(() => import("@/pages/property-requirements"))
 const AgentDashboard = lazy(() => import("@/pages/agent-dashboard"));
 
 function LoadingFallback() {
-  return <div className="min-h-screen flex items-center justify-center"><div className="text-gray-500">Loading...</div></div>;
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background" role="status" aria-label="Loading page content">
+      <div className="text-muted-foreground flex flex-col items-center gap-2">
+        <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" aria-hidden="true"></div>
+        <span>Loading...</span>
+      </div>
+    </div>
+  );
 }
 
 function Router() {
