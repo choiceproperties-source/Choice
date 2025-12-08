@@ -188,7 +188,7 @@ export default function PropertyDetails() {
               <>
                 <div>
                   <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-2xl font-bold text-gray-900">Reviews</h2>
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Reviews</h2>
                     <div className="flex items-center gap-2">
                       <div className="flex gap-1">
                         {[1, 2, 3, 4, 5].map(i => (

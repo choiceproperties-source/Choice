@@ -161,8 +161,11 @@ export default function Properties() {
       <Breadcrumb items={[{ label: "Properties" }]} />
       
       {savedSearches.length > 0 && (
-        <div className="bg-blue-50 border-b border-blue-200 px-4 py-2 text-sm">
-          <span className="text-blue-900">💾 <strong>{savedSearches.length}</strong> saved search{savedSearches.length !== 1 ? 'es' : ''}</span>
+        <div className="bg-blue-50 dark:bg-blue-950 border-b border-blue-200 dark:border-blue-800 px-4 py-2 text-sm">
+          <span className="text-blue-900 dark:text-blue-100 flex items-center gap-2">
+            <Bookmark className="h-4 w-4" />
+            <strong>{savedSearches.length}</strong> saved search{savedSearches.length !== 1 ? 'es' : ''}
+          </span>
         </div>
       )}
       
