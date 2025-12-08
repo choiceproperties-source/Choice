@@ -291,7 +291,18 @@ export default function Admin() {
 
   const handleUpdateProperty = async () => {
     if (!selectedProperty?.id) return;
-    const result = await updateProperty(selectedProperty.id, editPropertyData);
+    // Filter out undefined/null values to avoid Supabase constraint violations
+    const cleanedData: Record<string, any> = {};
+    for (const [key, value] of Object.entries(editPropertyData)) {
+      if (value !== undefined && value !== null && value !== '') {
+        cleanedData[key] = value;
+      }
+    }
+    if (Object.keys(cleanedData).length === 0) {
+      toast({ title: 'No changes to update', variant: 'destructive' });
+      return;
+    }
+    const result = await updateProperty(selectedProperty.id, cleanedData);
     if (result) {
       toast({ title: 'Property updated successfully' });
       setShowEditProperty(false);

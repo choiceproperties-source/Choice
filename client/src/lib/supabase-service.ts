@@ -149,9 +149,10 @@ export async function getReviews(propertyId: string): Promise<Review[]> {
 export async function createReview(review: Omit<Review, 'id'>) {
   if (!supabase) return null;
   try {
+    // Let Supabase generate UUID - do not provide manual ID
     const { data, error } = await supabase
       .from('reviews')
-      .insert([{ id: `review_${Date.now()}`, ...review }])
+      .insert([review])
       .select()
       .single();
     if (error) throw error;
@@ -181,9 +182,10 @@ export async function getFavorites(userId: string) {
 export async function addFavorite(userId: string, propertyId: string) {
   if (!supabase) return false;
   try {
+    // Let Supabase generate UUID - do not provide manual ID
     const { error } = await supabase
       .from('favorites')
-      .insert([{ id: `fav_${userId}_${propertyId}`, user_id: userId, property_id: propertyId }]);
+      .insert([{ user_id: userId, property_id: propertyId }]);
     if (error) throw error;
     return true;
   } catch (err) {
@@ -212,9 +214,10 @@ export async function removeFavorite(userId: string, propertyId: string) {
 export async function createInquiry(inquiry: any) {
   if (!supabase) return null;
   try {
+    // Let Supabase generate UUID - do not provide manual ID
     const { data, error } = await supabase
       .from('inquiries')
-      .insert([{ id: `inquiry_${Date.now()}`, ...inquiry }])
+      .insert([inquiry])
       .select()
       .single();
     if (error) throw error;
@@ -571,10 +574,10 @@ export async function deleteReview(reviewId: string): Promise<boolean> {
 export async function createUser(userData: { email: string; full_name: string; role: string }) {
   if (!supabase) return null;
   try {
+    // Let Supabase generate UUID - do not provide manual ID
     const { data, error } = await supabase
       .from('users')
       .insert([{ 
-        id: `user_${Date.now()}`,
         ...userData, 
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
