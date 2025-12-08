@@ -566,3 +566,71 @@ export async function deleteReview(reviewId: string): Promise<boolean> {
     return false;
   }
 }
+
+// ===================== ADMIN USER MANAGEMENT =====================
+export async function createUser(userData: { email: string; full_name: string; role: string }) {
+  if (!supabase) return null;
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .insert([{ 
+        id: `user_${Date.now()}`,
+        ...userData, 
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }])
+      .select()
+      .single();
+    if (error) throw error;
+    return data || null;
+  } catch (err) {
+    console.error('Error creating user:', err);
+    return null;
+  }
+}
+
+export async function deleteUser(userId: string): Promise<boolean> {
+  if (!supabase) return false;
+  try {
+    const { error } = await supabase
+      .from('users')
+      .delete()
+      .eq('id', userId);
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('Error deleting user:', err);
+    return false;
+  }
+}
+
+// ===================== SAVED SEARCHES =====================
+export async function getSavedSearches() {
+  if (!supabase) return [];
+  try {
+    const { data, error } = await supabase
+      .from('saved_searches')
+      .select('*, users(full_name, email)')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    console.error('Error fetching saved searches:', err);
+    return [];
+  }
+}
+
+export async function deleteSavedSearch(searchId: string): Promise<boolean> {
+  if (!supabase) return false;
+  try {
+    const { error } = await supabase
+      .from('saved_searches')
+      .delete()
+      .eq('id', searchId);
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('Error deleting saved search:', err);
+    return false;
+  }
+}
