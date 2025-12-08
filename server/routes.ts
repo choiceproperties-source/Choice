@@ -545,9 +545,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      res.json(data);
+      return res.json(success(data, "Reviews fetched successfully"));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      return res.status(500).json(error("Failed to fetch reviews"));
     }
   });
 
@@ -569,9 +569,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .select();
 
       if (error) throw error;
-      res.json(data[0]);
+      return res.json(success(data[0], "Review created successfully"));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      return res.status(500).json(error("Failed to create review"));
     }
   });
 
@@ -584,9 +584,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .select();
 
       if (error) throw error;
-      res.json(data[0]);
+      return res.json(success(data[0], "Review updated successfully"));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      return res.status(500).json(error("Failed to update review"));
     }
   });
 
@@ -598,9 +598,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .eq("id", req.params.id);
 
       if (error) throw error;
-      res.json({ success: true });
+      return res.json(success(null, "Review deleted successfully"));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      return res.status(500).json(error("Failed to delete review"));
     }
   });
 
