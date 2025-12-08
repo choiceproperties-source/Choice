@@ -64,7 +64,7 @@ export function Navbar() {
           <FavoritesDropdown />
           {isLoggedIn ? (
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">{user?.name}</span>
+              <span className="text-sm text-gray-600">{user?.full_name || user?.email}</span>
               <Button 
                 variant="ghost" 
                 size="sm"
@@ -118,7 +118,7 @@ export function Navbar() {
                   <>
                     <div className="px-4 py-3 text-base font-medium text-gray-700">
                       <UserIcon className="h-4 w-4 inline mr-2" />
-                      {user?.name}
+                      {user?.full_name || user?.email}
                     </div>
                     <button
                       onClick={() => {

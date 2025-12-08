@@ -48,7 +48,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({ success: true, user: data.user });
     } catch (err: any) {
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: err.message || "Signup failed" });
     }
   });
 
@@ -72,7 +72,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({ success: true, session: data.session });
     } catch (err: any) {
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: err.message || "Login failed" });
     }
   });
 
@@ -80,7 +80,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       res.json({ success: true });
     } catch (err: any) {
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: err.message || "Logout failed" });
     }
   });
 
@@ -95,7 +95,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error) throw error;
       res.json(data);
     } catch (err: any) {
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: err.message || "Error" });
     }
   });
 
@@ -531,7 +531,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error) throw error;
       res.json(data);
     } catch (err: any) {
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: err.message || "Error" });
     }
   });
 
