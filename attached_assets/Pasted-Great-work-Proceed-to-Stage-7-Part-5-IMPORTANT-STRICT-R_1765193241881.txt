@@ -1,0 +1,86 @@
+Great work. Proceed to **Stage 7 Part 5**.
+
+IMPORTANT – STRICT RULES:
+- Do NOT modify any dashboards (Renter, Owner, Agent, Buyer).
+- Do NOT modify backend, API routes, database, or any server files.
+- Do NOT refactor or change any existing components except adding the new review form.
+- Only create NEW review form components and integrate them into the property-details page.
+- All review submission is client-side ONLY (local state merged with mock reviews).
+- Do NOT alter the existing 7 mock reviews. New submissions should append on top.
+
+------------------------------------------------
+STAGE 7 — PART 5: “WRITE A REVIEW” + STAR RATING INPUT (CLIENT-SIDE ONLY)
+
+Goal:
+Add a modern, clean “Write a Review” form to the property details page that lets a user submit a review (client-side only). Submissions should feel real and merge with the existing mock review list.
+
+Deliver ONLY the following:
+
+1. NEW HOOK — useSubmitReview.ts
+   - Maintains local submittedReviews state.
+   - New reviews append to the top of the list.
+   - Fields required:
+        • name
+        • rating (1–5)
+        • comment
+        • date (string: new Date().toISOString())
+        • avatarInitial (auto: first letter of name)
+   - Returns:
+        • submittedReviews
+        • submitReview(reviewData)
+   - No backend calls. No database changes.
+
+2. NEW COMPONENT — StarRatingInput
+   - Users tap/click to select 1–5 stars.
+   - Hover animation on desktop.
+   - Mobile-friendly tap zones.
+   - Props:
+        • value (number)
+        • onChange(newValue)
+   - Style must match ReviewStars but be interactive.
+   - data-testids:
+        • star-input-${1..5}
+
+3. NEW COMPONENT — ReviewForm
+   - Collect:
+        • Name input (text)
+        • StarRatingInput
+        • Comment textarea (2–4 sentence recommended limit)
+   - Validate:
+        • name required
+        • rating required
+        • comment min ~8 words
+   - Includes:
+        • Cancel button (resets form)
+        • Submit button (disabled until valid)
+        • Toast message on success: “Review submitted!”
+   - Full dark mode support.
+   - Smooth transitions.
+   - data-testid="form-review"
+
+4. Expand ReviewsSection (but DO NOT modify existing review logic):
+   - Add a new “Write a Review” box ABOVE the list of reviews.
+   - This box includes:
+        • Header: “Write a Review”
+        • ReviewForm component (collapsible)
+   - Collapsible behavior:
+        • Default state: collapsed with button “Write a Review”
+        • When expanded → shows form
+   - Styling should match other sections.
+
+5. Integrate Local + Mock Reviews Together
+   - In ReviewsSection:
+        reviewsDisplayed = [...submittedReviews, ...mockReviews]
+   - New reviews appear at the top.
+   - When empty: still show the mock empty state properly.
+
+6. DO NOT modify:
+   - usePropertyReviews.ts
+   - review-stars.tsx
+   - review-card.tsx
+   - NearbyPlaces, MapSection, PropertyOverview, PhotoGallery
+   - ANY dashboard files.
+
+------------------------------------------------
+STOP after completing Stage 7 Part 5 and show me the output.
+Do NOT begin Part 6 until I give instructions.

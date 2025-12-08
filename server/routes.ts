@@ -47,7 +47,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       res.json({ success: true, user: data.user });
-    } catch (error: any) {
+    } catch (err: any) {
       res.status(500).json({ error: error.message });
     }
   });
@@ -71,7 +71,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       res.json({ success: true, session: data.session });
-    } catch (error: any) {
+    } catch (err: any) {
       res.status(500).json({ error: error.message });
     }
   });
@@ -79,7 +79,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/logout", async (req, res) => {
     try {
       res.json({ success: true });
-    } catch (error: any) {
+    } catch (err: any) {
       res.status(500).json({ error: error.message });
     }
   });
@@ -94,7 +94,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (error) throw error;
       res.json(data);
-    } catch (error: any) {
+    } catch (err: any) {
       res.status(500).json({ error: error.message });
     }
   });
@@ -120,7 +120,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (error) throw error;
       return res.json(success(data, "Properties fetched successfully"));
-    } catch (error: any) {
+    } catch (err: any) {
       return res.status(500).json(error("Failed to fetch properties"));
     }
   });
@@ -135,7 +135,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (error) throw error;
       return res.json(success(data, "Property fetched successfully"));
-    } catch (error: any) {
+    } catch (err: any) {
       return res.status(500).json(error("Failed to fetch property"));
     }
   });
@@ -159,7 +159,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (error) throw error;
       res.json(data[0]);
-    } catch (error: any) {
+    } catch (err: any) {
       res.status(500).json({ error: error.message });
     }
   });
@@ -174,7 +174,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (error) throw error;
       return res.json(success(data[0], "Property updated successfully"));
-    } catch (error: any) {
+    } catch (err: any) {
       return res.status(500).json(error("Failed to update property"));
     }
   });
@@ -188,7 +188,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (error) throw error;
       res.json({ success: true });
-    } catch (error: any) {
+    } catch (err: any) {
       res.status(500).json({ error: error.message });
     }
   });
@@ -206,7 +206,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (error) throw error;
       return res.json(success(data, "User properties fetched successfully"));
-    } catch (error: any) {
+    } catch (err: any) {
       return res.status(500).json(error("Failed to fetch user properties"));
     }
   });
@@ -255,7 +255,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       return res.json(success(data[0], "Application submitted successfully"));
-    } catch (error: any) {
+    } catch (err: any) {
       return res.status(500).json(error("Failed to submit application"));
     }
   });
@@ -273,7 +273,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (error) throw error;
       return res.json(success(data, "User applications fetched successfully"));
-    } catch (error: any) {
+    } catch (err: any) {
       return res.status(500).json(error("Failed to fetch user applications"));
     }
   });
@@ -301,7 +301,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (error) throw error;
       return res.json(success(data, "Property applications fetched successfully"));
-    } catch (error: any) {
+    } catch (err: any) {
       return res.status(500).json(error("Failed to fetch property applications"));
     }
   });
@@ -340,7 +340,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (error) throw error;
       return res.json(success(data[0], "Application updated successfully"));
-    } catch (error: any) {
+    } catch (err: any) {
       return res.status(500).json(error("Failed to update application"));
     }
   });
@@ -382,7 +382,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       return res.json(success(data[0], "Inquiry submitted successfully"));
-    } catch (error: any) {
+    } catch (err: any) {
       return res.status(500).json(error("Failed to submit inquiry"));
     }
   });
@@ -401,7 +401,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (error) throw error;
       return res.json(success(data, "Agent inquiries fetched successfully"));
-    } catch (error: any) {
+    } catch (err: any) {
       return res.status(500).json(error("Failed to fetch agent inquiries"));
     }
   });
@@ -416,7 +416,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (error) throw error;
       return res.json(success(data[0], "Inquiry updated successfully"));
-    } catch (error: any) {
+    } catch (err: any) {
       return res.status(500).json(error("Failed to update inquiry"));
     }
   });
@@ -441,7 +441,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (error) throw error;
       return res.json(success(data[0], "Requirement created successfully"));
-    } catch (error: any) {
+    } catch (err: any) {
       return res.status(500).json(error("Failed to create requirement"));
     }
   });
@@ -459,7 +459,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (error) throw error;
       return res.json(success(data, "User requirements fetched successfully"));
-    } catch (error: any) {
+    } catch (err: any) {
       return res.status(500).json(error("Failed to fetch user requirements"));
     }
   });
@@ -473,7 +473,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (error) throw error;
       return res.json(success(data, "Requirements fetched successfully"));
-    } catch (error: any) {
+    } catch (err: any) {
       return res.status(500).json(error("Failed to fetch requirements"));
     }
   });
@@ -498,7 +498,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (error) throw error;
       res.json(data[0]);
-    } catch (error: any) {
+    } catch (err: any) {
       res.status(500).json({ error: error.message });
     }
   });
@@ -512,7 +512,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (error) throw error;
       res.json({ success: true });
-    } catch (error: any) {
+    } catch (err: any) {
       res.status(500).json({ error: error.message });
     }
   });
@@ -530,7 +530,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (error) throw error;
       res.json(data);
-    } catch (error: any) {
+    } catch (err: any) {
       res.status(500).json({ error: error.message });
     }
   });
@@ -546,7 +546,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (error) throw error;
       return res.json(success(data, "Reviews fetched successfully"));
-    } catch (error: any) {
+    } catch (err: any) {
       return res.status(500).json(error("Failed to fetch reviews"));
     }
   });
@@ -570,7 +570,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (error) throw error;
       return res.json(success(data[0], "Review created successfully"));
-    } catch (error: any) {
+    } catch (err: any) {
       return res.status(500).json(error("Failed to create review"));
     }
   });
@@ -585,7 +585,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (error) throw error;
       return res.json(success(data[0], "Review updated successfully"));
-    } catch (error: any) {
+    } catch (err: any) {
       return res.status(500).json(error("Failed to update review"));
     }
   });
@@ -599,7 +599,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (error) throw error;
       return res.json(success(null, "Review deleted successfully"));
-    } catch (error: any) {
+    } catch (err: any) {
       return res.status(500).json(error("Failed to delete review"));
     }
   });
@@ -614,7 +614,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (error) throw error;
       return res.json(success(data, "Users fetched successfully"));
-    } catch (error: any) {
+    } catch (err: any) {
       return res.status(500).json(error("Failed to fetch users"));
     }
   });
@@ -632,7 +632,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       return res.json(success(data, "User fetched successfully"));
-    } catch (error: any) {
+    } catch (err: any) {
       return res.status(500).json(error("Failed to fetch user"));
     }
   });
@@ -666,7 +666,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (error) throw error;
       return res.json(success(data[0], "User updated successfully"));
-    } catch (error: any) {
+    } catch (err: any) {
       return res.status(500).json(error("Failed to update user"));
     }
   });
@@ -691,7 +691,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (error) throw error;
       return res.json(success(data[0], "Saved search created successfully"));
-    } catch (error: any) {
+    } catch (err: any) {
       return res.status(500).json(error("Failed to create saved search"));
     }
   });
@@ -710,7 +710,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (error) throw error;
       return res.json(success(data, "Saved searches fetched successfully"));
-    } catch (error: any) {
+    } catch (err: any) {
       return res.status(500).json(error("Failed to fetch saved searches"));
     }
   });
@@ -732,7 +732,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (error) throw error;
       return res.json(success(data[0], "Saved search updated successfully"));
-    } catch (error: any) {
+    } catch (err: any) {
       return res.status(500).json(error("Failed to update saved search"));
     }
   });
@@ -746,7 +746,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (delError) throw delError;
       return res.json(success(null, "Saved search deleted successfully"));
-    } catch (error: any) {
+    } catch (err: any) {
       return res.status(500).json(error("Failed to delete saved search"));
     }
   });
@@ -772,7 +772,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       return res.json(success(data[0], "Subscribed successfully"));
-    } catch (error: any) {
+    } catch (err: any) {
       return res.status(500).json(error("Failed to subscribe to newsletter"));
     }
   });
@@ -786,7 +786,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (error) throw error;
       return res.json(success(data, "Newsletter subscribers fetched successfully"));
-    } catch (error: any) {
+    } catch (err: any) {
       return res.status(500).json(error("Failed to fetch newsletter subscribers"));
     }
   });
@@ -806,7 +806,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (error) throw error;
       return res.json(success(data[0], "Message sent successfully"));
-    } catch (error: any) {
+    } catch (err: any) {
       return res.status(500).json(error("Failed to send message"));
     }
   });
@@ -820,7 +820,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (error) throw error;
       return res.json(success(data, "Contact messages fetched successfully"));
-    } catch (error: any) {
+    } catch (err: any) {
       return res.status(500).json(error("Failed to fetch contact messages"));
     }
   });
@@ -835,7 +835,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (error) throw error;
       return res.json(success(data[0], "Message updated successfully"));
-    } catch (error: any) {
+    } catch (err: any) {
       return res.status(500).json(error("Failed to update message"));
     }
   });
