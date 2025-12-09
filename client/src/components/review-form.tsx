@@ -42,7 +42,7 @@ export function ReviewForm({ onSubmit }: ReviewFormProps) {
   return (
     <form onSubmit={handleSubmit} data-testid="form-review" className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
+        <label className="block text-sm font-medium mb-2">
           Your Name
         </label>
         <Input
@@ -51,19 +51,18 @@ export function ReviewForm({ onSubmit }: ReviewFormProps) {
           onChange={(e) => setName(e.target.value)}
           placeholder="e.g., Sarah M."
           data-testid="input-review-name"
-          className="dark:bg-gray-800 dark:border-gray-700 dark:text-white"
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
+        <label className="block text-sm font-medium mb-2">
           Rating
         </label>
         <StarRatingInput value={rating} onChange={setRating} />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
+        <label className="block text-sm font-medium mb-2">
           Comment (minimum 8 words)
         </label>
         <Textarea
@@ -72,9 +71,9 @@ export function ReviewForm({ onSubmit }: ReviewFormProps) {
           placeholder="Share your experience with this property..."
           rows={4}
           data-testid="input-review-comment"
-          className="dark:bg-gray-800 dark:border-gray-700 dark:text-white resize-none"
+          className="resize-none"
         />
-        <p className={`text-xs mt-1 ${wordCount < 8 ? "text-gray-500" : "text-green-600 dark:text-green-400"}`}>
+        <p className={`text-xs mt-1 ${wordCount < 8 ? "text-muted-foreground" : "text-green-600 dark:text-green-400"}`}>
           {wordCount} words
         </p>
       </div>
@@ -83,7 +82,7 @@ export function ReviewForm({ onSubmit }: ReviewFormProps) {
         <Button
           type="submit"
           disabled={!isValid}
-          className="flex-1 bg-primary hover:bg-primary/90 text-white"
+          className="flex-1"
           data-testid="button-submit-review"
         >
           Submit Review

@@ -61,14 +61,14 @@ export function PropertyCard({ property, onQuickView }: PropertyCardProps) {
 
   return (
     <Card 
-      className="overflow-hidden group border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 cursor-pointer transition-all duration-300 hover:shadow-xl hover:-translate-y-1 dark:hover:shadow-2xl dark:hover:shadow-black/50"
+      className="overflow-hidden group cursor-pointer transition-all duration-300 hover:shadow-xl hover:-translate-y-1 dark:hover:shadow-2xl dark:hover:shadow-black/50"
       onClick={() => onQuickView?.(property)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       data-testid={`card-property-${property.id}`}
     >
       {/* Image with enhanced hover effects */}
-      <div className="relative aspect-[1.6/1] overflow-hidden bg-gray-100 dark:bg-gray-800">
+      <div className="relative aspect-[1.6/1] overflow-hidden bg-muted">
         <Link href={`/property/${property.id}`}>
           <span className="block w-full h-full" onClick={(e) => e.stopPropagation()}>
             <img
@@ -90,7 +90,7 @@ export function PropertyCard({ property, onQuickView }: PropertyCardProps) {
           <Badge className="bg-secondary text-primary-foreground font-bold text-xs uppercase tracking-wider border border-secondary shadow-md hover-elevate" data-testid="badge-for-rent">
             For Rent
           </Badge>
-          <Badge className="bg-white/90 dark:bg-gray-800/90 text-primary dark:text-blue-400 font-bold text-xs uppercase tracking-wider border border-gray-200 dark:border-gray-700 shadow-sm hover-elevate" data-testid="badge-property-type">
+          <Badge className="bg-white/90 dark:bg-card text-primary font-bold text-xs uppercase tracking-wider shadow-sm" data-testid="badge-property-type">
             {property.property_type || 'Property'}
           </Badge>
         </div>
@@ -124,36 +124,34 @@ export function PropertyCard({ property, onQuickView }: PropertyCardProps) {
 
       <CardContent className="p-4 pb-2">
         {/* Price Line with smooth transition */}
-        <div className="flex items-baseline gap-1 mb-1 transition-colors duration-300" style={{
-          color: isHovered ? 'hsl(var(--primary))' : 'rgb(17, 24, 39)'
-        }}>
-            <span className="text-2xl font-bold dark:text-white">${property.price ? parseInt(property.price).toLocaleString() : 'N/A'}</span>
-            <span className="text-gray-600 dark:text-gray-400 text-sm">/mo</span>
+        <div className="flex items-baseline gap-1 mb-1 transition-colors duration-300">
+            <span className="text-2xl font-bold">${property.price ? parseInt(property.price).toLocaleString() : 'N/A'}</span>
+            <span className="text-muted-foreground text-sm">/mo</span>
         </div>
 
         {/* Stats Line */}
-        <div className="flex items-center gap-4 text-sm text-gray-700 dark:text-gray-300 mb-2 font-medium">
+        <div className="flex items-center gap-4 text-sm mb-2 font-medium">
             <div className="flex items-center gap-1">
-                <Bed className="h-4 w-4 text-primary dark:text-blue-400 transition-colors duration-300" />
+                <Bed className="h-4 w-4 text-primary" />
                 <span className="font-bold">{property.bedrooms || 0}</span>
-                <span className="font-normal">bds</span>
+                <span className="font-normal text-muted-foreground">bds</span>
             </div>
-            <div className="w-px h-3 bg-gray-300 dark:bg-gray-700"></div>
+            <div className="w-px h-3 bg-border"></div>
             <div className="flex items-center gap-1">
-                <Bath className="h-4 w-4 text-primary dark:text-blue-400 transition-colors duration-300" />
+                <Bath className="h-4 w-4 text-primary" />
                 <span className="font-bold">{property.bathrooms || 0}</span>
-                <span className="font-normal">ba</span>
+                <span className="font-normal text-muted-foreground">ba</span>
             </div>
-            <div className="w-px h-3 bg-gray-300 dark:bg-gray-700"></div>
+            <div className="w-px h-3 bg-border"></div>
             <div className="flex items-center gap-1">
-                <Maximize className="h-4 w-4 text-primary dark:text-blue-400 transition-colors duration-300" />
+                <Maximize className="h-4 w-4 text-primary" />
                 <span className="font-bold">{property.square_feet ? property.square_feet.toLocaleString() : 'N/A'}</span>
-                <span className="font-normal">sqft</span>
+                <span className="font-normal text-muted-foreground">sqft</span>
             </div>
         </div>
 
         {/* Address */}
-        <div className="text-sm text-gray-600 dark:text-gray-400 truncate" data-testid="text-property-address">
+        <div className="text-sm text-muted-foreground truncate" data-testid="text-property-address">
             {property.address}, {property.city || 'N/A'}, {property.state || ''}
         </div>
       </CardContent>

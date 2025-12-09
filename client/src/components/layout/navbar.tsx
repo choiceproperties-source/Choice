@@ -125,7 +125,7 @@ export function Navbar() {
             </SheetTrigger>
             <SheetContent 
               side="right" 
-              className="w-72 sm:w-80 overflow-y-auto max-h-screen scroll-smooth dark:bg-gray-950"
+              className="w-72 sm:w-80 overflow-y-auto max-h-screen scroll-smooth"
               id="mobile-menu"
               aria-label="Mobile navigation menu"
             >
@@ -148,7 +148,7 @@ export function Navbar() {
                         onClick={() => setIsOpen(false)}
                         onKeyDown={(e) => handleKeyDown(e, link.href, () => setIsOpen(false))}
                         className={`px-4 py-3 text-base font-medium transition-colors rounded-lg block cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
-                          isActive(link.href) ? "bg-primary/10 text-primary font-bold" : "text-muted-foreground hover:bg-muted dark:hover:bg-gray-800"
+                          isActive(link.href) ? "bg-primary/10 text-primary font-bold" : "text-muted-foreground hover:bg-muted"
                         }`}
                         tabIndex={0}
                         role="menuitem"
@@ -173,7 +173,7 @@ export function Navbar() {
                         logout();
                         setIsOpen(false);
                       }}
-                      className="px-4 py-3 text-base font-medium text-muted-foreground hover:bg-muted dark:hover:bg-gray-800 rounded-lg w-full text-left flex items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                      className="px-4 py-3 text-base font-medium text-muted-foreground hover:bg-muted rounded-lg w-full text-left flex items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                       aria-label="Logout from account"
                       data-testid="button-logout-mobile"
                     >
@@ -186,7 +186,7 @@ export function Navbar() {
                     <Link href="/login">
                       <span
                         onClick={() => setIsOpen(false)}
-                        className="px-4 py-3 text-base font-medium text-muted-foreground hover:bg-muted dark:hover:bg-gray-800 rounded-lg block cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                        className="px-4 py-3 text-base font-medium text-muted-foreground hover:bg-muted rounded-lg block cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                         tabIndex={0}
                         data-testid="link-login-mobile"
                       >

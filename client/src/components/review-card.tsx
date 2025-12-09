@@ -10,7 +10,7 @@ interface ReviewCardProps {
 export function ReviewCard({ review }: ReviewCardProps) {
   return (
     <Card 
-      className="border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 transition-all duration-200 hover-elevate"
+      className="transition-all duration-200 hover-elevate"
       data-testid={`card-review-${review.id}`}
     >
       <CardContent className="p-5">
@@ -26,10 +26,10 @@ export function ReviewCard({ review }: ReviewCardProps) {
           <div className="flex-1 min-w-0">
             {/* Name and Date */}
             <div className="flex items-center justify-between gap-2 mb-2">
-              <p className="font-semibold text-gray-900 dark:text-white text-sm">
+              <p className="font-semibold text-sm">
                 {review.name}
               </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
+              <p className="text-xs text-muted-foreground flex-shrink-0">
                 {review.date}
               </p>
             </div>
@@ -40,7 +40,7 @@ export function ReviewCard({ review }: ReviewCardProps) {
             </div>
 
             {/* Comment */}
-            <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">
+            <p className="text-sm leading-relaxed">
               {review.comment}
             </p>
           </div>

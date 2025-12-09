@@ -13,10 +13,10 @@ export function MapSection({ center, title, address }: MapSectionProps) {
   if (!center || !center[0] || !center[1]) {
     return (
       <div 
-        className="w-full h-[400px] rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-900 flex items-center justify-center"
+        className="w-full h-[400px] rounded-lg bg-muted flex items-center justify-center"
         data-testid="section-map-unavailable"
       >
-        <p className="text-gray-600 dark:text-gray-400 text-center">
+        <p className="text-muted-foreground text-center">
           Location data unavailable.
         </p>
       </div>
@@ -25,7 +25,7 @@ export function MapSection({ center, title, address }: MapSectionProps) {
 
   return (
     <div 
-      className="w-full rounded-lg overflow-hidden border border-gray-300 dark:border-gray-700"
+      className="w-full rounded-lg overflow-hidden border"
       data-testid="section-map"
     >
       <MapContainer
@@ -43,7 +43,7 @@ export function MapSection({ center, title, address }: MapSectionProps) {
           <Popup data-testid="popup-property">
             <div>
               <p className="font-semibold text-sm">{title}</p>
-              <p className="text-xs text-gray-600">{address}</p>
+              <p className="text-xs text-muted-foreground">{address}</p>
             </div>
           </Popup>
         </Marker>
