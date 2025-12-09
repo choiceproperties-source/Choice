@@ -37,6 +37,21 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    target: "esnext",
+    minify: "esbuild",
+    cssMinify: true,
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ["react", "react-dom"],
+          ui: ["@radix-ui/react-dialog", "@radix-ui/react-dropdown-menu", "@radix-ui/react-tabs", "@radix-ui/react-tooltip"],
+          charts: ["recharts"],
+          forms: ["react-hook-form", "@hookform/resolvers"],
+          query: ["@tanstack/react-query"],
+        },
+      },
+    },
   },
   server: {
     host: "0.0.0.0",

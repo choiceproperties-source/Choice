@@ -22,6 +22,7 @@ import {
   insertContactMessageSchema,
 } from "@shared/schema";
 import { authLimiter, signupLimiter, inquiryLimiter, newsletterLimiter } from "./rate-limit";
+import { cache, CACHE_TTL } from "./cache";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
@@ -108,6 +109,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const limitNum = Math.min(100, Math.max(1, parseInt(limit as string) || 20));
       const offset = (pageNum - 1) * limitNum;
 
+      const cacheKey = `properties:${propertyType || ''}:${city || ''}:${minPrice || ''}:${maxPrice || ''}:${status || 'active'}:${pageNum}:${limitNum}`;
+      const cached = cache.get<{ properties: any; pagination: any }>(cacheKey);
+      if (cached) {
+        return res.json(success(cached, "Properties fetched successfully"));
+      }
+
       let query = supabase.from("properties").select("*", { count: "exact" });
 
       if (propertyType) query = query.eq("property_type", propertyType);
@@ -129,7 +136,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const totalPages = Math.ceil((count || 0) / limitNum);
       
-      return res.json(success({
+      const result = {
         properties: data,
         pagination: {
           page: pageNum,
@@ -139,7 +146,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           hasNextPage: pageNum < totalPages,
           hasPrevPage: pageNum > 1,
         }
-      }, "Properties fetched successfully"));
+      };
+
+      cache.set(cacheKey, result, CACHE_TTL.PROPERTIES_LIST);
+
+      return res.json(success(result, "Properties fetched successfully"));
     } catch (err: any) {
       return res.status(500).json(errorResponse("Failed to fetch properties"));
     }
@@ -147,6 +158,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/properties/:id", async (req, res) => {
     try {
+      const cacheKey = `property:${req.params.id}`;
+      const cached = cache.get(cacheKey);
+      if (cached) {
+        return res.json(success(cached, "Property fetched successfully"));
+      }
+
       const { data, error } = await supabase
         .from("properties")
         .select("*")
@@ -154,6 +171,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .single();
 
       if (error) throw error;
+      
+      cache.set(cacheKey, data, CACHE_TTL.PROPERTY_DETAIL);
+      
       return res.json(success(data, "Property fetched successfully"));
     } catch (err: any) {
       return res.status(500).json(errorResponse("Failed to fetch property"));
@@ -178,6 +198,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .select();
 
       if (error) throw error;
+      
+      cache.invalidate("properties:");
+      
       return res.json(success(data[0], "Property created successfully"));
     } catch (err: any) {
       return res.status(500).json(errorResponse("Failed to create property"));
@@ -193,6 +216,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .select();
 
       if (error) throw error;
+      
+      cache.invalidate(`property:${req.params.id}`);
+      cache.invalidate("properties:");
+      
       return res.json(success(data[0], "Property updated successfully"));
     } catch (err: any) {
       return res.status(500).json(errorResponse("Failed to update property"));
@@ -207,6 +234,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .eq("id", req.params.id);
 
       if (error) throw error;
+      
+      cache.invalidate(`property:${req.params.id}`);
+      cache.invalidate("properties:");
+      
       return res.json(success(null, "Property deleted successfully"));
     } catch (err: any) {
       return res.status(500).json(errorResponse("Failed to delete property"));
