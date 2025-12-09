@@ -110,7 +110,7 @@ export default function PropertyDetails() {
     : 0;
 
   return (
-    <div className="min-h-screen bg-background flex flex-col overflow-x-hidden">
+    <div className="min-h-screen bg-white dark:bg-gray-950 flex flex-col overflow-x-hidden">
       <Navbar />
       <Breadcrumb items={[
         { label: "Properties", href: "/properties" },
