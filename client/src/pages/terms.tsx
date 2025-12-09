@@ -24,7 +24,7 @@ export default function Terms() {
             <p className="text-muted-foreground mb-4">
               Choice Properties is a platform that partners with property owners, management companies, and licensed real estate agents to advertise rental properties, collect applications, and perform initial applicant screenings.
             </p>
-            <div className="bg-muted/30 p-4 rounded-lg border-l-4 border-secondary mb-4">
+            <div className="bg-muted/30 p-4 rounded-lg border border-secondary/50 mb-4">
               <p className="font-medium text-primary">Important:</p>
               <p className="text-muted-foreground">
                 Choice Properties does not approve, deny, or make final decisions regarding rental applications. Final approval and leasing decisions are made solely by the property owner, management company, or agent responsible for the property.

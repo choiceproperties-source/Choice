@@ -78,11 +78,11 @@ export default function OwnerProfile() {
               </p>
               
               {owner.verified && (
-                <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-6 flex items-start gap-4">
-                  <CheckCircle2 className="h-6 w-6 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-1" />
+                <div className="bg-card border border-primary/20 rounded-lg p-6 flex items-start gap-4">
+                  <CheckCircle2 className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
                   <div>
-                    <h3 className="font-bold text-blue-900 dark:text-blue-100 mb-2">Verified Property Manager</h3>
-                    <p className="text-blue-800 dark:text-blue-200 text-sm">
+                    <h3 className="font-bold text-primary mb-2">Verified Property Manager</h3>
+                    <p className="text-muted-foreground text-sm">
                       This property manager has been verified by Choice Properties. We've confirmed their identity, 
                       business license, and professional credentials to ensure you're working with a trustworthy partner.
                     </p>
@@ -97,9 +97,9 @@ export default function OwnerProfile() {
                 <div className="space-y-4">
                   <a
                     href={`mailto:${owner.email}`}
-                    className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors group"
+                    className="flex items-center gap-3 p-3 rounded-lg hover-elevate group"
                   >
-                    <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+                    <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-primary">
                       <Mail className="h-5 w-5" />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -111,9 +111,9 @@ export default function OwnerProfile() {
                   {owner.phone && (
                     <a
                       href={`tel:${owner.phone}`}
-                      className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors group"
+                      className="flex items-center gap-3 p-3 rounded-lg hover-elevate group"
                     >
-                      <div className="w-10 h-10 bg-secondary/10 rounded-full flex items-center justify-center text-secondary group-hover:bg-secondary group-hover:text-white transition-colors">
+                      <div className="w-10 h-10 bg-secondary/10 rounded-full flex items-center justify-center text-secondary">
                         <Phone className="h-5 w-5" />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -124,7 +124,7 @@ export default function OwnerProfile() {
                   )}
                 </div>
 
-                <Button className="w-full mt-6 bg-primary hover:bg-primary/90 h-12 font-bold">
+                <Button className="w-full mt-6">
                   Send Message
                 </Button>
               </div>

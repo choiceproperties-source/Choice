@@ -6,9 +6,14 @@ export default function Privacy() {
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
       
+      <div className="bg-primary py-16 text-center">
+        <h1 className="font-heading text-4xl font-bold text-white mb-4">Privacy Policy</h1>
+        <p className="text-primary-foreground/80 max-w-xl mx-auto px-4">
+          Effective Date: November 21, 2025
+        </p>
+      </div>
+      
       <div className="container mx-auto px-4 py-16 max-w-4xl">
-        <h1 className="font-heading text-4xl font-bold text-primary mb-8">Privacy Policy</h1>
-        
         <div className="prose prose-blue max-w-none">
           <p className="text-lg text-muted-foreground mb-6">Last updated: November 21, 2025</p>
 
