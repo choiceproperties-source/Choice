@@ -87,34 +87,34 @@ export default function Home() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
             <Link href="/properties">
-              <div className="group p-8 rounded-2xl bg-blue-50 dark:bg-blue-950/30 border-2 border-primary hover:border-primary hover:shadow-xl transition-all duration-300 cursor-pointer">
+              <div className="group p-8 rounded-2xl bg-blue-50 dark:bg-slate-800 border-2 border-primary hover:border-primary hover:shadow-xl transition-all duration-300 cursor-pointer">
                 <div className="mb-4">
                   <HomeIcon className="h-10 w-10 text-primary" />
                 </div>
                 <h3 className="font-heading text-2xl font-bold mb-3 text-primary group-hover:text-primary">For Rent</h3>
-                <p className="text-muted-foreground leading-relaxed">
+                <p className="text-muted-foreground dark:text-gray-400 leading-relaxed">
                   Browse thousands of rental properties across the country. Find your perfect home with our easy application process.
                 </p>
               </div>
             </Link>
             <Link href="/buy">
-              <div className="group p-8 rounded-2xl bg-green-50 dark:bg-green-950/30 border-2 border-green-600 hover:border-green-600 hover:shadow-xl transition-all duration-300 cursor-pointer">
+              <div className="group p-8 rounded-2xl bg-green-50 dark:bg-slate-800 border-2 border-green-600 hover:border-green-600 hover:shadow-xl transition-all duration-300 cursor-pointer">
                 <div className="mb-4">
-                  <Key className="h-10 w-10 text-green-600" />
+                  <Key className="h-10 w-10 text-green-600 dark:text-green-400" />
                 </div>
-                <h3 className="font-heading text-2xl font-bold mb-3 text-green-600 group-hover:text-green-700">For Sale</h3>
-                <p className="text-muted-foreground leading-relaxed">
+                <h3 className="font-heading text-2xl font-bold mb-3 text-green-600 dark:text-green-400 group-hover:text-green-700 dark:group-hover:text-green-300">For Sale</h3>
+                <p className="text-muted-foreground dark:text-gray-400 leading-relaxed">
                   Discover properties for purchase. Use our mortgage calculator to estimate your monthly payments and find your dream home.
                 </p>
               </div>
             </Link>
             <Link href="/sell">
-              <div className="group p-8 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border-2 border-amber-600 hover:border-amber-600 hover:shadow-xl transition-all duration-300 cursor-pointer">
+              <div className="group p-8 rounded-2xl bg-amber-50 dark:bg-slate-800 border-2 border-amber-600 hover:border-amber-600 hover:shadow-xl transition-all duration-300 cursor-pointer">
                 <div className="mb-4">
-                  <TrendingUp className="h-10 w-10 text-amber-600" />
+                  <TrendingUp className="h-10 w-10 text-amber-600 dark:text-amber-400" />
                 </div>
-                <h3 className="font-heading text-2xl font-bold mb-3 text-amber-600 group-hover:text-amber-700">Sell or List</h3>
-                <p className="text-muted-foreground leading-relaxed">
+                <h3 className="font-heading text-2xl font-bold mb-3 text-amber-600 dark:text-amber-400 group-hover:text-amber-700 dark:group-hover:text-amber-300">Sell or List</h3>
+                <p className="text-muted-foreground dark:text-gray-400 leading-relaxed">
                   List your property in minutes. Reach thousands of qualified buyers and renters through our trusted network.
                 </p>
               </div>
@@ -212,7 +212,7 @@ export default function Home() {
       <Testimonials />
 
       {/* Featured Properties */}
-      <section className="py-24 bg-muted/30">
+      <section className="py-24 bg-muted/30 dark:bg-slate-800/50">
         <div className="container mx-auto px-4">
           <div className="flex justify-between items-end mb-12" data-aos="fade-up">
             <div>
@@ -243,11 +243,11 @@ export default function Home() {
       </section>
 
       {/* Testimonials Section */}
-      <section className="py-24 bg-white">
+      <section className="py-24 bg-white dark:bg-slate-900">
         <div className="container mx-auto px-4">
           <div className="text-center max-w-3xl mx-auto mb-16" data-aos="fade-up">
             <h2 className="font-heading text-3xl md:text-5xl font-bold text-primary mb-6">What Our Tenants Say</h2>
-            <p className="text-muted-foreground text-lg">
+            <p className="text-muted-foreground dark:text-gray-400 text-lg">
               Real stories from real people who found their perfect home through Choice Properties.
             </p>
           </div>
@@ -319,7 +319,7 @@ export default function Home() {
           </div>
 
           <div className="mt-16 text-center" data-aos="fade-up" data-aos-delay="400">
-            <div className="inline-flex items-center gap-2 bg-green-50 text-green-700 px-6 py-3 rounded-full border border-green-200">
+            <div className="inline-flex items-center gap-2 bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400 px-6 py-3 rounded-full border border-green-200 dark:border-green-800">
               <CheckCircle2 className="h-5 w-5" />
               <span className="font-semibold">Over 500+ Happy Tenants in 2024</span>
             </div>

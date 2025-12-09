@@ -109,7 +109,10 @@ export function Footer() {
                 size="sm"
                 className="w-full bg-secondary hover:bg-secondary/90 text-primary-foreground"
               >
-                {subscribed ? "✓ Subscribed" : "Subscribe"}
+                <span className="flex items-center gap-2 justify-center">
+                  {subscribed && <CheckCircle className="h-4 w-4" />}
+                  {subscribed ? "Subscribed" : "Subscribe"}
+                </span>
               </Button>
             </form>
           </div>
