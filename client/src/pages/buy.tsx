@@ -52,17 +52,17 @@ export default function Buy() {
                       placeholder="Min"
                       value={priceRange[0]}
                       onChange={(e) => setPriceRange([parseInt(e.target.value), priceRange[1]])}
-                      className="w-1/2 px-2 py-1 border rounded text-sm"
+                      className="w-1/2 px-2 py-1 border rounded text-sm bg-background dark:border-gray-700"
                     />
                     <input 
                       type="number" 
                       placeholder="Max"
                       value={priceRange[1]}
                       onChange={(e) => setPriceRange([priceRange[0], parseInt(e.target.value)])}
-                      className="w-1/2 px-2 py-1 border rounded text-sm"
+                      className="w-1/2 px-2 py-1 border rounded text-sm bg-background dark:border-gray-700"
                     />
                   </div>
-                  <p className="text-xs text-gray-500 mt-2">${priceRange[0].toLocaleString()} - ${priceRange[1].toLocaleString()}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">${priceRange[0].toLocaleString()} - ${priceRange[1].toLocaleString()}</p>
                 </div>
 
                 <div>
@@ -70,7 +70,7 @@ export default function Buy() {
                   <select 
                     value={bedrooms}
                     onChange={(e) => setBedrooms(parseInt(e.target.value))}
-                    className="w-full px-3 py-2 border rounded"
+                    className="w-full px-3 py-2 border rounded bg-background dark:border-gray-700"
                   >
                     <option value="0">Any</option>
                     <option value="1">1+</option>

@@ -155,7 +155,7 @@ export default function Signup() {
 
               <Button 
                 type="submit" 
-                className="w-full bg-green-600 hover:bg-green-700" 
+                className="w-full bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600" 
                 disabled={loading}
                 data-testid="button-submit"
               >

@@ -41,7 +41,7 @@ export default function Sell() {
           <Card className="max-w-2xl w-full border-t-4 border-t-green-500 shadow-2xl">
             <CardContent className="p-10">
               <div className="text-center">
-                <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 text-green-600">
+                <div className="w-24 h-24 bg-green-100 dark:bg-green-950 rounded-full flex items-center justify-center mx-auto mb-6 text-green-600 dark:text-green-400">
                   <CheckCircle2 className="h-12 w-12" />
                 </div>
                 <h2 className="text-3xl font-bold text-primary mb-4">Listing Submitted!</h2>
@@ -80,7 +80,7 @@ export default function Sell() {
           <div className="mb-12 flex gap-4">
             {[1, 2, 3].map((s) => (
               <div key={s} className="flex-1">
-                <div className={`h-2 rounded-full transition-colors ${s <= step ? 'bg-primary' : 'bg-gray-200'}`} />
+                <div className={`h-2 rounded-full transition-colors ${s <= step ? 'bg-primary' : 'bg-gray-200 dark:bg-gray-700'}`} />
                 <p className="text-xs font-semibold mt-2">{s === 1 ? 'Property Type' : s === 2 ? 'Details' : 'Pricing'}</p>
               </div>
             ))}
@@ -101,7 +101,7 @@ export default function Sell() {
                       name="propertyType"
                       value={formData.propertyType}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-2 border rounded-lg"
+                      className="w-full px-4 py-2 border rounded-lg bg-background dark:border-gray-700"
                       required
                     >
                       <option value="">Select type...</option>

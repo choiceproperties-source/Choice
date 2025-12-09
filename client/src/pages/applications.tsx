@@ -42,16 +42,16 @@ export default function Applications() {
       case "under-review":
         return <Clock className="h-5 w-5 text-blue-500" />;
       default:
-        return <FileText className="h-5 w-5 text-gray-500" />;
+        return <FileText className="h-5 w-5 text-gray-500 dark:text-gray-400" />;
     }
   };
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, any> = {
-      approved: "bg-green-100 text-green-800",
-      rejected: "bg-red-100 text-red-800",
-      "under-review": "bg-blue-100 text-blue-800",
-      submitted: "bg-gray-100 text-gray-800"
+      approved: "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200",
+      rejected: "bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200",
+      "under-review": "bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200",
+      submitted: "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200"
     };
     return variants[status] || variants.submitted;
   };
@@ -64,14 +64,14 @@ export default function Applications() {
       <div className="flex-1 py-12 px-4">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-4xl font-bold text-primary mb-2">My Applications</h1>
-          <p className="text-gray-600 mb-8">Track all your rental applications in one place.</p>
+          <p className="text-gray-600 dark:text-gray-400 mb-8">Track all your rental applications in one place.</p>
 
           {applications.length === 0 ? (
             <Card>
               <CardContent className="py-16 text-center">
-                <FileText className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">No Applications Yet</h3>
-                <p className="text-gray-600 mb-6">Start browsing properties and submit your first application.</p>
+                <FileText className="h-16 w-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">No Applications Yet</h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-6">Start browsing properties and submit your first application.</p>
                 <Link href="/properties">
                   <Button className="bg-primary hover:bg-primary/90">Browse Properties</Button>
                 </Link>
@@ -84,11 +84,11 @@ export default function Applications() {
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-1">{app.propertyTitle}</h3>
-                        <p className="text-sm text-gray-600 mb-3">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">{app.propertyTitle}</h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
                           Applied by {app.firstName} {app.lastName}
                         </p>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
                           {new Date(app.timestamp).toLocaleDateString()} at{" "}
                           {new Date(app.timestamp).toLocaleTimeString()}
                         </p>

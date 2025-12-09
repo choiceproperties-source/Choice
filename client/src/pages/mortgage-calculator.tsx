@@ -165,24 +165,24 @@ export default function MortgageCalculator() {
                   <p className="text-5xl font-bold text-primary">
                     ${calculations.monthlyPayment.toFixed(2)}
                   </p>
-                  <p className="text-gray-500 mt-2">per month</p>
+                  <p className="text-gray-500 dark:text-gray-400 mt-2">per month</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <p className="text-sm text-gray-600">Loan Amount</p>
+                  <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Loan Amount</p>
                     <p className="font-bold text-lg">${calculations.principal.toLocaleString()}</p>
                   </div>
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <p className="text-sm text-gray-600">Total Interest</p>
+                  <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Total Interest</p>
                     <p className="font-bold text-lg">${calculations.totalInterest.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
                   </div>
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <p className="text-sm text-gray-600">Total Amount Paid</p>
+                  <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Total Amount Paid</p>
                     <p className="font-bold text-lg">${calculations.totalPaid.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
                   </div>
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <p className="text-sm text-gray-600">Loan Term</p>
+                  <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Loan Term</p>
                     <p className="font-bold text-lg">{loanTerm} years</p>
                   </div>
                 </div>

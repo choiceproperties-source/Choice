@@ -78,11 +78,11 @@ export default function OwnerProfile() {
               </p>
               
               {owner.verified && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 flex items-start gap-4">
-                  <CheckCircle2 className="h-6 w-6 text-blue-600 flex-shrink-0 mt-1" />
+                <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-6 flex items-start gap-4">
+                  <CheckCircle2 className="h-6 w-6 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-1" />
                   <div>
-                    <h3 className="font-bold text-blue-900 mb-2">Verified Property Manager</h3>
-                    <p className="text-blue-800 text-sm">
+                    <h3 className="font-bold text-blue-900 dark:text-blue-100 mb-2">Verified Property Manager</h3>
+                    <p className="text-blue-800 dark:text-blue-200 text-sm">
                       This property manager has been verified by Choice Properties. We've confirmed their identity, 
                       business license, and professional credentials to ensure you're working with a trustworthy partner.
                     </p>

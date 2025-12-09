@@ -15,7 +15,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import propertiesData from "@/data/properties.json";
-import { CheckCircle2, AlertCircle, Upload, UserPlus, Trash2, FileText, ArrowRight, ArrowLeft, Shield, Clock, DollarSign, Home as HomeIcon } from "lucide-react";
+import { CheckCircle2, AlertCircle, Upload, UserPlus, Trash2, FileText, ArrowRight, ArrowLeft, Shield, Clock, DollarSign, Home as HomeIcon, Loader2 } from "lucide-react";
 import { Breadcrumb } from "@/components/breadcrumb";
 import { trackFormCompletion } from "@/lib/pwa";
 import { updateMetaTags } from "@/lib/seo";
@@ -216,7 +216,7 @@ export default function Apply() {
           <Card className="max-w-2xl w-full border-t-4 border-t-green-500 shadow-2xl">
             <CardContent className="p-10">
               <div className="text-center">
-                <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 text-green-600 animate-in zoom-in duration-500">
+                <div className="w-24 h-24 bg-green-100 dark:bg-green-950 rounded-full flex items-center justify-center mx-auto mb-6 text-green-600 dark:text-green-400 animate-in zoom-in duration-500">
                   <CheckCircle2 className="h-12 w-12" />
                 </div>
                 <h2 className="text-3xl font-bold text-primary mb-4">Application Submitted Successfully!</h2>
@@ -224,26 +224,26 @@ export default function Apply() {
                   Thank you for applying{property ? ` for ${property.title}` : ''}. Your application has been received and is now being reviewed.
                 </p>
 
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8 text-left">
-                  <h3 className="font-bold text-blue-900 mb-4 flex items-center gap-2">
+                <div className="bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 rounded-lg p-6 mb-8 text-left">
+                  <h3 className="font-bold text-blue-900 dark:text-blue-100 mb-4 flex items-center gap-2">
                     <Clock className="h-5 w-5" />
                     What Happens Next?
                   </h3>
-                  <ul className="space-y-3 text-blue-800">
+                  <ul className="space-y-3 text-blue-800 dark:text-blue-200">
                     <li className="flex items-start gap-3">
-                      <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">1</span>
+                      <span className="flex-shrink-0 w-6 h-6 bg-blue-600 dark:bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold">1</span>
                       <span><strong>Email Confirmation:</strong> You'll receive a confirmation email within 5 minutes with your application reference number.</span>
                     </li>
                     <li className="flex items-start gap-3">
-                      <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">2</span>
+                      <span className="flex-shrink-0 w-6 h-6 bg-blue-600 dark:bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold">2</span>
                       <span><strong>Application Review:</strong> Our team will review your application within 24-48 hours.</span>
                     </li>
                     <li className="flex items-start gap-3">
-                      <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">3</span>
+                      <span className="flex-shrink-0 w-6 h-6 bg-blue-600 dark:bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold">3</span>
                       <span><strong>Background Verification:</strong> We'll process your background check and employment verification.</span>
                     </li>
                     <li className="flex items-start gap-3">
-                      <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">4</span>
+                      <span className="flex-shrink-0 w-6 h-6 bg-blue-600 dark:bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold">4</span>
                       <span><strong>Decision Notification:</strong> You'll hear back from us with a decision via email and phone.</span>
                     </li>
                   </ul>
@@ -310,7 +310,7 @@ export default function Apply() {
         </div>
       </div>
 
-      <div className="bg-white border-b sticky top-16 z-40 shadow-sm">
+      <div className="bg-white dark:bg-gray-950 border-b sticky top-16 z-40 shadow-sm">
         <div className="container mx-auto px-4 py-4">
           <div className="max-w-4xl mx-auto">
             <div className="relative mb-2">
@@ -1083,9 +1083,9 @@ export default function Apply() {
                     />
 
                     {property && (
-                      <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg flex gap-3 items-start">
-                        <DollarSign className="h-5 w-5 text-yellow-700 mt-0.5 shrink-0" />
-                        <div className="text-sm text-yellow-900">
+                      <div className="bg-yellow-50 dark:bg-yellow-950/50 border border-yellow-200 dark:border-yellow-800 p-4 rounded-lg flex gap-3 items-start">
+                        <DollarSign className="h-5 w-5 text-yellow-700 dark:text-yellow-400 mt-0.5 shrink-0" />
+                        <div className="text-sm text-yellow-900 dark:text-yellow-100">
                           <p className="font-semibold mb-1">Application Fee: ${property.application_fee}</p>
                           <p>Upon approval, a ${property.application_fee} application fee will be charged to cover background check and processing costs.</p>
                         </div>
@@ -1098,12 +1098,12 @@ export default function Apply() {
                     </Button>
                     <Button 
                       type="submit" 
-                      className="bg-green-600 hover:bg-green-700 text-white font-bold px-8"
+                      className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 text-white font-bold px-8"
                       disabled={isProcessing}
                     >
                       {isProcessing ? (
                         <>
-                          <span className="animate-spin mr-2">⏳</span>
+                          <Loader2 className="animate-spin mr-2 h-4 w-4" />
                           Submitting...
                         </>
                       ) : (

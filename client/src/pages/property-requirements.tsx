@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { Download, Share2, Save } from 'lucide-react';
+import { Download, Share2, Save, CheckCircle } from 'lucide-react';
 
 interface RequirementData {
   id: string;
@@ -181,20 +181,20 @@ export default function PropertyRequirements() {
           <div className="max-w-2xl mx-auto">
             <Card className="p-8 text-center">
               <div className="mb-4">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <div className="text-3xl">✓</div>
+                <div className="w-16 h-16 bg-green-100 dark:bg-green-950 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-400" />
                 </div>
               </div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">Requirements Submitted!</h2>
-              <p className="text-gray-600 mb-6">Your property requirements have been saved and shared with agents on our platform.</p>
+              <h2 className="text-3xl font-bold text-foreground mb-2">Requirements Submitted!</h2>
+              <p className="text-muted-foreground mb-6">Your property requirements have been saved and shared with agents on our platform.</p>
 
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-left">
-                <h3 className="font-semibold text-gray-900 mb-3">What Happens Next:</h3>
-                <ul className="text-sm text-gray-700 space-y-2">
-                  <li>✓ Our agents will review your requirements</li>
-                  <li>✓ You'll receive personalized property matches</li>
-                  <li>✓ Agents will contact you at {formData.email}</li>
-                  <li>✓ Schedule property viewings at your convenience</li>
+              <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6 text-left">
+                <h3 className="font-semibold text-foreground mb-3">What Happens Next:</h3>
+                <ul className="text-sm text-muted-foreground space-y-2">
+                  <li className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" /> Our agents will review your requirements</li>
+                  <li className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" /> You'll receive personalized property matches</li>
+                  <li className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" /> Agents will contact you at {formData.email}</li>
+                  <li className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" /> Schedule property viewings at your convenience</li>
                 </ul>
               </div>
 
@@ -212,7 +212,7 @@ export default function PropertyRequirements() {
                 </Button>
               </div>
 
-              <p className="text-xs text-gray-500 mt-6">
+              <p className="text-xs text-muted-foreground mt-6">
                 Form ID: {formData.id}
               </p>
             </Card>
@@ -238,7 +238,7 @@ export default function PropertyRequirements() {
         <form onSubmit={handleSubmit} className="space-y-8">
           {/* Contact Information */}
           <Card className="p-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Contact Information</h2>
+            <h2 className="text-2xl font-bold text-foreground mb-4">Contact Information</h2>
             <div className="space-y-4">
               <div>
                 <label className="text-sm font-semibold block mb-2">Full Name *</label>
@@ -276,7 +276,7 @@ export default function PropertyRequirements() {
 
           {/* Budget */}
           <Card className="p-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Budget</h2>
+            <h2 className="text-2xl font-bold text-foreground mb-4">Budget</h2>
             <div className="space-y-4">
               <div>
                 <label className="text-sm font-semibold block mb-2">Minimum Monthly Rent: ${formData.minBudget}</label>
@@ -307,7 +307,7 @@ export default function PropertyRequirements() {
 
           {/* Property Preferences */}
           <Card className="p-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Property Preferences</h2>
+            <h2 className="text-2xl font-bold text-foreground mb-4">Property Preferences</h2>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -315,7 +315,7 @@ export default function PropertyRequirements() {
                   <select
                     value={formData.bedrooms}
                     onChange={(e) => setFormData({ ...formData, bedrooms: e.target.value })}
-                    className="w-full px-3 py-2 border rounded"
+                    className="w-full px-3 py-2 border rounded bg-background dark:border-gray-700"
                   >
                     <option value="studio">Studio</option>
                     <option value="1">1 Bedroom</option>
@@ -329,7 +329,7 @@ export default function PropertyRequirements() {
                   <select
                     value={formData.bathrooms}
                     onChange={(e) => setFormData({ ...formData, bathrooms: e.target.value })}
-                    className="w-full px-3 py-2 border rounded"
+                    className="w-full px-3 py-2 border rounded bg-background dark:border-gray-700"
                   >
                     <option value="1">1 Bathroom</option>
                     <option value="1.5">1.5 Bathrooms</option>
@@ -372,7 +372,7 @@ export default function PropertyRequirements() {
 
           {/* Location */}
           <Card className="p-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Location</h2>
+            <h2 className="text-2xl font-bold text-foreground mb-4">Location</h2>
             <div>
               <label className="text-sm font-semibold block mb-2">Preferred Locations/Areas</label>
               <Textarea
@@ -386,7 +386,7 @@ export default function PropertyRequirements() {
 
           {/* Amenities */}
           <Card className="p-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Desired Amenities</h2>
+            <h2 className="text-2xl font-bold text-foreground mb-4">Desired Amenities</h2>
             <div className="grid grid-cols-2 gap-3">
               {amenityOptions.map(amenity => (
                 <div key={amenity} className="flex items-center gap-2">
@@ -402,7 +402,7 @@ export default function PropertyRequirements() {
 
           {/* Pets */}
           <Card className="p-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Pets</h2>
+            <h2 className="text-2xl font-bold text-foreground mb-4">Pets</h2>
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <Checkbox
@@ -427,7 +427,7 @@ export default function PropertyRequirements() {
 
           {/* Lease Terms */}
           <Card className="p-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Lease Terms</h2>
+            <h2 className="text-2xl font-bold text-foreground mb-4">Lease Terms</h2>
             <div className="space-y-4">
               <div>
                 <label className="text-sm font-semibold block mb-2">Preferred Lease Length</label>
@@ -463,7 +463,7 @@ export default function PropertyRequirements() {
 
           {/* Additional Notes */}
           <Card className="p-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Additional Information</h2>
+            <h2 className="text-2xl font-bold text-foreground mb-4">Additional Information</h2>
             <div>
               <label className="text-sm font-semibold block mb-2">Anything else you'd like us to know?</label>
               <Textarea
