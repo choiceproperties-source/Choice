@@ -61,11 +61,11 @@ export default function Agents() {
                 </div>
 
                 <div>
-                  <label className="font-semibold text-sm mb-2 block">Specialty</label>
+                  <label className="font-semibold text-sm mb-2 block text-foreground">Specialty</label>
                   <select
                     value={specialty}
                     onChange={(e) => setSpecialty(e.target.value)}
-                    className="w-full px-3 py-2 border rounded"
+                    className="w-full px-3 py-2 border rounded bg-background dark:bg-gray-900 border-border text-foreground"
                   >
                     <option value="all">All Specialties</option>
                     {specialties.map(s => (
@@ -98,22 +98,22 @@ export default function Agents() {
                         {[...Array(5)].map((_, i) => (
                           <Star key={i} className={`h-4 w-4 ${i < Math.round(agent.rating) ? 'fill-yellow-400' : ''}`} />
                         ))}
-                        <span className="text-xs text-gray-600">({agent.rating})</span>
+                        <span className="text-xs text-gray-600 dark:text-gray-400">({agent.rating})</span>
                       </div>
-                      <p className="text-sm text-gray-600">{agent.total_sales} sales</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">{agent.total_sales} sales</p>
                     </div>
                   </div>
 
-                  <p className="text-sm text-gray-700 mb-4">{agent.bio}</p>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">{agent.bio}</p>
 
                   <div className="space-y-2 mb-4 text-sm">
-                    <div className="flex items-center gap-2 text-gray-700">
+                    <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
                       <MapPin className="h-4 w-4" /> {agent.location}
                     </div>
-                    <div className="flex items-center gap-2 text-gray-700">
+                    <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
                       <Mail className="h-4 w-4" /> {agent.email}
                     </div>
-                    <div className="flex items-center gap-2 text-gray-700">
+                    <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
                       <Phone className="h-4 w-4" /> {agent.phone}
                     </div>
                   </div>

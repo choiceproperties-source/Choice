@@ -108,13 +108,13 @@ function FAQAccordion({ item }: { item: FAQItem }) {
     <Card className="overflow-hidden">
       <button
         onClick={() => setOpen(!open)}
-        className="w-full p-4 flex justify-between items-center hover:bg-gray-50 transition-colors"
+        className="w-full p-4 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
       >
         <h4 className="font-semibold text-left text-primary">{item.q}</h4>
         <ChevronDown className={`h-5 w-5 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <div className="px-4 pb-4 border-t text-gray-700">
+        <div className="px-4 pb-4 border-t dark:border-gray-700 text-gray-700 dark:text-gray-300">
           <p>{item.a}</p>
         </div>
       )}
@@ -150,7 +150,7 @@ export default function FAQ() {
                     className={`w-full text-left px-4 py-2 rounded font-medium transition-colors ${
                       activeCategory === idx
                         ? 'bg-primary text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                     }`}
                   >
                     {cat.category}

@@ -269,8 +269,8 @@ export default function Properties() {
              />
              {/* Floating pill buttons on map */}
              <div className="absolute top-4 left-4 z-[400] flex gap-2">
-                 <Button variant="secondary" size="sm" className="shadow-md bg-white text-gray-800 hover:bg-gray-100">Draw</Button>
-                 <Button variant="secondary" size="sm" className="shadow-md bg-white text-gray-800 hover:bg-gray-100">Satellite</Button>
+                 <Button variant="secondary" size="sm" className="shadow-md bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">Draw</Button>
+                 <Button variant="secondary" size="sm" className="shadow-md bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">Satellite</Button>
              </div>
          </div>
 
@@ -282,19 +282,19 @@ export default function Properties() {
              </div>
              
              {savedSearches.length > 0 && (
-               <div className="mb-4 border-b pb-3">
-                 <p className="text-xs font-semibold text-gray-600 mb-2">SAVED SEARCHES</p>
+               <div className="mb-4 border-b dark:border-gray-700 pb-3">
+                 <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2">SAVED SEARCHES</p>
                  <div className="flex gap-2 flex-wrap">
                    {savedSearches.map((s, idx) => (
-                     <div key={idx} className="flex items-center gap-1 bg-blue-50 border border-blue-200 rounded-full px-3 py-1 text-xs">
-                       <span className="text-gray-700">{s.search || "All"}</span>
+                     <div key={idx} className="flex items-center gap-1 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-full px-3 py-1 text-xs">
+                       <span className="text-gray-700 dark:text-gray-300">{s.search || "All"}</span>
                        <button 
                          onClick={() => loadSearch(s)}
-                         className="text-blue-600 hover:text-blue-800 font-semibold"
+                         className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-semibold"
                        >Load</button>
                        <button 
                          onClick={() => deleteSearch(idx)}
-                         className="text-red-500 hover:text-red-700 ml-1"
+                         className="text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 ml-1"
                        >×</button>
                      </div>
                    ))}

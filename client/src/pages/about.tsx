@@ -91,7 +91,7 @@ export default function About() {
             ].map((card, idx) => (
               <div 
                 key={idx} 
-                className="bg-white border border-border p-8 rounded-xl text-center hover:shadow-lg transition-shadow"
+                className="bg-white dark:bg-gray-900 border border-border p-8 rounded-xl text-center hover:shadow-lg transition-shadow"
                 data-aos="fade-up"
                 data-aos-delay={idx * 100}
               >

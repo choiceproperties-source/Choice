@@ -198,12 +198,12 @@ export default function PropertyDetails() {
                           />
                         ))}
                       </div>
-                      <span className="text-sm text-gray-600">({reviews.length} reviews)</span>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">({reviews.length} reviews)</span>
                     </div>
                   </div>
                   <div className="space-y-4">
                     {reviews.slice(0, 3).map((review) => (
-                      <Card key={review.id} className="border-gray-200">
+                      <Card key={review.id} className="border-gray-200 dark:border-gray-700">
                         <CardContent className="p-4">
                           <div className="flex items-start gap-3 mb-2">
                             <div className="flex-1">
@@ -211,18 +211,18 @@ export default function PropertyDetails() {
                                 {[1, 2, 3, 4, 5].map(i => (
                                   <Star
                                     key={i}
-                                    className={`h-4 w-4 ${i <= (review.rating || 0) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
+                                    className={`h-4 w-4 ${i <= (review.rating || 0) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300 dark:text-gray-600'}`}
                                   />
                                 ))}
                               </div>
-                              <p className="font-bold text-gray-900">{review.title || 'Review'}</p>
+                              <p className="font-bold text-gray-900 dark:text-white">{review.title || 'Review'}</p>
                               {review.users && (
-                                <p className="text-sm text-gray-600">{review.users.full_name || 'Anonymous'}</p>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">{review.users.full_name || 'Anonymous'}</p>
                               )}
                             </div>
                           </div>
                           {review.comment && (
-                            <p className="text-gray-700 text-sm">{review.comment}</p>
+                            <p className="text-gray-700 dark:text-gray-300 text-sm">{review.comment}</p>
                           )}
                         </CardContent>
                       </Card>
