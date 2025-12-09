@@ -199,8 +199,6 @@ export default function Apply() {
     applications.push(newApplication);
     localStorage.setItem('choiceProperties_applications', JSON.stringify(applications));
     
-    console.log("Application Submitted:", newApplication);
-    
     setTimeout(() => {
       setIsProcessing(false);
       setIsSubmitted(true);

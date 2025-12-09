@@ -11,7 +11,6 @@ export async function getProperties(): Promise<Property[]> {
     if (error) throw error;
     return data || [];
   } catch (err) {
-    console.error('Error fetching properties:', err);
     return [];
   }
 }
@@ -27,7 +26,6 @@ export async function getPropertyById(id: string): Promise<Property | null> {
     if (error) throw error;
     return data || null;
   } catch (err) {
-    console.error('Error fetching property:', err);
     return null;
   }
 }
@@ -43,7 +41,6 @@ export async function createProperty(property: Omit<Property, 'id'>): Promise<Pr
     if (error) throw error;
     return data || null;
   } catch (err) {
-    console.error('Error creating property:', err);
     return null;
   }
 }
@@ -60,7 +57,6 @@ export async function updateProperty(id: string, updates: Partial<Property>): Pr
     if (error) throw error;
     return data || null;
   } catch (err) {
-    console.error('Error updating property:', err);
     return null;
   }
 }
@@ -75,7 +71,6 @@ export async function deleteProperty(id: string): Promise<boolean> {
     if (error) throw error;
     return true;
   } catch (err) {
-    console.error('Error deleting property:', err);
     return false;
   }
 }
@@ -92,7 +87,6 @@ export async function getApplications(userId?: string) {
     if (error) throw error;
     return data || [];
   } catch (err) {
-    console.error('Error fetching applications:', err);
     return [];
   }
 }
@@ -108,7 +102,6 @@ export async function createApplication(application: any) {
     if (error) throw error;
     return data || null;
   } catch (err) {
-    console.error('Error creating application:', err);
     return null;
   }
 }
@@ -125,7 +118,6 @@ export async function updateApplication(id: string, updates: any) {
     if (error) throw error;
     return data || null;
   } catch (err) {
-    console.error('Error updating application:', err);
     return null;
   }
 }
@@ -141,7 +133,6 @@ export async function getReviews(propertyId: string): Promise<Review[]> {
     if (error) throw error;
     return data || [];
   } catch (err) {
-    console.error('Error fetching reviews:', err);
     return [];
   }
 }
@@ -158,7 +149,6 @@ export async function createReview(review: Omit<Review, 'id'>) {
     if (error) throw error;
     return data || null;
   } catch (err) {
-    console.error('Error creating review:', err);
     return null;
   }
 }
@@ -174,7 +164,6 @@ export async function getFavorites(userId: string) {
     if (error) throw error;
     return data?.map(f => f.property_id) || [];
   } catch (err) {
-    console.error('Error fetching favorites:', err);
     return [];
   }
 }
@@ -189,7 +178,6 @@ export async function addFavorite(userId: string, propertyId: string) {
     if (error) throw error;
     return true;
   } catch (err) {
-    console.error('Error adding favorite:', err);
     return false;
   }
 }
@@ -205,7 +193,6 @@ export async function removeFavorite(userId: string, propertyId: string) {
     if (error) throw error;
     return true;
   } catch (err) {
-    console.error('Error removing favorite:', err);
     return false;
   }
 }
@@ -223,7 +210,6 @@ export async function createInquiry(inquiry: any) {
     if (error) throw error;
     return data || null;
   } catch (err) {
-    console.error('Error creating inquiry:', err);
     return null;
   }
 }
@@ -237,7 +223,6 @@ export async function getInquiries() {
     if (error) throw error;
     return data || [];
   } catch (err) {
-    console.error('Error fetching inquiries:', err);
     return [];
   }
 }
@@ -257,7 +242,6 @@ export async function getCurrentUserProfile() {
     if (error) throw error;
     return data || null;
   } catch (err) {
-    console.error('Error fetching user profile:', err);
     return null;
   }
 }
@@ -274,7 +258,6 @@ export async function updateUserProfile(userId: string, updates: any) {
     if (error) throw error;
     return data || null;
   } catch (err) {
-    console.error('Error updating user profile:', err);
     return null;
   }
 }
@@ -289,7 +272,6 @@ export async function getAllUsers() {
     if (error) throw error;
     return data || [];
   } catch (err) {
-    console.error('Error fetching users:', err);
     return [];
   }
 }
@@ -306,7 +288,6 @@ export async function updateUserRole(userId: string, role: string) {
     if (error) throw error;
     return data || null;
   } catch (err) {
-    console.error('Error updating user role:', err);
     return null;
   }
 }
@@ -330,7 +311,6 @@ export async function uploadPropertyImage(file: File, propertyId: string): Promi
     
     return data.publicUrl;
   } catch (err) {
-    console.error('Error uploading property image:', err);
     return null;
   }
 }
@@ -353,7 +333,6 @@ export async function uploadProfileImage(file: File, userId: string): Promise<st
     
     return data.publicUrl;
   } catch (err) {
-    console.error('Error uploading profile image:', err);
     return null;
   }
 }
@@ -372,7 +351,6 @@ export async function uploadDocument(file: File, userId: string, applicationId: 
     
     return fileName;
   } catch (err) {
-    console.error('Error uploading document:', err);
     return null;
   }
 }
@@ -387,7 +365,6 @@ export async function getDocumentUrl(filePath: string): Promise<string | null> {
     if (error) throw error;
     return data.signedUrl;
   } catch (err) {
-    console.error('Error getting document URL:', err);
     return null;
   }
 }
@@ -406,7 +383,6 @@ export async function deletePropertyImages(propertyId: string): Promise<boolean>
     
     return true;
   } catch (err) {
-    console.error('Error deleting property images:', err);
     return false;
   }
 }
@@ -423,7 +399,6 @@ export async function createRequirement(requirement: any) {
     if (error) throw error;
     return data || null;
   } catch (err) {
-    console.error('Error creating requirement:', err);
     return null;
   }
 }
@@ -439,7 +414,6 @@ export async function getRequirements(userId?: string) {
     if (error) throw error;
     return data || [];
   } catch (err) {
-    console.error('Error fetching requirements:', err);
     return [];
   }
 }
@@ -456,7 +430,6 @@ export async function getAgentProperties(agentId: string) {
     if (error) throw error;
     return data || [];
   } catch (err) {
-    console.error('Error fetching agent properties:', err);
     return [];
   }
 }
@@ -472,7 +445,6 @@ export async function getApplicationsForProperty(propertyId: string) {
     if (error) throw error;
     return data || [];
   } catch (err) {
-    console.error('Error fetching applications:', err);
     return [];
   }
 }
@@ -488,7 +460,6 @@ export async function getAgentInquiries(agentId: string) {
     if (error) throw error;
     return data || [];
   } catch (err) {
-    console.error('Error fetching inquiries:', err);
     return [];
   }
 }
@@ -505,7 +476,6 @@ export async function updateInquiryStatus(inquiryId: string, status: string) {
     if (error) throw error;
     return data || null;
   } catch (err) {
-    console.error('Error updating inquiry status:', err);
     return null;
   }
 }
@@ -535,7 +505,6 @@ export async function getAdminStats() {
       inquiries: inquiries.data || []
     };
   } catch (err) {
-    console.error('Error fetching admin stats:', err);
     return null;
   }
 }
@@ -550,7 +519,6 @@ export async function getAllReviews() {
     if (error) throw error;
     return data || [];
   } catch (err) {
-    console.error('Error fetching all reviews:', err);
     return [];
   }
 }
@@ -565,7 +533,6 @@ export async function deleteReview(reviewId: string): Promise<boolean> {
     if (error) throw error;
     return true;
   } catch (err) {
-    console.error('Error deleting review:', err);
     return false;
   }
 }
@@ -587,7 +554,6 @@ export async function createUser(userData: { email: string; full_name: string; r
     if (error) throw error;
     return data || null;
   } catch (err) {
-    console.error('Error creating user:', err);
     return null;
   }
 }
@@ -602,7 +568,6 @@ export async function deleteUser(userId: string): Promise<boolean> {
     if (error) throw error;
     return true;
   } catch (err) {
-    console.error('Error deleting user:', err);
     return false;
   }
 }
@@ -618,7 +583,6 @@ export async function getSavedSearches() {
     if (error) throw error;
     return data || [];
   } catch (err) {
-    console.error('Error fetching saved searches:', err);
     return [];
   }
 }
@@ -633,7 +597,6 @@ export async function deleteSavedSearch(searchId: string): Promise<boolean> {
     if (error) throw error;
     return true;
   } catch (err) {
-    console.error('Error deleting saved search:', err);
     return false;
   }
 }

@@ -19,7 +19,6 @@ export function useFavorites() {
         const fav = await getFavorites(user.id);
         setFavorites(fav);
       } catch (err) {
-        console.error('Error fetching favorites:', err);
         setFavorites(JSON.parse(localStorage.getItem('choiceProperties_favorites') || '[]'));
       } finally {
         setLoading(false);

@@ -45,7 +45,6 @@ export async function authenticateToken(
 
     next();
   } catch (error) {
-    console.error("Auth middleware error:", error);
     return res.status(500).json({ error: "Authentication failed" });
   }
 }
@@ -184,7 +183,6 @@ export function requireOwnership(resourceType: "property" | "application" | "rev
 
       next();
     } catch (error) {
-      console.error("Ownership check error:", error);
       return res.status(500).json({ error: "Failed to verify ownership" });
     }
   };

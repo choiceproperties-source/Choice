@@ -2,7 +2,6 @@ export function registerPWA() {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(() => {
       // Service worker registration failed, app still works
-      console.log('PWA not supported in this environment');
     });
   }
 }

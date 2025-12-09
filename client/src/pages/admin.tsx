@@ -148,7 +148,6 @@ export default function Admin() {
       setApplications(appsData || []);
       setSavedSearches(searchesData || []);
     } catch (error) {
-      console.error('Error loading admin data:', error);
       toast({ title: 'Failed to load data', variant: 'destructive' });
     } finally {
       setLoading(false);

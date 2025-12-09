@@ -27,7 +27,6 @@ export function useProperties() {
   });
 
   if (error) {
-    console.error('Error fetching properties:', error);
   }
 
   const properties = data?.data?.properties || [];

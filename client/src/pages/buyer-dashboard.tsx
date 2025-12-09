@@ -76,7 +76,6 @@ export default function BuyerDashboard() {
         }
         setWishlistProperties(properties);
       } catch (err) {
-        console.error('Error fetching wishlist properties:', err);
       } finally {
         setLoadingWishlistDetails(false);
       }

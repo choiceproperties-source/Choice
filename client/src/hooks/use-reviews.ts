@@ -13,7 +13,6 @@ export function useReviews(propertyId: string) {
         const rev = await getReviews(propertyId);
         setReviews(rev);
       } catch (err) {
-        console.error('Error fetching reviews:', err);
       } finally {
         setLoading(false);
       }
@@ -32,7 +31,6 @@ export function useReviews(propertyId: string) {
       }
       return newReview;
     } catch (err) {
-      console.error('Error adding review:', err);
       return null;
     }
   };

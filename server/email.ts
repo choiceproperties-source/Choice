@@ -20,12 +20,6 @@ export async function sendEmail({
   from = "noreply@choiceproperties.com",
 }: EmailParams) {
   if (!SENDGRID_API_KEY) {
-    console.log(
-      "📧 Mock email sent to:",
-      to,
-      "Subject:",
-      subject
-    );
     return { success: true, mock: true };
   }
 
@@ -38,7 +32,6 @@ export async function sendEmail({
     });
     return { success: true };
   } catch (error) {
-    console.error("❌ Email error:", error);
     return { success: false, error };
   }
 }

@@ -28,7 +28,6 @@ export function useApplications() {
         const apps = await getApplications(user.id);
         setApplications(apps as Application[]);
       } catch (err) {
-        console.error('Error fetching applications:', err);
         const localApps = JSON.parse(localStorage.getItem('choiceProperties_applications') || '[]') as Application[];
         setApplications(localApps);
       } finally {
@@ -56,7 +55,6 @@ export function useApplications() {
       }
       return newApp as Application;
     } catch (err) {
-      console.error('Error submitting application:', err);
       return null;
     }
   };

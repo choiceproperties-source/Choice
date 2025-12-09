@@ -42,7 +42,6 @@ export function usePropertyReviews(propertyId?: string): PropertyReviewsData {
         const reviewList = data.data || [];
         setReviews(reviewList);
       } catch (err) {
-        console.error('Error fetching reviews:', err);
         setReviews([]);
       } finally {
         setLoading(false);

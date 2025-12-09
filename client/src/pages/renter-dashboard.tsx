@@ -88,7 +88,6 @@ export default function RenterDashboard() {
         }
         setFavoriteProperties(properties);
       } catch (err) {
-        console.error('Error fetching favorite properties:', err);
       } finally {
         setLoadingFavoritesDetails(false);
       }

@@ -26,7 +26,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const checkUser = async () => {
       try {
         if (!supabase) {
-          console.warn('Supabase not configured');
           setLoading(false);
           return;
         }
@@ -47,7 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(userData);
         }
       } catch (error) {
-        console.error('Error checking auth session:', error);
+        // Auth check failed, continue without session
       } finally {
         setLoading(false);
       }
@@ -89,7 +88,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
     } catch (error) {
-      console.error('Login error:', error);
       throw error;
     }
   };
@@ -107,7 +105,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       if (error) throw error;
     } catch (error) {
-      console.error('Signup error:', error);
       throw error;
     }
   };
@@ -119,7 +116,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       setUser(null);
     } catch (error) {
-      console.error('Logout error:', error);
+      // Logout error, continue
     }
   };
 
@@ -146,7 +143,6 @@ export async function getAuthToken(): Promise<string | null> {
     const { data: { session } } = await supabase.auth.getSession();
     return session?.access_token || null;
   } catch (error) {
-    console.error('Error getting auth token:', error);
     return null;
   }
 }
