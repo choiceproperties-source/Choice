@@ -5,16 +5,19 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Separator } from '@/components/ui/separator';
 import { Link, useLocation } from 'wouter';
-import { Mail, Lock, User, CheckCircle2, Circle, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, User, Phone, Eye, EyeOff } from 'lucide-react';
+import { SiGoogle } from 'react-icons/si';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { signupSchema, type SignupInput } from '@shared/schema';
+import { signupSchema } from '@shared/schema';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useState, useMemo } from 'react';
 import { z } from 'zod';
 
 const extendedSignupSchema = signupSchema.extend({
+  phone: z.string().optional(),
   confirmPassword: z.string().min(1, 'Please confirm your password'),
   agreeToTerms: z.boolean().refine(val => val === true, {
     message: 'You must agree to the terms and privacy policy',
@@ -37,17 +40,20 @@ const getPasswordStrength = (password: string) => {
 };
 
 export default function Signup() {
-  const { signup } = useAuth();
+  const { signup, loginWithGoogle } = useAuth();
   const [, setLocation] = useLocation();
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [signupSuccess, setSignupSuccess] = useState(false);
 
   const form = useForm<ExtendedSignupInput>({
     resolver: zodResolver(extendedSignupSchema),
     defaultValues: {
       email: '',
       fullName: '',
+      phone: '',
       password: '',
       confirmPassword: '',
       agreeToTerms: false,
@@ -56,14 +62,12 @@ export default function Signup() {
 
   const password = form.watch('password');
   const passwordStrength = useMemo(() => getPasswordStrength(password), [password]);
-  const strengthPercentage = (passwordStrength / 5) * 100;
 
   const onSubmit = async (data: ExtendedSignupInput) => {
     setLoading(true);
     try {
-      await signup(data.email, data.fullName, data.password);
-      // New signups are always 'user' role, redirect to home
-      setLocation('/');
+      await signup(data.email, data.fullName, data.password, data.phone);
+      setSignupSuccess(true);
     } catch (err: any) {
       form.setError('root', { message: err.message || 'Signup failed' });
     } finally {
@@ -71,13 +75,70 @@ export default function Signup() {
     }
   };
 
+  const handleGoogleSignup = async () => {
+    setGoogleLoading(true);
+    try {
+      await loginWithGoogle();
+    } catch (err: any) {
+      form.setError('root', { message: err.message || 'Google signup failed' });
+      setGoogleLoading(false);
+    }
+  };
+
+  if (signupSuccess) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <Navbar />
+        <div className="flex-1 flex items-center justify-center p-4 bg-gradient-to-br from-primary/5 to-secondary/5">
+          <Card className="max-w-md w-full p-8 shadow-xl border-t-4 border-t-green-500 text-center">
+            <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Mail className="h-8 w-8 text-green-600" />
+            </div>
+            <h2 className="text-2xl font-bold mb-2">Check Your Email</h2>
+            <p className="text-muted-foreground mb-6">
+              We've sent a confirmation link to <strong>{form.getValues('email')}</strong>. 
+              Please click the link to verify your email and complete your registration.
+            </p>
+            <p className="text-sm text-muted-foreground mb-4">
+              Didn't receive the email? Check your spam folder or try signing up again.
+            </p>
+            <Link href="/login">
+              <Button variant="outline" className="w-full" data-testid="button-back-to-login">
+                Back to Login
+              </Button>
+            </Link>
+          </Card>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
       <div className="flex-1 flex items-center justify-center p-4 bg-gradient-to-br from-primary/5 to-secondary/5">
         <Card className="max-w-md w-full p-8 shadow-xl border-t-4 border-t-primary">
           <h2 className="text-3xl font-bold text-primary mb-2">Create Account</h2>
-          <p className="text-sm text-muted-foreground mb-6">Join Choice Properties today and start exploring properties</p>
+          <p className="text-sm text-muted-foreground mb-6">Join Choice Properties today and start exploring</p>
+
+          <Button 
+            type="button"
+            variant="outline" 
+            className="w-full mb-4 flex items-center justify-center gap-2"
+            onClick={handleGoogleSignup}
+            disabled={loading || googleLoading}
+            data-testid="button-google-signup"
+          >
+            <SiGoogle className="h-4 w-4" />
+            {googleLoading ? 'Connecting...' : 'Continue with Google'}
+          </Button>
+
+          <div className="flex items-center gap-4 my-4">
+            <Separator className="flex-1" />
+            <span className="text-xs text-muted-foreground">OR</span>
+            <Separator className="flex-1" />
+          </div>
 
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -93,7 +154,7 @@ export default function Signup() {
                       <Input
                         type="text"
                         placeholder="John Doe"
-                        disabled={loading}
+                        disabled={loading || googleLoading}
                         data-testid="input-fullname"
                         {...field}
                       />
@@ -115,8 +176,30 @@ export default function Signup() {
                       <Input
                         type="email"
                         placeholder="you@example.com"
-                        disabled={loading}
+                        disabled={loading || googleLoading}
                         data-testid="input-email"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-semibold text-sm flex items-center gap-2">
+                      <Phone className="h-4 w-4" /> Phone Number <span className="text-muted-foreground font-normal">(optional)</span>
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type="tel"
+                        placeholder="+1 (555) 123-4567"
+                        disabled={loading || googleLoading}
+                        data-testid="input-phone"
                         {...field}
                       />
                     </FormControl>
@@ -138,7 +221,7 @@ export default function Signup() {
                         <Input
                           type={showPassword ? 'text' : 'password'}
                           placeholder="At least 6 characters"
-                          disabled={loading}
+                          disabled={loading || googleLoading}
                           autoComplete="new-password"
                           data-testid="input-password"
                           {...field}
@@ -146,7 +229,7 @@ export default function Signup() {
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          disabled={loading}
+                          disabled={loading || googleLoading}
                           className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                           data-testid="button-toggle-password"
                           aria-label={showPassword ? 'Hide password' : 'Show password'}
@@ -159,7 +242,18 @@ export default function Signup() {
                       <div className="mt-2 space-y-2">
                         <div className="flex gap-1">
                           {[...Array(5)].map((_, i) => (
-                            <div key={i} className={`h-1 flex-1 rounded-full ${i < passwordStrength ? 'bg-green-500' : 'bg-gray-300'}`} />
+                            <div 
+                              key={i} 
+                              className={`h-1 flex-1 rounded-full transition-colors ${
+                                i < passwordStrength 
+                                  ? passwordStrength <= 2 
+                                    ? 'bg-red-500' 
+                                    : passwordStrength <= 3 
+                                      ? 'bg-yellow-500' 
+                                      : 'bg-green-500'
+                                  : 'bg-muted'
+                              }`} 
+                            />
                           ))}
                         </div>
                         <p className="text-xs text-muted-foreground">
@@ -190,7 +284,7 @@ export default function Signup() {
                         <Input
                           type={showConfirmPassword ? 'text' : 'password'}
                           placeholder="Confirm your password"
-                          disabled={loading}
+                          disabled={loading || googleLoading}
                           autoComplete="new-password"
                           data-testid="input-confirm-password"
                           {...field}
@@ -198,7 +292,7 @@ export default function Signup() {
                         <button
                           type="button"
                           onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                          disabled={loading}
+                          disabled={loading || googleLoading}
                           className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                           data-testid="button-toggle-confirm-password"
                           aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
@@ -221,7 +315,7 @@ export default function Signup() {
                       <Checkbox
                         checked={field.value}
                         onCheckedChange={field.onChange}
-                        disabled={loading}
+                        disabled={loading || googleLoading}
                         data-testid="checkbox-terms"
                         className="mt-1"
                       />
@@ -252,17 +346,10 @@ export default function Signup() {
               <Button 
                 type="submit" 
                 className="w-full" 
-                disabled={loading}
+                disabled={loading || googleLoading}
                 data-testid="button-submit"
               >
-                {loading ? (
-                  <span className="flex items-center gap-2">
-                    <span className="animate-spin">⚙️</span>
-                    Creating Account...
-                  </span>
-                ) : (
-                  'Create Account'
-                )}
+                {loading ? 'Creating Account...' : 'Create Account'}
               </Button>
             </form>
           </Form>

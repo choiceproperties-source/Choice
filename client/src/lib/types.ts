@@ -119,11 +119,15 @@ export interface User {
   updated_at: string | null;
 }
 
+export type UserRole = 'user' | 'agent' | 'admin';
+
 export interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, name: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<UserRole>;
+  signup: (email: string, name: string, password: string, phone?: string) => Promise<UserRole>;
+  loginWithGoogle: () => Promise<void>;
   logout: () => void;
+  resetPassword: (email: string) => Promise<void>;
   isLoggedIn: boolean;
   isLoading: boolean;
 }

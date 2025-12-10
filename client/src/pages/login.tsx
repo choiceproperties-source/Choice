@@ -4,8 +4,10 @@ import { Footer } from '@/components/layout/footer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 import { Link, useLocation } from 'wouter';
 import { Mail, Lock } from 'lucide-react';
+import { SiGoogle } from 'react-icons/si';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { loginSchema, type LoginInput } from '@shared/schema';
@@ -13,9 +15,10 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useState } from 'react';
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const [, setLocation] = useLocation();
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const form = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
@@ -29,7 +32,6 @@ export default function Login() {
     setLoading(true);
     try {
       const role = await login(data.email, data.password);
-      // Redirect based on user role
       if (role === 'agent') {
         setLocation('/agent-dashboard');
       } else if (role === 'admin') {
@@ -44,6 +46,16 @@ export default function Login() {
     }
   };
 
+  const handleGoogleLogin = async () => {
+    setGoogleLoading(true);
+    try {
+      await loginWithGoogle();
+    } catch (err: any) {
+      form.setError('root', { message: err.message || 'Google login failed' });
+      setGoogleLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
@@ -51,6 +63,24 @@ export default function Login() {
         <Card className="max-w-md w-full p-8 shadow-xl border-t-4 border-t-primary">
           <h2 className="text-3xl font-bold text-primary mb-2">Welcome Back</h2>
           <p className="text-muted-foreground mb-6">Sign in to your account</p>
+
+          <Button 
+            type="button"
+            variant="outline" 
+            className="w-full mb-4 flex items-center justify-center gap-2"
+            onClick={handleGoogleLogin}
+            disabled={loading || googleLoading}
+            data-testid="button-google-login"
+          >
+            <SiGoogle className="h-4 w-4" />
+            {googleLoading ? 'Connecting...' : 'Continue with Google'}
+          </Button>
+
+          <div className="flex items-center gap-4 my-4">
+            <Separator className="flex-1" />
+            <span className="text-xs text-muted-foreground">OR</span>
+            <Separator className="flex-1" />
+          </div>
 
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -66,7 +96,7 @@ export default function Login() {
                       <Input
                         type="email"
                         placeholder="you@example.com"
-                        disabled={loading}
+                        disabled={loading || googleLoading}
                         data-testid="input-email"
                         {...field}
                       />
@@ -81,14 +111,21 @@ export default function Login() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="font-semibold text-sm flex items-center gap-2">
-                      <Lock className="h-4 w-4" /> Password
-                    </FormLabel>
+                    <div className="flex items-center justify-between">
+                      <FormLabel className="font-semibold text-sm flex items-center gap-2">
+                        <Lock className="h-4 w-4" /> Password
+                      </FormLabel>
+                      <Link href="/forgot-password">
+                        <span className="text-xs text-primary hover:underline cursor-pointer" data-testid="link-forgot-password">
+                          Forgot password?
+                        </span>
+                      </Link>
+                    </div>
                     <FormControl>
                       <Input
                         type="password"
                         placeholder="Enter your password"
-                        disabled={loading}
+                        disabled={loading || googleLoading}
                         data-testid="input-password"
                         {...field}
                       />
@@ -106,8 +143,8 @@ export default function Login() {
 
               <Button 
                 type="submit" 
-                className="w-full bg-primary" 
-                disabled={loading}
+                className="w-full" 
+                disabled={loading || googleLoading}
                 data-testid="button-submit"
               >
                 {loading ? 'Signing In...' : 'Sign In'}

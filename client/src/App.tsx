@@ -28,6 +28,8 @@ const Sell = lazy(() => import("@/pages/sell"));
 const MortgageCalculator = lazy(() => import("@/pages/mortgage-calculator"));
 const Login = lazy(() => import("@/pages/login"));
 const Signup = lazy(() => import("@/pages/signup"));
+const ForgotPassword = lazy(() => import("@/pages/forgot-password"));
+const ResetPassword = lazy(() => import("@/pages/reset-password"));
 const Agents = lazy(() => import("@/pages/agents"));
 const FAQ = lazy(() => import("@/pages/faq"));
 const Admin = lazy(() => import("@/pages/admin"));
@@ -90,6 +92,16 @@ function Router() {
       <Route path="/signup">
         <ReactSuspense fallback={<LoadingFallback />}>
           <Signup />
+        </ReactSuspense>
+      </Route>
+      <Route path="/forgot-password">
+        <ReactSuspense fallback={<LoadingFallback />}>
+          <ForgotPassword />
+        </ReactSuspense>
+      </Route>
+      <Route path="/reset-password">
+        <ReactSuspense fallback={<LoadingFallback />}>
+          <ResetPassword />
         </ReactSuspense>
       </Route>
       <Route path="/agents">
