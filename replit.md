@@ -8,6 +8,46 @@
 
 ---
 
+## Autonomous Improvement System - ACTIVE
+
+An automated improvement framework is now available in the `AUTO_GUIDE/` directory. This system enables AI sessions to work independently on improvements without manual instructions.
+
+### System Files:
+- `START_HERE.md` - Entry point for AI sessions
+- `PROJECT_STATE.json` - State tracking and progress metrics
+- `TASK_QUEUE.json` - Prioritized task list with 12 tasks
+- `INTELLISENSE.md` - Detection rules for issue scanning
+- `DESIGN_RULES.json` - Design system constraints
+- `WORKFLOW_AUTOMATOR.md` - Workflow protocol
+- `scanner.cjs` - Automated issue detection script
+
+### Detected Issues (7 total):
+**Security (3):**
+- HP003: Email HTML Injection Risk (HIGH)
+- HP004: Rate Limiting Disabled in Dev (MEDIUM)
+- MP001: Detailed Error Messages Exposed (MEDIUM)
+
+**Performance (3):**
+- HP002: Missing Database Indexes (HIGH)
+- MP003: Synchronous Email Sending (MEDIUM)
+- MP004: FIFO Cache Eviction (MEDIUM)
+
+**Data Integrity (1):**
+- HP005: Missing Unique Constraint on Applications (MEDIUM)
+
+### To Run Scanner:
+```bash
+node AUTO_GUIDE/scanner.cjs
+```
+
+### Phase Roadmap:
+1. **Phase 1: Critical Foundation** - Security and performance fixes (ACTIVE)
+2. **Phase 2: Design System** - Component standardization
+3. **Phase 3: UX Enhancements** - Navigation and forms
+4. **Phase 4: Polish & Optimization** - Final refinements
+
+---
+
 ## Stage 4: Admin Panel Enhancements - COMPLETE
 
 ### Dashboard Overview
