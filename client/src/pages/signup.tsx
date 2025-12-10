@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Link, useLocation } from 'wouter';
-import { Mail, Lock, User, CheckCircle2, Circle } from 'lucide-react';
+import { Mail, Lock, User, CheckCircle2, Circle, Eye, EyeOff } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { signupSchema, type SignupInput } from '@shared/schema';
@@ -40,6 +40,8 @@ export default function Signup() {
   const { signup } = useAuth();
   const [, setLocation] = useLocation();
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const form = useForm<ExtendedSignupInput>({
     resolver: zodResolver(extendedSignupSchema),
@@ -131,14 +133,26 @@ export default function Signup() {
                       <Lock className="h-4 w-4" /> Password
                     </FormLabel>
                     <FormControl>
-                      <Input
-                        type="password"
-                        placeholder="At least 6 characters"
-                        disabled={loading}
-                        autoComplete="new-password"
-                        data-testid="input-password"
-                        {...field}
-                      />
+                      <div className="relative">
+                        <Input
+                          type={showPassword ? 'text' : 'password'}
+                          placeholder="At least 6 characters"
+                          disabled={loading}
+                          autoComplete="new-password"
+                          data-testid="input-password"
+                          {...field}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          disabled={loading}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                          data-testid="button-toggle-password"
+                          aria-label={showPassword ? 'Hide password' : 'Show password'}
+                        >
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
                     </FormControl>
                     {password && (
                       <div className="mt-2 space-y-2">
@@ -171,14 +185,26 @@ export default function Signup() {
                       <Lock className="h-4 w-4" /> Confirm Password
                     </FormLabel>
                     <FormControl>
-                      <Input
-                        type="password"
-                        placeholder="Confirm your password"
-                        disabled={loading}
-                        autoComplete="new-password"
-                        data-testid="input-confirm-password"
-                        {...field}
-                      />
+                      <div className="relative">
+                        <Input
+                          type={showConfirmPassword ? 'text' : 'password'}
+                          placeholder="Confirm your password"
+                          disabled={loading}
+                          autoComplete="new-password"
+                          data-testid="input-confirm-password"
+                          {...field}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          disabled={loading}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                          data-testid="button-toggle-confirm-password"
+                          aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                        >
+                          {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
