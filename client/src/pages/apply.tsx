@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { useLocation, Link } from "wouter";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
+import { useAuth, getAuthToken } from "@/lib/auth-context";
+import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -80,12 +82,15 @@ export default function Apply() {
 
   const [location, setLocation] = useLocation();
   const [property, setProperty] = useState<any>(null);
+  const [propertyId, setPropertyId] = useState<string | null>(null);
+  const { user } = useAuth();
   
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
-    const propertyId = searchParams.get("propertyId");
-    if (propertyId) {
-      fetch(`/api/properties/${propertyId}`)
+    const id = searchParams.get("propertyId");
+    setPropertyId(id);
+    if (id) {
+      fetch(`/api/properties/${id}`)
         .then(res => res.json())
         .then(data => setProperty(data.data))
         .catch(err => console.error("Failed to load property:", err));
@@ -182,37 +187,99 @@ export default function Apply() {
     window.scrollTo(0, 0);
   };
 
-  const onSubmit = (data: ApplyFormValues) => {
+  const onSubmit = async (data: ApplyFormValues) => {
     setIsProcessing(true);
     
-    // Save application to localStorage
-    const applications = JSON.parse(localStorage.getItem('choiceProperties_applications') || '[]');
-    const newApplication = {
-      id: applications.length + 1,
-      property_title: property?.title || 'Unknown Property',
-      property_id: propertyId || '',
-      property_price: property?.price || 0,
-      property_address: property?.address || '',
-      user_name: `${data.firstName} ${data.lastName}`,
-      user_email: data.email,
-      user_phone: data.phone,
-      application_fee: property?.application_fee || 0,
-      submitted_at: new Date().toISOString(),
-      status_updated_at: new Date().toISOString(),
-      status: 'pending',
-      notes: '',
-      formData: data,
-      files: uploadedFiles
-    };
-    
-    applications.push(newApplication);
-    localStorage.setItem('choiceProperties_applications', JSON.stringify(applications));
-    
-    setTimeout(() => {
-      setIsProcessing(false);
+    try {
+      const token = await getAuthToken();
+      
+      const applicationData = {
+        propertyId: propertyId || '',
+        personalInfo: {
+          firstName: data.firstName,
+          lastName: data.lastName,
+          email: data.email,
+          phone: data.phone,
+          dateOfBirth: data.dateOfBirth,
+          currentAddress: data.currentAddress
+        },
+        rentalHistory: {
+          prevAddress: data.prevAddress,
+          prevLandlord: data.prevLandlord,
+          prevLandlordPhone: data.prevLandlordPhone,
+          reasonForLeaving: data.reasonForLeaving
+        },
+        employment: {
+          employer: data.employer,
+          position: data.position,
+          income: data.income,
+          employmentLength: data.employmentLength,
+          moveInDate: data.moveInDate
+        },
+        references: {
+          reference1: {
+            name: data.reference1Name,
+            phone: data.reference1Phone,
+            relationship: data.reference1Relationship
+          },
+          reference2: {
+            name: data.reference2Name,
+            phone: data.reference2Phone,
+            relationship: data.reference2Relationship
+          }
+        },
+        disclosures: {
+          hasPets: data.hasPets,
+          petDescription: data.petDescription,
+          smokingStatus: data.smokingStatus,
+          numberOfOccupants: data.numberOfOccupants,
+          criminalHistory: data.criminalHistory,
+          criminalDetails: data.criminalDetails
+        },
+        documents: uploadedFiles,
+        applicationFee: property?.application_fee || 50,
+        signature: data.signature
+      };
+
+      if (token && user) {
+        await apiRequest('/api/applications', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(applicationData)
+        });
+      } else {
+        const applications = JSON.parse(localStorage.getItem('choiceProperties_applications') || '[]');
+        applications.push({
+          ...applicationData,
+          id: applications.length + 1,
+          property_title: property?.title || 'Unknown Property',
+          user_name: `${data.firstName} ${data.lastName}`,
+          user_email: data.email,
+          submitted_at: new Date().toISOString(),
+          status: 'pending'
+        });
+        localStorage.setItem('choiceProperties_applications', JSON.stringify(applications));
+      }
+      
       setIsSubmitted(true);
       window.scrollTo(0, 0);
-    }, 2000);
+      toast({
+        title: "Application Submitted!",
+        description: "Your rental application has been received."
+      });
+    } catch (error) {
+      console.error("Failed to submit application:", error);
+      toast({
+        title: "Error",
+        description: "Failed to submit application. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   if (isSubmitted) {
