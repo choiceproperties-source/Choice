@@ -146,6 +146,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error('An account with this email already exists. Please sign in instead.');
     }
     
+    // Store phone number in users table if provided
+    if (data.user && phone) {
+      try {
+        await supabase
+          .from('users')
+          .upsert({
+            id: data.user.id,
+            email: email,
+            full_name: name,
+            phone: phone,
+            role: 'user'
+          }, { onConflict: 'id' });
+      } catch (profileError) {
+        console.error('Failed to save phone number:', profileError);
+      }
+    }
+    
     return 'user';
   };
 
@@ -155,7 +172,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/`
+        redirectTo: `${window.location.origin}/auth/callback`
       }
     });
     

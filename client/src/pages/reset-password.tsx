@@ -52,19 +52,41 @@ export default function ResetPassword() {
   const passwordStrength = useMemo(() => getPasswordStrength(password), [password]);
 
   useEffect(() => {
-    const hashParams = new URLSearchParams(window.location.hash.substring(1));
-    const accessToken = hashParams.get('access_token');
-    const type = hashParams.get('type');
+    const handleRecovery = async () => {
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const accessToken = hashParams.get('access_token');
+      const refreshToken = hashParams.get('refresh_token');
+      const type = hashParams.get('type');
+      const errorDescription = hashParams.get('error_description');
+      
+      if (errorDescription) {
+        form.setError('root', { message: decodeURIComponent(errorDescription) });
+        setTokenError(true);
+        return;
+      }
+      
+      if (type === 'recovery' && accessToken && supabase) {
+        try {
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken || '',
+          });
+          
+          if (error) {
+            form.setError('root', { message: error.message });
+            setTokenError(true);
+          }
+        } catch (err: any) {
+          form.setError('root', { message: err.message || 'Failed to validate reset link' });
+          setTokenError(true);
+        }
+      } else if (!accessToken) {
+        setTokenError(true);
+      }
+    };
     
-    if (type === 'recovery' && accessToken && supabase) {
-      supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: hashParams.get('refresh_token') || '',
-      });
-    } else if (!accessToken) {
-      setTokenError(true);
-    }
-  }, []);
+    handleRecovery();
+  }, [form]);
 
   const onSubmit = async (data: ResetPasswordInput) => {
     setLoading(true);

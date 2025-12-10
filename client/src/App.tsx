@@ -30,6 +30,7 @@ const Login = lazy(() => import("@/pages/login"));
 const Signup = lazy(() => import("@/pages/signup"));
 const ForgotPassword = lazy(() => import("@/pages/forgot-password"));
 const ResetPassword = lazy(() => import("@/pages/reset-password"));
+const AuthCallback = lazy(() => import("@/pages/auth-callback"));
 const Agents = lazy(() => import("@/pages/agents"));
 const FAQ = lazy(() => import("@/pages/faq"));
 const Admin = lazy(() => import("@/pages/admin"));
@@ -102,6 +103,11 @@ function Router() {
       <Route path="/reset-password">
         <ReactSuspense fallback={<LoadingFallback />}>
           <ResetPassword />
+        </ReactSuspense>
+      </Route>
+      <Route path="/auth/callback">
+        <ReactSuspense fallback={<LoadingFallback />}>
+          <AuthCallback />
         </ReactSuspense>
       </Route>
       <Route path="/agents">
