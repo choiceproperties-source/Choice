@@ -3,11 +3,15 @@ interface CacheEntry<T> {
   expiry: number;
 }
 
-class SimpleCache {
+class LRUCache {
   private cache: Map<string, CacheEntry<unknown>> = new Map();
   private maxSize: number = 100;
 
   set<T>(key: string, data: T, ttlMs: number): void {
+    if (this.cache.has(key)) {
+      this.cache.delete(key);
+    }
+    
     if (this.cache.size >= this.maxSize) {
       const oldestKey = this.cache.keys().next().value;
       if (oldestKey) this.cache.delete(oldestKey);
@@ -29,6 +33,9 @@ class SimpleCache {
       return null;
     }
     
+    this.cache.delete(key);
+    this.cache.set(key, entry);
+    
     return entry.data;
   }
 
@@ -49,13 +56,17 @@ class SimpleCache {
   has(key: string): boolean {
     return this.get(key) !== null;
   }
+  
+  size(): number {
+    return this.cache.size;
+  }
 }
 
-export const cache = new SimpleCache();
+export const cache = new LRUCache();
 
 export const CACHE_TTL = {
   PROPERTIES_LIST: 60 * 1000,
   PROPERTY_DETAIL: 2 * 60 * 1000,
   STATIC_CONTENT: 10 * 60 * 1000,
-  USER_ROLE: 15 * 60 * 1000, // 15 minute TTL for user roles
+  USER_ROLE: 15 * 60 * 1000,
 } as const;
