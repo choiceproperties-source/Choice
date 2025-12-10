@@ -34,9 +34,9 @@ export async function authenticateToken(
 
     // Check cache first to avoid N+1 query
     const cacheKey = `user_role:${user.id}`;
-    let cachedRole = cache.get<string>(cacheKey);
+    let cachedRole = cache.get<string>(cacheKey) || "user";
     
-    if (!cachedRole) {
+    if (cachedRole === "user" && !cache.has(cacheKey)) {
       const { data: userData } = await supabase
         .from("users")
         .select("role")
@@ -76,9 +76,9 @@ export function optionalAuth(
       if (!error && user) {
         // Check cache first to avoid N+1 query
         const cacheKey = `user_role:${user.id}`;
-        let cachedRole = cache.get<string>(cacheKey);
+        let cachedRole = cache.get<string>(cacheKey) || "user";
         
-        if (!cachedRole) {
+        if (cachedRole === "user" && !cache.has(cacheKey)) {
           const { data: userData } = await supabase
             .from("users")
             .select("role")
