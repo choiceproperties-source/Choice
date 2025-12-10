@@ -142,17 +142,18 @@
     "MP003 - Make Email Sending Async",
     "HP002 - Add Database Indexes",
     "MP004 - Upgrade Cache to LRU",
-    "MP001 - Standardize Error Responses"
+    "MP001 - Standardize Error Responses",
+    "MP002 - Fix Mobile Filter Sidebars"
   ],
   "active_tasks": [],
   "next_tasks": [
-    "MP002 - Fix Mobile Filter Sidebars"
+    "MP005 - Add Missing SEO Meta Tags"
   ],
   "metrics": {
     "total_tasks": 12,
-    "completed": 8,
-    "remaining": 4,
-    "success_rate": 67
+    "completed": 9,
+    "remaining": 3,
+    "success_rate": 75
   },
   "system": {
     "autonomous_mode": true,

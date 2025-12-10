@@ -8,16 +8,18 @@ import { PropertyQuickView } from "@/components/property-quick-view";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerClose } from "@/components/ui/drawer";
 import MapView from "@/components/map-view";
 import { useProperties } from "@/hooks/use-properties";
 import type { Property } from "@/lib/types";
-import { Search, Bookmark } from "lucide-react";
+import { Search, Bookmark, Filter } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { updateMetaTags } from "@/lib/seo";
 
 export default function Properties() {
   const { properties: allProperties, loading } = useProperties();
   const [filteredProperties, setFilteredProperties] = useState<Property[]>(allProperties);
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
 
   useEffect(() => {
     updateMetaTags({
@@ -169,8 +171,8 @@ export default function Properties() {
         </div>
       )}
       
-      {/* Zillow-style Subheader Filter Bar - Enhanced */}
-      <div className="border-b bg-white dark:bg-gray-950 shadow-sm p-3 z-20 sticky top-0 transition-all duration-300">
+      {/* Desktop Filter Bar */}
+      <div className="hidden md:block border-b bg-white dark:bg-gray-950 shadow-sm p-3 z-20 sticky top-0 transition-all duration-300">
         <div className="container mx-auto max-w-7xl flex flex-col md:flex-row gap-3 items-center">
             <div className="relative flex-1 w-full md:w-auto">
                 <Input 
@@ -256,6 +258,125 @@ export default function Properties() {
             </div>
         </div>
       </div>
+
+      {/* Mobile Filter Bar with Drawer */}
+      <div className="md:hidden border-b bg-white dark:bg-gray-950 shadow-sm p-3 z-20 sticky top-0">
+        <div className="flex gap-2 items-center">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsMobileFiltersOpen(true)}
+            className="flex items-center gap-2"
+            data-testid="button-mobile-filters"
+          >
+            <Filter className="h-4 w-4" />
+            Filters
+          </Button>
+          <div className="relative flex-1">
+            <Input
+              placeholder="Address, Zip"
+              className="pl-3 pr-10 h-9 border-gray-300 dark:border-gray-700 focus:border-primary dark:bg-gray-800 dark:text-white text-sm"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              data-testid="input-search-address-mobile"
+            />
+            <Search className="absolute right-3 top-2 h-4 w-4 text-primary dark:text-blue-400" />
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Filters Drawer */}
+      <Drawer open={isMobileFiltersOpen} onOpenChange={setIsMobileFiltersOpen}>
+        <DrawerContent>
+          <DrawerHeader className="border-b">
+            <DrawerTitle>Filters</DrawerTitle>
+          </DrawerHeader>
+          <div className="p-4 space-y-4 pb-8">
+            <div>
+              <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 block">Min Price</label>
+              <Select value={priceMin} onValueChange={setPriceMin}>
+                <SelectTrigger className="w-full" data-testid="select-price-min-mobile">
+                  <SelectValue placeholder="Select min price" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="any">Any Price</SelectItem>
+                  <SelectItem value="1000">$1,000+</SelectItem>
+                  <SelectItem value="2000">$2,000+</SelectItem>
+                  <SelectItem value="3000">$3,000+</SelectItem>
+                  <SelectItem value="4000">$4,000+</SelectItem>
+                  <SelectItem value="5000">$5,000+</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 block">Bedrooms</label>
+              <Select value={bedrooms} onValueChange={setBedrooms}>
+                <SelectTrigger className="w-full" data-testid="select-bedrooms-mobile">
+                  <SelectValue placeholder="Select bedrooms" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="any">Any Beds</SelectItem>
+                  <SelectItem value="1">1+ Bd</SelectItem>
+                  <SelectItem value="2">2+ Bd</SelectItem>
+                  <SelectItem value="3">3+ Bd</SelectItem>
+                  <SelectItem value="4">4+ Bd</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 block">Home Type</label>
+              <Select value={homeType} onValueChange={setHomeType}>
+                <SelectTrigger className="w-full" data-testid="select-home-type-mobile">
+                  <SelectValue placeholder="Select home type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="any">Any Type</SelectItem>
+                  <SelectItem value="House">Houses</SelectItem>
+                  <SelectItem value="Apartment">Apartments</SelectItem>
+                  <SelectItem value="Condo">Condos</SelectItem>
+                  <SelectItem value="Townhome">Townhomes</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 block">Sort By</label>
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="w-full" data-testid="select-sort-by-mobile">
+                  <SelectValue placeholder="Select sort option" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="featured">Featured</SelectItem>
+                  <SelectItem value="price-low">Price: Low to High</SelectItem>
+                  <SelectItem value="price-high">Price: High to Low</SelectItem>
+                  <SelectItem value="newest">Newest</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex gap-2 pt-4">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={resetFilters}
+                data-testid="button-reset-filters-mobile"
+              >
+                Clear All
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={saveSearch}
+                data-testid="button-save-search-mobile"
+              >
+                <Bookmark className="h-4 w-4 mr-2" />
+                Save
+              </Button>
+            </div>
+          </div>
+        </DrawerContent>
+      </Drawer>
 
       {/* Split Layout: Map (Right) & List (Left) */}
       <div className="flex-1 flex overflow-hidden relative">
