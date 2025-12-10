@@ -38,6 +38,7 @@ export class MemStorage implements IStorage {
       bio: insertUser.bio ?? null,
       createdAt: now,
       updatedAt: now,
+      deletedAt: null,
     };
     this.users.set(id, user);
     return user;

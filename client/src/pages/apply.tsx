@@ -14,7 +14,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
-import propertiesData from "@/data/properties.json";
 import { CheckCircle2, AlertCircle, Upload, UserPlus, Trash2, FileText, ArrowRight, ArrowLeft, Shield, Clock, DollarSign, Home as HomeIcon, Loader2 } from "lucide-react";
 import { Breadcrumb } from "@/components/breadcrumb";
 import { trackFormCompletion } from "@/lib/pwa";
@@ -80,9 +79,19 @@ export default function Apply() {
   }, []);
 
   const [location, setLocation] = useLocation();
-  const searchParams = new URLSearchParams(window.location.search);
-  const propertyId = searchParams.get("propertyId");
-  const property = propertiesData.find(p => p.id === propertyId);
+  const [property, setProperty] = useState<any>(null);
+  
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const propertyId = searchParams.get("propertyId");
+    if (propertyId) {
+      fetch(`/api/properties/${propertyId}`)
+        .then(res => res.json())
+        .then(data => setProperty(data.data))
+        .catch(err => console.error("Failed to load property:", err));
+    }
+  }, []);
+  
   const { toast } = useToast();
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
