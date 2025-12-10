@@ -34,15 +34,15 @@ export async function authenticateToken(
 
     // Check cache first to avoid N+1 query
     const cacheKey = `user_role:${user.id}`;
-    let cachedRole = cache.get<string>(cacheKey) || "user";
+    let cachedRole = cache.get<string>(cacheKey) || "renter";
     
-    if (cachedRole === "user" && !cache.has(cacheKey)) {
+    if (cachedRole === "renter" && !cache.has(cacheKey)) {
       const { data: userData } = await supabase
         .from("users")
         .select("role")
         .eq("id", user.id)
         .single();
-      cachedRole = userData?.role || "user";
+      cachedRole = userData?.role || "renter";
       cache.set(cacheKey, cachedRole, CACHE_TTL.USER_ROLE);
     }
 
@@ -76,15 +76,15 @@ export function optionalAuth(
       if (!error && user) {
         // Check cache first to avoid N+1 query
         const cacheKey = `user_role:${user.id}`;
-        let cachedRole = cache.get<string>(cacheKey) || "user";
+        let cachedRole = cache.get<string>(cacheKey) || "renter";
         
-        if (cachedRole === "user" && !cache.has(cacheKey)) {
+        if (cachedRole === "renter" && !cache.has(cacheKey)) {
           const { data: userData } = await supabase
             .from("users")
             .select("role")
             .eq("id", user.id)
             .single();
-          cachedRole = userData?.role || "user";
+          cachedRole = userData?.role || "renter";
           cache.set(cacheKey, cachedRole, CACHE_TTL.USER_ROLE);
         }
 

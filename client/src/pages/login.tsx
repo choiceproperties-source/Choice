@@ -32,12 +32,23 @@ export default function Login() {
     setLoading(true);
     try {
       const role = await login(data.email, data.password);
-      if (role === 'agent') {
-        setLocation('/agent-dashboard');
-      } else if (role === 'admin') {
-        setLocation('/admin');
-      } else {
-        setLocation('/');
+      // Redirect based on user role
+      switch (role) {
+        case 'admin':
+          setLocation('/admin');
+          break;
+        case 'agent':
+          setLocation('/agent-dashboard');
+          break;
+        case 'landlord':
+        case 'property_manager':
+          setLocation('/landlord-dashboard');
+          break;
+        case 'renter':
+        case 'buyer':
+        default:
+          setLocation('/');
+          break;
       }
     } catch (err: any) {
       form.setError('root', { message: err.message || 'Login failed' });

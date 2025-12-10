@@ -119,12 +119,30 @@ export interface User {
   updated_at: string | null;
 }
 
-export type UserRole = 'user' | 'agent' | 'admin';
+export type UserRole = 'renter' | 'buyer' | 'landlord' | 'property_manager' | 'agent' | 'admin';
+
+export const USER_ROLE_LABELS: Record<UserRole, string> = {
+  renter: 'Renter',
+  buyer: 'Buyer',
+  landlord: 'Landlord',
+  property_manager: 'Property Manager',
+  agent: 'Real Estate Agent',
+  admin: 'Administrator',
+};
+
+export const USER_ROLE_DESCRIPTIONS: Record<UserRole, string> = {
+  renter: 'Looking to rent a property',
+  buyer: 'Looking to buy a property',
+  landlord: 'Individual property owner',
+  property_manager: 'Manages multiple properties',
+  agent: 'Licensed real estate agent',
+  admin: 'System administrator',
+};
 
 export interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<UserRole>;
-  signup: (email: string, name: string, password: string, phone?: string) => Promise<UserRole>;
+  signup: (email: string, name: string, password: string, phone?: string, role?: UserRole) => Promise<UserRole>;
   loginWithGoogle: () => Promise<void>;
   logout: () => void;
   resetPassword: (email: string) => Promise<void>;

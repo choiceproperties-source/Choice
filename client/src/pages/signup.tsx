@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Link, useLocation } from 'wouter';
-import { Mail, Lock, User, Phone, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, User, Phone, Eye, EyeOff, Home, Building2, Users, Briefcase } from 'lucide-react';
 import { SiGoogle } from 'react-icons/si';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -15,9 +15,19 @@ import { signupSchema } from '@shared/schema';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useState, useMemo } from 'react';
 import { z } from 'zod';
+import type { UserRole } from '@/lib/types';
+
+const SIGNUP_ROLES: { value: UserRole; label: string; description: string; icon: typeof Home }[] = [
+  { value: 'renter', label: 'Renter', description: 'Looking to rent a property', icon: Home },
+  { value: 'buyer', label: 'Buyer', description: 'Looking to buy a property', icon: Home },
+  { value: 'landlord', label: 'Landlord', description: 'Individual property owner', icon: Building2 },
+  { value: 'property_manager', label: 'Property Manager', description: 'Manage multiple properties', icon: Users },
+  { value: 'agent', label: 'Real Estate Agent', description: 'Licensed agent', icon: Briefcase },
+];
 
 const extendedSignupSchema = signupSchema.extend({
   phone: z.string().optional(),
+  role: z.enum(['renter', 'buyer', 'landlord', 'property_manager', 'agent']),
   confirmPassword: z.string().min(1, 'Please confirm your password'),
   agreeToTerms: z.boolean().refine(val => val === true, {
     message: 'You must agree to the terms and privacy policy',
@@ -54,6 +64,7 @@ export default function Signup() {
       email: '',
       fullName: '',
       phone: '',
+      role: 'renter',
       password: '',
       confirmPassword: '',
       agreeToTerms: false,
@@ -66,7 +77,7 @@ export default function Signup() {
   const onSubmit = async (data: ExtendedSignupInput) => {
     setLoading(true);
     try {
-      await signup(data.email, data.fullName, data.password, data.phone);
+      await signup(data.email, data.fullName, data.password, data.phone, data.role);
       setSignupSuccess(true);
     } catch (err: any) {
       form.setError('root', { message: err.message || 'Signup failed' });
@@ -202,6 +213,47 @@ export default function Signup() {
                         data-testid="input-phone"
                         {...field}
                       />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-semibold text-sm">I am a...</FormLabel>
+                    <FormControl>
+                      <div className="grid grid-cols-2 gap-2">
+                        {SIGNUP_ROLES.map((roleOption) => {
+                          const Icon = roleOption.icon;
+                          const isSelected = field.value === roleOption.value;
+                          return (
+                            <button
+                              key={roleOption.value}
+                              type="button"
+                              onClick={() => field.onChange(roleOption.value)}
+                              disabled={loading || googleLoading}
+                              data-testid={`button-role-${roleOption.value}`}
+                              className={`p-3 rounded-md border text-left transition-all ${
+                                isSelected 
+                                  ? 'border-primary bg-primary/10 ring-1 ring-primary' 
+                                  : 'border-border hover:border-primary/50'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <Icon className={`h-4 w-4 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
+                                <span className={`text-sm font-medium ${isSelected ? 'text-primary' : ''}`}>
+                                  {roleOption.label}
+                                </span>
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-1">{roleOption.description}</p>
+                            </button>
+                          );
+                        })}
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>

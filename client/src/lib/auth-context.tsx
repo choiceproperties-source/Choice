@@ -5,16 +5,16 @@ import { supabase } from './supabase';
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 async function fetchUserRole(userId: string): Promise<UserRole> {
-  if (!supabase) return 'user';
+  if (!supabase) return 'renter';
   try {
     const { data } = await supabase
       .from('users')
       .select('role')
       .eq('id', userId)
       .single();
-    return (data?.role as UserRole) || 'user';
+    return (data?.role as UserRole) || 'renter';
   } catch {
-    return 'user';
+    return 'renter';
   }
 }
 
@@ -121,12 +121,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const role = await fetchUserRole(data.user.id);
       return role;
     }
-    return 'user';
+    return 'renter';
   };
 
-  const signup = async (email: string, name: string, password: string, phone?: string): Promise<UserRole> => {
+  const signup = async (email: string, name: string, password: string, phone?: string, role?: UserRole): Promise<UserRole> => {
     if (!email || !name || !password) throw new Error('Please fill in all required fields');
     if (!supabase) throw new Error('Authentication service unavailable. Please try again later.');
+    
+    const userRole = role || 'renter';
     
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -135,7 +137,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         data: { 
           name,
           full_name: name,
-          phone: phone || null
+          phone: phone || null,
+          role: userRole
         }
       }
     });
@@ -146,8 +149,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error('An account with this email already exists. Please sign in instead.');
     }
     
-    // Store phone number in users table if provided
-    if (data.user && phone) {
+    // Store user data in users table
+    if (data.user) {
       try {
         await supabase
           .from('users')
@@ -155,15 +158,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             id: data.user.id,
             email: email,
             full_name: name,
-            phone: phone,
-            role: 'user'
+            phone: phone || null,
+            role: userRole
           }, { onConflict: 'id' });
       } catch (profileError) {
-        console.error('Failed to save phone number:', profileError);
+        console.error('Failed to save user profile:', profileError);
       }
     }
     
-    return 'user';
+    return userRole;
   };
 
   const loginWithGoogle = async (): Promise<void> => {
