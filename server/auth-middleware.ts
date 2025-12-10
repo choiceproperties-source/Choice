@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { supabase } from "./supabase";
+import { cache, CACHE_TTL } from "./cache";
 
 export interface AuthenticatedRequest extends Request {
   user?: {
@@ -31,16 +32,24 @@ export async function authenticateToken(
       return res.status(401).json({ error: "Invalid or expired token" });
     }
 
-    const { data: userData } = await supabase
-      .from("users")
-      .select("role")
-      .eq("id", user.id)
-      .single();
+    // Check cache first to avoid N+1 query
+    const cacheKey = `user_role:${user.id}`;
+    let cachedRole = cache.get<string>(cacheKey);
+    
+    if (!cachedRole) {
+      const { data: userData } = await supabase
+        .from("users")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+      cachedRole = userData?.role || "user";
+      cache.set(cacheKey, cachedRole, CACHE_TTL.USER_ROLE);
+    }
 
     req.user = {
       id: user.id,
       email: user.email || "",
-      role: userData?.role || "user",
+      role: cachedRole,
     };
 
     next();
@@ -65,16 +74,24 @@ export function optionalAuth(
     .getUser(token)
     .then(async ({ data: { user }, error }) => {
       if (!error && user) {
-        const { data: userData } = await supabase
-          .from("users")
-          .select("role")
-          .eq("id", user.id)
-          .single();
+        // Check cache first to avoid N+1 query
+        const cacheKey = `user_role:${user.id}`;
+        let cachedRole = cache.get<string>(cacheKey);
+        
+        if (!cachedRole) {
+          const { data: userData } = await supabase
+            .from("users")
+            .select("role")
+            .eq("id", user.id)
+            .single();
+          cachedRole = userData?.role || "user";
+          cache.set(cacheKey, cachedRole, CACHE_TTL.USER_ROLE);
+        }
 
         req.user = {
           id: user.id,
           email: user.email || "",
-          role: userData?.role || "user",
+          role: cachedRole,
         };
       }
       next();

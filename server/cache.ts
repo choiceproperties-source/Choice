@@ -57,4 +57,5 @@ export const CACHE_TTL = {
   PROPERTIES_LIST: 60 * 1000,
   PROPERTY_DETAIL: 2 * 60 * 1000,
   STATIC_CONTENT: 10 * 60 * 1000,
+  USER_ROLE: 15 * 60 * 1000, // 15 minute TTL for user roles
 } as const;

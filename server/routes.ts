@@ -295,14 +295,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .single();
 
       if (userData?.email) {
-        await sendEmail({
+        // Fire-and-forget email sending (don't block request)
+        sendEmail({
           to: userData.email,
           subject: "Your Application Has Been Received",
           html: getApplicationConfirmationEmailTemplate({
             applicantName: userData.full_name || "Applicant",
             propertyTitle: propertyData?.title || "Your Property",
           }),
-        });
+        }).catch((err) => console.error("Email send error:", err));
       }
 
       return res.json(success(data[0], "Application submitted successfully"));
