@@ -44,12 +44,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       if (error) {
-        return res.status(400).json({ error: error.message });
+        console.error("[AUTH] Signup error:", error.message);
+        return res.status(400).json({ error: "Invalid request" });
       }
 
       res.json({ success: true, user: data.user });
     } catch (err: any) {
-      res.status(500).json({ error: err.message || "Signup failed" });
+      console.error("[AUTH] Signup exception:", err);
+      res.status(500).json({ error: "Invalid request" });
     }
   });
 
@@ -68,12 +70,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       if (error) {
-        return res.status(401).json({ error: error.message });
+        console.error("[AUTH] Login error:", error.message);
+        return res.status(401).json({ error: "Invalid credentials" });
       }
 
       res.json({ success: true, session: data.session });
     } catch (err: any) {
-      res.status(500).json({ error: err.message || "Login failed" });
+      console.error("[AUTH] Login exception:", err);
+      res.status(500).json({ error: "Invalid request" });
     }
   });
 
@@ -81,7 +85,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       res.json({ success: true });
     } catch (err: any) {
-      res.status(500).json({ error: err.message || "Logout failed" });
+      console.error("[AUTH] Logout exception:", err);
+      res.status(500).json({ error: "Invalid request" });
     }
   });
 
