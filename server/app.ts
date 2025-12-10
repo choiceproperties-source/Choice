@@ -45,6 +45,15 @@ app.use(express.json({
 }));
 app.use(express.urlencoded({ extended: false }));
 
+// API Versioning: Support both /api/v1/* and /api/* paths
+// Rewrite /api/v1/* to /api/* for backwards compatibility
+app.use((req, _res, next) => {
+  if (req.path.startsWith('/api/v1/')) {
+    req.url = req.url.replace('/api/v1/', '/api/');
+  }
+  next();
+});
+
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;

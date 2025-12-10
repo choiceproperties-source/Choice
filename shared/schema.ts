@@ -14,6 +14,7 @@ export const users = pgTable("users", {
   bio: text("bio"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+  deletedAt: timestamp("deleted_at"),
 });
 
 export const properties = pgTable("properties", {
@@ -39,6 +40,7 @@ export const properties = pgTable("properties", {
   status: text("status").default("active"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+  deletedAt: timestamp("deleted_at"),
 });
 
 export const applications = pgTable("applications", {
@@ -56,6 +58,7 @@ export const applications = pgTable("applications", {
   applicationFee: decimal("application_fee", { precision: 8, scale: 2 }),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+  deletedAt: timestamp("deleted_at"),
 }, (table) => ({
   userPropertyUnique: unique().on(table.userId, table.propertyId),
 }));
@@ -72,6 +75,7 @@ export const inquiries = pgTable("inquiries", {
   status: text("status").default("pending"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+  deletedAt: timestamp("deleted_at"),
 });
 
 export const requirements = pgTable("requirements", {
@@ -104,6 +108,7 @@ export const reviews = pgTable("reviews", {
   comment: text("comment"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+  deletedAt: timestamp("deleted_at"),
 }, (table) => ({
   userPropertyUnique: unique().on(table.userId, table.propertyId),
 }));
@@ -146,24 +151,28 @@ export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+  deletedAt: true,
 });
 
 export const insertPropertySchema = createInsertSchema(properties).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+  deletedAt: true,
 });
 
 export const insertApplicationSchema = createInsertSchema(applications).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+  deletedAt: true,
 });
 
 export const insertInquirySchema = createInsertSchema(inquiries).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+  deletedAt: true,
 });
 
 export const insertRequirementSchema = createInsertSchema(requirements).omit({
@@ -176,6 +185,7 @@ export const insertReviewSchema = createInsertSchema(reviews).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+  deletedAt: true,
 });
 
 export const insertFavoriteSchema = createInsertSchema(favorites).omit({
