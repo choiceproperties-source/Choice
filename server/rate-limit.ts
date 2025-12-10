@@ -1,6 +1,7 @@
 import rateLimit from "express-rate-limit";
 
 const isDev = process.env.NODE_ENV !== "production";
+const RATE_LIMITING_ENABLED = process.env.RATE_LIMITING_ENABLED !== "false";
 
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -12,7 +13,7 @@ export const authLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  skip: () => isDev,
+  skip: () => !RATE_LIMITING_ENABLED,
 });
 
 export const signupLimiter = rateLimit({
@@ -25,7 +26,7 @@ export const signupLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  skip: () => isDev,
+  skip: () => !RATE_LIMITING_ENABLED,
 });
 
 export const inquiryLimiter = rateLimit({
@@ -38,7 +39,7 @@ export const inquiryLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  skip: () => isDev,
+  skip: () => !RATE_LIMITING_ENABLED,
 });
 
 export const newsletterLimiter = rateLimit({
@@ -51,5 +52,5 @@ export const newsletterLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  skip: () => isDev,
+  skip: () => !RATE_LIMITING_ENABLED,
 });

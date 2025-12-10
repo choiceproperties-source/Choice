@@ -56,7 +56,9 @@ export const applications = pgTable("applications", {
   applicationFee: decimal("application_fee", { precision: 8, scale: 2 }),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => ({
+  userPropertyUnique: unique().on(table.userId, table.propertyId),
+}));
 
 export const inquiries = pgTable("inquiries", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -102,7 +104,9 @@ export const reviews = pgTable("reviews", {
   comment: text("comment"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => ({
+  userPropertyUnique: unique().on(table.userId, table.propertyId),
+}));
 
 export const favorites = pgTable("favorites", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
