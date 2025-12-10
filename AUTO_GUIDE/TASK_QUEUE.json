@@ -1,0 +1,168 @@
+{
+  "high_priority": [
+    {
+      "id": "HP001",
+      "title": "Fix N+1 Query in Auth Middleware",
+      "description": "Cache user role data to eliminate database query on every request",
+      "file": "server/auth-middleware.ts",
+      "line": "34-38",
+      "detection_rule": "Check if authenticateToken() runs database query on every request",
+      "implementation": "Add caching layer with 15-minute TTL for user roles",
+      "acceptance_test": "Database queries reduced for authenticated endpoints",
+      "prerequisites": [],
+      "completed": false,
+      "phase": "phase_1_critical_foundation",
+      "estimated_time": "1-2 hours"
+    },
+    {
+      "id": "HP002",
+      "title": "Add Database Indexes",
+      "description": "Create essential indexes for common query patterns",
+      "file": "database/migrations/001_indexes.sql",
+      "detection_rule": "Check for missing indexes on user_id, property_id, city columns",
+      "implementation": "Create SQL migration with recommended indexes",
+      "acceptance_test": "SELECT queries on indexed columns return <100ms",
+      "prerequisites": [],
+      "completed": false,
+      "phase": "phase_1_critical_foundation",
+      "estimated_time": "30 minutes"
+    },
+    {
+      "id": "HP003",
+      "title": "Fix Email HTML Injection",
+      "description": "Escape user input in email templates",
+      "file": "server/email.ts",
+      "line": "49-54",
+      "detection_rule": "Check if senderName and message are HTML-escaped",
+      "implementation": "Install and use escape-html library",
+      "acceptance_test": "<script> tags appear as plain text in emails",
+      "prerequisites": [],
+      "completed": false,
+      "phase": "phase_1_critical_foundation",
+      "estimated_time": "15 minutes"
+    },
+    {
+      "id": "HP004",
+      "title": "Enable Rate Limiting in Development",
+      "description": "Remove skip: () => isDev to test rate limiting during development",
+      "file": "server/rate-limit.ts",
+      "detection_rule": "Check for skip: () => isDev in rate limiters",
+      "implementation": "Make rate limiting configurable independently of NODE_ENV",
+      "acceptance_test": "Rate limiting works in development mode",
+      "prerequisites": [],
+      "completed": false,
+      "phase": "phase_1_critical_foundation",
+      "estimated_time": "10 minutes"
+    },
+    {
+      "id": "HP005",
+      "title": "Add Duplicate Prevention Constraints",
+      "description": "Add unique constraints to prevent duplicate applications/reviews",
+      "file": "shared/schema.ts",
+      "detection_rule": "Check applications and reviews tables for unique constraints",
+      "implementation": "Add userPropertyUnique constraint to applications and reviews",
+      "acceptance_test": "Duplicate submissions rejected with clear error",
+      "prerequisites": [],
+      "completed": false,
+      "phase": "phase_1_critical_foundation",
+      "estimated_time": "20 minutes"
+    }
+  ],
+  "medium_priority": [
+    {
+      "id": "MP001",
+      "title": "Standardize Error Responses",
+      "description": "Use generic error messages instead of detailed ones",
+      "file": "server/routes.ts",
+      "detection_rule": "Check for error: error.message in responses",
+      "implementation": "Replace with generic messages, log details server-side",
+      "acceptance_test": "Errors show 'Invalid request' not database details",
+      "prerequisites": [],
+      "completed": false,
+      "phase": "phase_1_critical_foundation",
+      "estimated_time": "30 minutes"
+    },
+    {
+      "id": "MP002",
+      "title": "Fix Mobile Filter Sidebars",
+      "description": "Collapse sidebars into drawers on mobile",
+      "file": "client/src/pages/properties.tsx",
+      "detection_rule": "Check if sticky sidebar exists on mobile",
+      "implementation": "Replace with collapsible drawer component",
+      "acceptance_test": "Mobile view has 'Filters' button not sidebar",
+      "prerequisites": [],
+      "completed": false,
+      "phase": "phase_1_critical_foundation",
+      "estimated_time": "45 minutes"
+    },
+    {
+      "id": "MP003",
+      "title": "Make Email Sending Async",
+      "description": "Don't block requests waiting for email to send",
+      "file": "server/routes.ts",
+      "detection_rule": "Check for await sendEmail in request handlers",
+      "implementation": "Fire-and-forget email sending with error logging",
+      "acceptance_test": "Application submission completes without waiting for email",
+      "prerequisites": [],
+      "completed": false,
+      "phase": "phase_1_critical_foundation",
+      "estimated_time": "15 minutes"
+    },
+    {
+      "id": "MP004",
+      "title": "Upgrade Cache to LRU",
+      "description": "Replace FIFO eviction with LRU for better cache hits",
+      "file": "server/cache.ts",
+      "detection_rule": "Check cache eviction policy",
+      "implementation": "Implement LRU eviction using access timestamps",
+      "acceptance_test": "Frequently accessed items stay in cache longer",
+      "prerequisites": [],
+      "completed": false,
+      "phase": "phase_1_critical_foundation",
+      "estimated_time": "30 minutes"
+    },
+    {
+      "id": "MP005",
+      "title": "Add Missing SEO Meta Tags",
+      "description": "Add proper meta descriptions and Open Graph tags",
+      "file": "client/index.html",
+      "detection_rule": "Check for meta description and og:* tags",
+      "implementation": "Add SEO meta tags for all pages",
+      "acceptance_test": "Pages show proper previews in social media",
+      "prerequisites": [],
+      "completed": false,
+      "phase": "phase_2_design_system",
+      "estimated_time": "30 minutes"
+    }
+  ],
+  "low_priority": [
+    {
+      "id": "LP001",
+      "title": "Add Soft Deletes",
+      "description": "Implement deleted_at timestamp for audit trail",
+      "file": "shared/schema.ts",
+      "detection_rule": "Check for deletedAt column in critical tables",
+      "implementation": "Add deleted_at column and update queries",
+      "acceptance_test": "Deleted records are hidden but recoverable",
+      "prerequisites": [],
+      "completed": false,
+      "phase": "phase_4_polish_optimization",
+      "estimated_time": "1 hour"
+    },
+    {
+      "id": "LP002",
+      "title": "Add API Versioning",
+      "description": "Structure API routes for versioning",
+      "file": "server/routes.ts",
+      "detection_rule": "Check for /api/v1/ prefix",
+      "implementation": "Add version prefix to all routes",
+      "acceptance_test": "API routes use /api/v1/ prefix",
+      "prerequisites": [],
+      "completed": false,
+      "phase": "phase_4_polish_optimization",
+      "estimated_time": "30 minutes"
+    }
+  ],
+  "completed": [],
+  "pending_review": []
+}
