@@ -28,8 +28,15 @@ export default function Login() {
   const onSubmit = async (data: LoginInput) => {
     setLoading(true);
     try {
-      await login(data.email, data.password);
-      setLocation('/');
+      const role = await login(data.email, data.password);
+      // Redirect based on user role
+      if (role === 'agent') {
+        setLocation('/agent-dashboard');
+      } else if (role === 'admin') {
+        setLocation('/admin');
+      } else {
+        setLocation('/');
+      }
     } catch (err: any) {
       form.setError('root', { message: err.message || 'Login failed' });
     } finally {

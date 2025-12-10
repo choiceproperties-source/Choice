@@ -62,6 +62,7 @@ export default function Signup() {
     setLoading(true);
     try {
       await signup(data.email, data.fullName, data.password);
+      // New signups are always 'user' role, redirect to home
       setLocation('/');
     } catch (err: any) {
       form.setError('root', { message: err.message || 'Signup failed' });
