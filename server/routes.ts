@@ -96,7 +96,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error) throw error;
       return res.json(success(data, "User fetched successfully"));
     } catch (err: any) {
-      return res.status(500).json(errorResponse("Invalid request. Please try again or contact support" fetch user"));
+      return res.status(500).json(errorResponse("Failed to fetch user"));
     }
   });
 
@@ -152,7 +152,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       return res.json(success(result, "Properties fetched successfully"));
     } catch (err: any) {
-      return res.status(500).json(errorResponse("Invalid request. Please try again or contact support" fetch properties"));
+      return res.status(500).json(errorResponse("Failed to fetch properties"));
     }
   });
 
@@ -176,7 +176,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       return res.json(success(data, "Property fetched successfully"));
     } catch (err: any) {
-      return res.status(500).json(errorResponse("Invalid request. Please try again or contact support" fetch property"));
+      return res.status(500).json(errorResponse("Failed to fetch property"));
     }
   });
 
@@ -203,7 +203,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       return res.json(success(data[0], "Property created successfully"));
     } catch (err: any) {
-      return res.status(500).json(errorResponse("Invalid request. Please try again or contact support" create property"));
+      return res.status(500).json(errorResponse("Failed to create property"));
     }
   });
 
@@ -222,7 +222,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       return res.json(success(data[0], "Property updated successfully"));
     } catch (err: any) {
-      return res.status(500).json(errorResponse("Invalid request. Please try again or contact support" update property"));
+      return res.status(500).json(errorResponse("Failed to update property"));
     }
   });
 
@@ -240,7 +240,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       return res.json(success(null, "Property deleted successfully"));
     } catch (err: any) {
-      return res.status(500).json(errorResponse("Invalid request. Please try again or contact support" delete property"));
+      return res.status(500).json(errorResponse("Failed to delete property"));
     }
   });
 
@@ -258,7 +258,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error) throw error;
       return res.json(success(data, "User properties fetched successfully"));
     } catch (err: any) {
-      return res.status(500).json(errorResponse("Invalid request. Please try again or contact support" fetch user properties"));
+      return res.status(500).json(errorResponse("Failed to fetch user properties"));
     }
   });
 
@@ -308,7 +308,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       return res.json(success(data[0], "Application submitted successfully"));
     } catch (err: any) {
-      return res.status(500).json(errorResponse("Invalid request. Please try again or contact support" submit application"));
+      return res.status(500).json(errorResponse("Failed to submit application"));
     }
   });
 
@@ -326,7 +326,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error) throw error;
       return res.json(success(data, "User applications fetched successfully"));
     } catch (err: any) {
-      return res.status(500).json(errorResponse("Invalid request. Please try again or contact support" fetch user applications"));
+      return res.status(500).json(errorResponse("Failed to fetch user applications"));
     }
   });
 
@@ -354,7 +354,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error) throw error;
       return res.json(success(data, "Property applications fetched successfully"));
     } catch (err: any) {
-      return res.status(500).json(errorResponse("Invalid request. Please try again or contact support" fetch property applications"));
+      return res.status(500).json(errorResponse("Failed to fetch property applications"));
     }
   });
 
@@ -393,7 +393,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error) throw error;
       return res.json(success(data[0], "Application updated successfully"));
     } catch (err: any) {
-      return res.status(500).json(errorResponse("Invalid request. Please try again or contact support" update application"));
+      return res.status(500).json(errorResponse("Failed to update application"));
     }
   });
 
@@ -435,7 +435,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       return res.json(success(data[0], "Inquiry submitted successfully"));
     } catch (err: any) {
-      return res.status(500).json(errorResponse("Invalid request. Please try again or contact support" submit inquiry"));
+      return res.status(500).json(errorResponse("Failed to submit inquiry"));
     }
   });
 
@@ -454,7 +454,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error) throw error;
       return res.json(success(data, "Agent inquiries fetched successfully"));
     } catch (err: any) {
-      return res.status(500).json(errorResponse("Invalid request. Please try again or contact support" fetch agent inquiries"));
+      return res.status(500).json(errorResponse("Failed to fetch agent inquiries"));
     }
   });
 
@@ -469,7 +469,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error) throw error;
       return res.json(success(data[0], "Inquiry updated successfully"));
     } catch (err: any) {
-      return res.status(500).json(errorResponse("Invalid request. Please try again or contact support" update inquiry"));
+      return res.status(500).json(errorResponse("Failed to update inquiry"));
     }
   });
 
@@ -494,7 +494,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error) throw error;
       return res.json(success(data[0], "Requirement created successfully"));
     } catch (err: any) {
-      return res.status(500).json(errorResponse("Invalid request. Please try again or contact support" create requirement"));
+      return res.status(500).json(errorResponse("Failed to create requirement"));
     }
   });
 
@@ -512,7 +512,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error) throw error;
       return res.json(success(data, "User requirements fetched successfully"));
     } catch (err: any) {
-      return res.status(500).json(errorResponse("Invalid request. Please try again or contact support" fetch user requirements"));
+      return res.status(500).json(errorResponse("Failed to fetch user requirements"));
     }
   });
 
@@ -526,7 +526,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error) throw error;
       return res.json(success(data, "Requirements fetched successfully"));
     } catch (err: any) {
-      return res.status(500).json(errorResponse("Invalid request. Please try again or contact support" fetch requirements"));
+      return res.status(500).json(errorResponse("Failed to fetch requirements"));
     }
   });
 
@@ -551,7 +551,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error) throw error;
       return res.json(success(data[0], "Favorite created successfully"));
     } catch (err: any) {
-      return res.status(500).json(errorResponse("Invalid request. Please try again or contact support" create favorite"));
+      return res.status(500).json(errorResponse("Failed to create favorite"));
     }
   });
 
@@ -565,7 +565,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error) throw error;
       return res.json(success(null, "Favorite deleted successfully"));
     } catch (err: any) {
-      return res.status(500).json(errorResponse("Invalid request. Please try again or contact support" delete favorite"));
+      return res.status(500).json(errorResponse("Failed to delete favorite"));
     }
   });
 
@@ -583,7 +583,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error) throw error;
       return res.json(success(data, "User favorites fetched successfully"));
     } catch (err: any) {
-      return res.status(500).json(errorResponse("Invalid request. Please try again or contact support" fetch user favorites"));
+      return res.status(500).json(errorResponse("Failed to fetch user favorites"));
     }
   });
 
@@ -599,7 +599,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error) throw error;
       return res.json(success(data, "Reviews fetched successfully"));
     } catch (err: any) {
-      return res.status(500).json(errorResponse("Invalid request. Please try again or contact support" fetch reviews"));
+      return res.status(500).json(errorResponse("Failed to fetch reviews"));
     }
   });
 
@@ -623,7 +623,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error) throw error;
       return res.json(success(data[0], "Review created successfully"));
     } catch (err: any) {
-      return res.status(500).json(errorResponse("Invalid request. Please try again or contact support" create review"));
+      return res.status(500).json(errorResponse("Failed to create review"));
     }
   });
 
@@ -638,7 +638,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error) throw error;
       return res.json(success(data[0], "Review updated successfully"));
     } catch (err: any) {
-      return res.status(500).json(errorResponse("Invalid request. Please try again or contact support" update review"));
+      return res.status(500).json(errorResponse("Failed to update review"));
     }
   });
 
@@ -652,7 +652,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error) throw error;
       return res.json(success(null, "Review deleted successfully"));
     } catch (err: any) {
-      return res.status(500).json(errorResponse("Invalid request. Please try again or contact support" delete review"));
+      return res.status(500).json(errorResponse("Failed to delete review"));
     }
   });
 
@@ -667,7 +667,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error) throw error;
       return res.json(success(data, "Users fetched successfully"));
     } catch (err: any) {
-      return res.status(500).json(errorResponse("Invalid request. Please try again or contact support" fetch users"));
+      return res.status(500).json(errorResponse("Failed to fetch users"));
     }
   });
 
@@ -685,7 +685,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       return res.json(success(data, "User fetched successfully"));
     } catch (err: any) {
-      return res.status(500).json(errorResponse("Invalid request. Please try again or contact support" fetch user"));
+      return res.status(500).json(errorResponse("Failed to fetch user"));
     }
   });
 
@@ -719,7 +719,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error) throw error;
       return res.json(success(data[0], "User updated successfully"));
     } catch (err: any) {
-      return res.status(500).json(errorResponse("Invalid request. Please try again or contact support" update user"));
+      return res.status(500).json(errorResponse("Failed to update user"));
     }
   });
 
@@ -744,7 +744,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error) throw error;
       return res.json(success(data[0], "Saved search created successfully"));
     } catch (err: any) {
-      return res.status(500).json(errorResponse("Invalid request. Please try again or contact support" create saved search"));
+      return res.status(500).json(errorResponse("Failed to create saved search"));
     }
   });
 
@@ -763,7 +763,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error) throw error;
       return res.json(success(data, "Saved searches fetched successfully"));
     } catch (err: any) {
-      return res.status(500).json(errorResponse("Invalid request. Please try again or contact support" fetch saved searches"));
+      return res.status(500).json(errorResponse("Failed to fetch saved searches"));
     }
   });
 
@@ -785,7 +785,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error) throw error;
       return res.json(success(data[0], "Saved search updated successfully"));
     } catch (err: any) {
-      return res.status(500).json(errorResponse("Invalid request. Please try again or contact support" update saved search"));
+      return res.status(500).json(errorResponse("Failed to update saved search"));
     }
   });
 
@@ -799,7 +799,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (delError) throw delError;
       return res.json(success(null, "Saved search deleted successfully"));
     } catch (err: any) {
-      return res.status(500).json(errorResponse("Invalid request. Please try again or contact support" delete saved search"));
+      return res.status(500).json(errorResponse("Failed to delete saved search"));
     }
   });
 
@@ -825,7 +825,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       return res.json(success(data[0], "Subscribed successfully"));
     } catch (err: any) {
-      return res.status(500).json(errorResponse("Invalid request. Please try again or contact support" subscribe to newsletter"));
+      return res.status(500).json(errorResponse("Failed to subscribe to newsletter"));
     }
   });
 
@@ -839,7 +839,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error) throw error;
       return res.json(success(data, "Newsletter subscribers fetched successfully"));
     } catch (err: any) {
-      return res.status(500).json(errorResponse("Invalid request. Please try again or contact support" fetch newsletter subscribers"));
+      return res.status(500).json(errorResponse("Failed to fetch newsletter subscribers"));
     }
   });
 
@@ -859,7 +859,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error) throw error;
       return res.json(success(data[0], "Message sent successfully"));
     } catch (err: any) {
-      return res.status(500).json(errorResponse("Invalid request. Please try again or contact support" send message"));
+      return res.status(500).json(errorResponse("Failed to send message"));
     }
   });
 
@@ -873,7 +873,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error) throw error;
       return res.json(success(data, "Contact messages fetched successfully"));
     } catch (err: any) {
-      return res.status(500).json(errorResponse("Invalid request. Please try again or contact support" fetch contact messages"));
+      return res.status(500).json(errorResponse("Failed to fetch contact messages"));
     }
   });
 
@@ -888,7 +888,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error) throw error;
       return res.json(success(data[0], "Message updated successfully"));
     } catch (err: any) {
-      return res.status(500).json(errorResponse("Invalid request. Please try again or contact support" update message"));
+      return res.status(500).json(errorResponse("Failed to update message"));
     }
   });
 
@@ -908,7 +908,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error) throw error;
       return res.json(success(data[0], "Message sent successfully"));
     } catch (err: any) {
-      return res.status(500).json(errorResponse("Invalid request. Please try again or contact support" send message"));
+      return res.status(500).json(errorResponse("Failed to send message"));
     }
   });
 
