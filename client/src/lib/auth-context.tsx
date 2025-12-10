@@ -81,18 +81,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<'user' | 'agent' | 'admin'> => {
     if (!email || !password) throw new Error('Missing email or password');
     if (!supabase) throw new Error('Supabase not configured. Please check environment variables.');
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
+      
+      // Fetch and return the user's role for redirect purposes
+      if (data.user) {
+        const role = await fetchUserRole(data.user.id);
+        return role;
+      }
+      return 'user';
     } catch (error) {
       throw error;
     }
   };
 
-  const signup = async (email: string, name: string, password: string) => {
+  const signup = async (email: string, name: string, password: string): Promise<'user' | 'agent' | 'admin'> => {
     if (!email || !name || !password) throw new Error('Missing required fields');
     if (!supabase) throw new Error('Supabase not configured. Please check environment variables.');
     try {
@@ -104,6 +111,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       });
       if (error) throw error;
+      // New signups are always 'user' role by default
+      return 'user';
     } catch (error) {
       throw error;
     }
