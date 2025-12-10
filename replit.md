@@ -1,303 +1,255 @@
-# Choice Properties - Full Stack Real Estate Platform
+# Choice Properties - Full Stack Real Estate Application
 
-## Current Status: **Stage 4 Complete - Admin Panel Enhanced**
+## Project Overview
+A full-stack real estate platform built with React, Express, and Supabase. The application allows users to browse properties, submit applications, manage inquiries, and connect with real estate agents.
 
-**Build Status:** Running on http://localhost:5000  
-**API Health:** All endpoints operational  
-**Dashboards:** Renter, Owner, Agent, and Admin dashboards fully polished  
+## Tech Stack
+- **Frontend:** React 19, Vite, TailwindCSS, Shadcn UI
+- **Backend:** Express.js, Node.js
+- **Database:** PostgreSQL (Supabase)
+- **Authentication:** Supabase Auth (JWT-based)
+- **State Management:** React Query, Context API
+- **Routing:** Wouter
 
----
-
-## Autonomous Improvement System - ACTIVE
-
-An automated improvement framework is now available in the `AUTO_GUIDE/` directory. This system enables AI sessions to work independently on improvements without manual instructions.
-
-### System Files:
-- `START_HERE.md` - Entry point for AI sessions
-- `PROJECT_STATE.json` - State tracking and progress metrics
-- `TASK_QUEUE.json` - Prioritized task list with 12 tasks
-- `INTELLISENSE.md` - Detection rules for issue scanning
-- `DESIGN_RULES.json` - Design system constraints
-- `WORKFLOW_AUTOMATOR.md` - Workflow protocol
-- `scanner.cjs` - Automated issue detection script
-
-### Detected Issues (7 total):
-**Security (3):**
-- HP003: Email HTML Injection Risk (HIGH)
-- HP004: Rate Limiting Disabled in Dev (MEDIUM)
-- MP001: Detailed Error Messages Exposed (MEDIUM)
-
-**Performance (3):**
-- HP002: Missing Database Indexes (HIGH)
-- MP003: Synchronous Email Sending (MEDIUM)
-- MP004: FIFO Cache Eviction (MEDIUM)
-
-**Data Integrity (1):**
-- HP005: Missing Unique Constraint on Applications (MEDIUM)
-
-### To Run Scanner:
-```bash
-node AUTO_GUIDE/scanner.cjs
-```
-
-### Phase Roadmap:
-1. **Phase 1: Critical Foundation** - Security and performance fixes (ACTIVE)
-2. **Phase 2: Design System** - Component standardization
-3. **Phase 3: UX Enhancements** - Navigation and forms
-4. **Phase 4: Polish & Optimization** - Final refinements
-
----
-
-## Stage 4: Admin Panel Enhancements - COMPLETE
-
-### Dashboard Overview
-- Stats cards: Properties, Users, Applications, Inquiries
-- User role distribution pie chart
-- Application status pie chart
-- Quick navigation sidebar
-
-### Users Section
-- Full CRUD: Create, Edit (role), Delete users
-- Role filter dropdown (all, user, renter, owner, agent, admin)
-- Role breakdown badges showing count per role
-- Confirmation dialogs for delete
-- Add User modal with name, email, role fields
-
-### Properties Section
-- Full CRUD: Add, Edit, Delete properties
-- Property filters: status (active/inactive), city text, min/max price
-- View property details modal
-- Edit property modal with all fields
-
-### Applications Section
-- Approve/Reject applications with status updates
-- Filter by status (all, pending, approved, rejected)
-- View application details modal
-- Status badges with icons (Clock, CheckCircle, XCircle)
-
-### Inquiries Section
-- Respond/Close inquiries with status updates
-- Filter by status (all, pending, responded, closed)
-- View full inquiry details modal
-
-### Saved Searches Section
-- View saved search filters in modal
-- Delete saved searches with confirmation
-- Displays user info and filter JSON
-
-### Analytics Section
-- 4 stat cards: Total Users, Properties, Applications, Inquiries
-- Bar chart: Applications per property (top 10)
-- Pie chart: Users by role with legend
-- Line chart: Inquiries over last 7 days
-- Responsive charts with tooltips
-
-### Test IDs
-- `nav-dashboard`, `nav-users`, `nav-properties`, `nav-applications`, `nav-inquiries`, `nav-saved-searches`, `nav-analytics`
-- `stat-properties`, `stat-users`, `stat-applications`, `stat-inquiries`
-- `button-add-user`, `button-add-property`
-- `button-view-property-{id}`, `button-edit-property-{id}`, `button-delete-property-{id}`
-- `button-approve-application`, `button-reject-application`
-- `button-respond-inquiry`, `button-close-inquiry`
-
----
-
-## Stage 3: Agent Dashboard Enhancements - COMPLETE
-
-### Lead Activity Visualization
-- Weekly bar chart showing inquiries vs requirements
-- Recharts BarChart with responsive container
-- Empty state handling when no data
-- Color-coded bars (purple for inquiries, indigo for requirements)
-
-### Conversion Rate Analytics
-- Pie chart showing inquiry status breakdown
-- Segments: Responded (purple), Closed (green), Pending (yellow)
-- Epsilon fix for rendering zero-value segments
-- Actual values displayed in tooltips and labels
-
-### Property Matching System
-- Matches client requirements with available properties
-- Filters by budget range, bedrooms, bathrooms
-- Shows only requirements with actual matches
-- Quick-view property cards with key details
-- Navigate to property details
-
-### Enhanced Analytics Tab
-- Performance metrics and tips
-- Comprehensive charts integration
-- Lead tracking visualization
-- Conversion rate insights
-
-### Stats Cards
-- Inquiries (with pending count)
-- Requirements (client needs)
-- Total Leads (combined count)
-- Conversion Rate (percentage)
-
-### Tab Navigation
-- Inquiries - View and manage visitor inquiries
-- Requirements - CRUD for client requirements
-- Property Matching - Match requirements with properties
-- Analytics - Charts and performance insights
-
-### Test IDs
-- `stat-inquiries`, `stat-requirements`, `stat-leads`, `stat-conversion`
-- `tab-inquiries`, `tab-requirements`, `tab-matching`, `tab-leads`
-- `section-inquiries`, `section-requirements`
-- `card-inquiry-{id}`, `card-requirement-{id}`
-- `button-add-requirement`, `button-delete-requirement-{id}`
-
----
-
-## Stage 1: Renter Dashboard - COMPLETE
-
-### Features
-- Gradient blue-to-indigo header
-- Stats cards (Applications, Saved Properties, Saved Searches, Member Since)
-- Tab navigation with badges
-- Applications section with status indicators
-- Saved Properties grid with hover effects
-- Saved Searches with filter badges
-- Loading and empty states
-- Full dark mode support
-
----
-
-## Architecture Summary
-
-### Frontend
-- React 18 + TypeScript
-- shadcn/ui components library
-- Tailwind CSS + dark mode
-- TanStack React Query (via custom hooks)
-- Wouter routing
-- Lucide React icons
-- Recharts for data visualization
-
-### Backend
-- Express.js + TypeScript
-- Supabase PostgreSQL
-- Drizzle ORM
-- JWT authentication
-- Rate limiting
-- CORS configuration
-
-### Security
-- JWT-based auth
-- Role-based access control
-- Protected routes
-- Standardized response format
-- Input validation
-
----
-
-## File Structure
+## Project Structure
 
 ```
-client/src/
-├── pages/
-│   ├── renter-dashboard.tsx    - Renter dashboard
-│   ├── owner-dashboard.tsx     - Owner/seller dashboard
-│   ├── agent-dashboard.tsx     - Agent dashboard (Stage 3)
-│   └── (other pages)
-├── hooks/
-│   ├── use-applications.ts
-│   ├── use-favorites.ts
-│   ├── use-saved-searches.ts
-│   ├── use-inquiries.ts
-│   ├── use-requirements.ts
-│   ├── use-properties.ts
-│   └── use-toast.ts
-├── components/
-│   ├── layout/
-│   │   ├── navbar.tsx
-│   │   └── footer.tsx
-│   └── ui/
-│       └── (shadcn components)
-└── lib/
-    ├── auth-context.tsx
-    └── supabase-service.ts
+project/
+├── client/                 # Frontend React application
+│   ├── public/            # Static assets
+│   ├── src/
+│   │   ├── components/    # React components
+│   │   │   ├── ui/       # Shadcn UI components
+│   │   │   └── ...       # Feature components
+│   │   ├── pages/        # Page components
+│   │   ├── hooks/        # Custom React hooks
+│   │   ├── lib/          # Utilities and services
+│   │   ├── data/         # Mock data
+│   │   ├── index.css     # Global styles
+│   │   └── main.tsx      # Entry point
+│   └── index.html
+├── server/                 # Backend Express application
+│   ├── db/               # Database setup SQL files
+│   ├── app.ts            # Express app configuration
+│   ├── routes.ts         # API route handlers
+│   ├── auth-middleware.ts # Authentication middleware
+│   ├── storage.ts        # Database service layer
+│   ├── index-dev.ts      # Development entry point
+│   └── index-prod.ts     # Production entry point
+├── shared/                # Shared types and schemas
+│   └── schema.ts         # Database schema definitions
+├── migrations/            # Database migrations
+├── scripts/              # Utility scripts (seeding, etc.)
+├── public/               # PWA manifest and meta files
+└── package.json          # Project dependencies
+
 ```
 
----
+## Key Features
 
-## API Endpoints
+### Authentication
+- User signup/login with email and password
+- JWT-based token authentication
+- Role-based access control (user, agent, admin)
+- Automatic user record creation on signup via Supabase trigger
 
 ### Properties
-- `GET /api/properties` - List properties
-- `GET /api/properties/:id` - Get property details
-- `POST /api/properties` - Create property
-- `PATCH /api/properties/:id` - Update property
-- `DELETE /api/properties/:id` - Delete property
+- Browse active property listings
+- Filter by location, price, bedrooms, property type
+- View detailed property information with images
+- Save favorite properties
+- Submit rental applications
 
-### Inquiries
-- `GET /api/inquiries` - List all inquiries
-- `GET /api/inquiries/agent/:agentId` - Agent's inquiries
-- `POST /api/inquiries` - Create inquiry
-- `PATCH /api/inquiries/:id` - Update inquiry
+### Inquiries & Reviews
+- Submit inquiries about properties
+- View and manage property reviews (1-5 stars)
+- Submit reviews for properties you've viewed
 
-### Requirements
-- `GET /api/requirements` - List requirements
-- `POST /api/requirements` - Create requirement
-- `PATCH /api/requirements/:id` - Update requirement
-- `DELETE /api/requirements/:id` - Delete requirement
+### User Management
+- User profiles with customizable information
+- Agent profiles visible to public
+- Admin panel for managing all content
+- Saved searches for properties
 
-### Applications
-- `GET /api/applications/user/:userId` - User's applications
-- `POST /api/applications` - Submit application
-- `PATCH /api/applications/:id` - Update application
+### Security
+- Row Level Security (RLS) policies on all tables
+- Rate limiting on auth and sensitive endpoints
+- Encrypted database connections
+- Secure session management
 
-### Favorites & Saved Searches
-- `GET /api/favorites/user/:userId` - User's favorites
-- `POST /api/favorites` - Add favorite
-- `DELETE /api/favorites/:id` - Remove favorite
-- `GET/POST/PATCH/DELETE /api/saved-searches` - Manage saved searches
+## Environment Variables
 
----
+Required environment variables (see `.env.example`):
+- `SUPABASE_URL` - Your Supabase project URL
+- `SUPABASE_ANON_KEY` - Public anon key for frontend
+- `SUPABASE_SERVICE_ROLE_KEY` - Admin key for server operations
+- `NODE_ENV` - development or production
 
-## Deployment Ready
+Optional:
+- `SENDGRID_API_KEY` - For email notifications
+- `RATE_LIMITING_ENABLED` - Enable rate limiting
 
-- All security measures in place
-- Error handling comprehensive
-- Mobile responsive and accessible
-- Dark mode fully supported
-- Performance optimized
-- Code quality high
-- Test coverage with IDs
+## Database Schema
 
-**Can be deployed immediately to production.**
+### Tables
+1. **users** - User accounts with roles (user, agent, admin)
+2. **properties** - Property listings with details and amenities
+3. **applications** - Rental applications with multi-step process
+4. **inquiries** - Contact inquiries about properties
+5. **reviews** - User reviews for properties
+6. **favorites** - Saved properties per user
+7. **requirements** - User property search criteria
+8. **saved_searches** - Saved property searches
+9. **newsletter_subscribers** - Email newsletter subscriptions
+10. **contact_messages** - General contact form submissions
 
----
+### Security
+- All tables have Row Level Security (RLS) enabled
+- 22+ RLS policies for fine-grained access control
+- Automatic user sync trigger from auth.users to public.users
+- Storage buckets for property images, profile images, and documents
 
-## Next Steps (Ready When Needed)
+## Running the Application
 
-### Stage 4: Buyer Dashboard Refinement
-- Advanced market insights
-- Mortgage calculator integration
-- Price alert notifications
+### Development
+```bash
+npm run dev
+```
+- Starts Express backend on port 5000
+- Starts Vite frontend on port 5000 (same server)
+- Hot reload enabled for both frontend and backend
 
-### Stage 5: Admin Dashboard
-- User management
-- System analytics
-- Content moderation
+### Production Build
+```bash
+npm run build
+npm run start
+```
 
----
+### Type Checking
+```bash
+npm run check
+```
 
-## Summary
+### Database Operations
+```bash
+npm run db:push     # Push schema changes to database
+npm run seed        # Run database seeding script
+```
 
-The platform now has **three fully-polished dashboards**:
-1. **Renter Dashboard** - Applications, saved properties, saved searches
-2. **Owner Dashboard** - Property management, application review
-3. **Agent Dashboard** - Inquiries, requirements, property matching, analytics
+## API Documentation
 
-All dashboards feature:
-- Modern gradient headers
-- Responsive grid layouts
-- Color-coded status indicators
-- Smooth animations and transitions
-- Comprehensive loading and empty states
-- Full dark mode support
-- Mobile-first responsive design
-- Complete API integration
-- Production-ready code quality
+See `API_DOCUMENTATION.md` for complete API reference including:
+- Authentication endpoints
+- Property CRUD operations
+- Inquiry submissions
+- Review management
+- Favorites management
+
+## Development Guidelines
+
+### Frontend
+- Use `wouter` for routing
+- Use React Query (`@tanstack/react-query`) for data fetching
+- Use Shadcn UI components for consistent styling
+- Use React Hook Form for form management
+- Add `data-testid` to interactive elements
+
+### Backend
+- Keep routes thin - use storage service layer
+- Validate all inputs with Zod schemas
+- Use `authenticateToken` middleware for protected routes
+- Use `requireRole` middleware for role-based access
+- Cache user roles for performance
+
+### Database
+- Use Drizzle ORM for type-safe queries
+- Define schemas in `shared/schema.ts`
+- Create insert schemas with Zod validation
+- Use migrations for structural changes
+
+## Deployment
+
+The project is configured for Replit deployment:
+- **Build:** `npm run build` (compiles TypeScript, bundles frontend)
+- **Run:** `npm run start` (starts Express production server)
+- **Type:** Autoscale (stateless web application)
+
+## User Roles
+
+### User (Default)
+- Browse properties
+- Submit rental applications
+- View and submit reviews
+- Save favorite properties
+- Track saved searches
+
+### Agent
+- Manage property listings
+- View inquiries about properties
+- View property requirements from other users
+- Manage application status
+
+### Admin
+- Access admin panel
+- Manage all users and properties
+- View all applications and inquiries
+- Manage platform settings
+- View all reviews and content
+
+## Recent Changes (December 10, 2025)
+
+### Setup & Configuration
+✅ Supabase authentication configured
+✅ Database schema created with 7 tables
+✅ Row Level Security policies implemented
+✅ User sync trigger configured
+✅ Storage buckets created (property-images, profile-images, documents)
+✅ `.env.example` file added
+✅ API documentation created
+
+### Project Organization
+✅ Removed unnecessary files (AUTO_GUIDE, netlify.toml, etc.)
+✅ Cleaned up temporary assets
+✅ Organized project structure
+
+## Useful Commands
+
+```bash
+# Install dependencies
+npm install
+
+# Development server (http://localhost:5000)
+npm run dev
+
+# Type checking
+npm run check
+
+# Production build
+npm run build
+
+# Start production server
+npm run start
+
+# Push database schema changes
+npm run db:push
+
+# Seed database with sample data
+npm run seed
+```
+
+## Notes
+
+- The application uses Supabase for all backend services
+- Authentication is handled entirely by Supabase
+- Database queries are cached for performance optimization
+- Rate limiting is enabled in production to prevent abuse
+- All sensitive data is encrypted and requires authentication
+- Email notifications use SendGrid (optional)
+
+## Next Steps
+
+1. Test the signup/login functionality
+2. Create sample property listings
+3. Test property browsing and filtering
+4. Set up email notifications (optional)
+5. Deploy to production when ready
