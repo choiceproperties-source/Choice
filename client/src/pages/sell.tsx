@@ -1,13 +1,17 @@
 import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { CheckCircle2, Home, DollarSign, FileText } from "lucide-react";
+import { CheckCircle2, Home, DollarSign, FileText, AlertCircle } from "lucide-react";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Sell() {
+  const { toast } = useToast();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     propertyType: '',
@@ -23,14 +27,56 @@ export default function Sell() {
     description: ''
   });
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const createPropertyMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/properties", {
+        title: `${formData.propertyType} at ${formData.address}`,
+        description: formData.description,
+        address: formData.address,
+        city: formData.city,
+        state: formData.state,
+        zipCode: formData.zip,
+        price: formData.askingPrice ? parseFloat(formData.askingPrice) : null,
+        bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : null,
+        bathrooms: formData.bathrooms ? parseFloat(formData.bathrooms) : null,
+        squareFeet: formData.sqft ? parseInt(formData.sqft) : null,
+        propertyType: formData.propertyType,
+        status: 'active',
+      });
+      return response.json();
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['/api/properties'] });
+      setIsSubmitted(true);
+      toast({
+        title: "Success",
+        description: "Your property has been listed!",
+      });
+    },
+    onError: (err: any) => {
+      setError(err.message || "Failed to create listing");
+      toast({
+        title: "Error",
+        description: err.message || "Failed to create listing",
+        variant: "destructive",
+      });
+    },
+  });
 
   const handleInputChange = (e: any) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+    setError(null);
   };
 
   const handleSubmit = (e: any) => {
     e.preventDefault();
-    setIsSubmitted(true);
+    if (!formData.propertyType || !formData.address || !formData.city || !formData.state || !formData.zip) {
+      setError("Please fill in all required fields");
+      return;
+    }
+    createPropertyMutation.mutate();
   };
 
   if (isSubmitted) {
@@ -87,6 +133,17 @@ export default function Sell() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-8">
+            {error && (
+              <Card className="bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800">
+                <CardContent className="p-4 flex gap-3 items-start">
+                  <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-red-900 dark:text-red-100">Error</p>
+                    <p className="text-red-800 dark:text-red-200 text-sm">{error}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
             {/* Step 1: Property Type */}
             {step === 1 && (
               <Card>
@@ -176,7 +233,7 @@ export default function Sell() {
                 type="button"
                 variant="outline"
                 onClick={() => setStep(Math.max(1, step - 1))}
-                disabled={step === 1}
+                disabled={step === 1 || createPropertyMutation.isPending}
               >
                 Previous
               </Button>
@@ -184,12 +241,18 @@ export default function Sell() {
                 <Button 
                   type="button"
                   onClick={() => setStep(step + 1)}
+                  disabled={createPropertyMutation.isPending}
                 >
                   Next
                 </Button>
               ) : (
-                <Button type="submit" className="bg-primary">
-                  Submit Listing
+                <Button 
+                  type="submit" 
+                  className="bg-primary"
+                  disabled={createPropertyMutation.isPending}
+                  data-testid="button-submit-listing"
+                >
+                  {createPropertyMutation.isPending ? "Submitting..." : "Submit Listing"}
                 </Button>
               )}
             </div>
