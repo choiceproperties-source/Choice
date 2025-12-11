@@ -4,16 +4,18 @@ import { Loader2 } from "lucide-react";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  requiredRoles?: ('user' | 'agent' | 'admin')[];
+  requiredRoles?: ('user' | 'agent' | 'admin' | 'renter' | 'buyer' | 'landlord' | 'property_manager')[];
   redirectTo?: string;
+  requireEmailVerification?: boolean;
 }
 
 export function ProtectedRoute({
   children,
   requiredRoles,
-  redirectTo = "/login"
+  redirectTo = "/login",
+  requireEmailVerification = false
 }: ProtectedRouteProps) {
-  const { user, isLoggedIn, isLoading } = useAuth();
+  const { user, isLoggedIn, isLoading, isEmailVerified } = useAuth();
 
   if (isLoading) {
     return (
@@ -30,9 +32,19 @@ export function ProtectedRoute({
     return <Redirect to={redirectTo} />;
   }
 
+  // Check if user needs to select a role (new OAuth users)
+  if (user.needs_role_selection) {
+    return <Redirect to="/select-role" />;
+  }
+
+  // Check email verification if required
+  if (requireEmailVerification && !isEmailVerified) {
+    return <Redirect to="/verify-email" />;
+  }
+
   if (requiredRoles && requiredRoles.length > 0) {
     const userRole = user.role || 'user';
-    if (!requiredRoles.includes(userRole as 'user' | 'agent' | 'admin')) {
+    if (!requiredRoles.includes(userRole as any)) {
       return <Redirect to="/" />;
     }
   }

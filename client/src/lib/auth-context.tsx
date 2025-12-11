@@ -4,6 +4,19 @@ import { supabase } from './supabase';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Check if user needs to select a role (new OAuth users)
+function checkNeedsRoleSelection(authUser: any): boolean {
+  if (!authUser) return false;
+  const provider = authUser.app_metadata?.provider;
+  if (provider === 'google' || provider === 'oauth') {
+    const createdAt = new Date(authUser.created_at);
+    const now = new Date();
+    const isNewUser = (now.getTime() - createdAt.getTime()) < 60000; // within 1 minute
+    return isNewUser;
+  }
+  return false;
+}
+
 async function fetchUserRole(userId: string): Promise<UserRole> {
   if (!supabase) return 'renter';
   try {
@@ -35,6 +48,27 @@ async function fetchUserProfile(userId: string): Promise<Partial<User>> {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [emailVerified, setEmailVerified] = useState(false);
+
+  const buildUserData = async (authUser: any): Promise<User> => {
+    const [role, profile] = await Promise.all([
+      fetchUserRole(authUser.id),
+      fetchUserProfile(authUser.id)
+    ]);
+    return {
+      id: authUser.id,
+      email: authUser.email || '',
+      full_name: profile.full_name || authUser.user_metadata?.name || authUser.user_metadata?.full_name || null,
+      phone: profile.phone || authUser.phone || null,
+      role,
+      profile_image: profile.profile_image || authUser.user_metadata?.avatar_url || null,
+      bio: profile.bio || null,
+      created_at: authUser.created_at,
+      updated_at: null,
+      email_verified: !!authUser.email_confirmed_at,
+      needs_role_selection: checkNeedsRoleSelection(authUser)
+    };
+  };
 
   useEffect(() => {
     const initAuth = async () => {
@@ -46,22 +80,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
-          const [role, profile] = await Promise.all([
-            fetchUserRole(session.user.id),
-            fetchUserProfile(session.user.id)
-          ]);
-          const userData: User = {
-            id: session.user.id,
-            email: session.user.email || '',
-            full_name: profile.full_name || session.user.user_metadata?.name || session.user.user_metadata?.full_name || null,
-            phone: profile.phone || session.user.phone || null,
-            role,
-            profile_image: profile.profile_image || session.user.user_metadata?.avatar_url || null,
-            bio: profile.bio || null,
-            created_at: session.user.created_at,
-            updated_at: null
-          };
+          const userData = await buildUserData(session.user);
           setUser(userData);
+          setEmailVerified(!!session.user.email_confirmed_at);
         }
       } catch (error) {
         console.error('Auth initialization error:', error);
@@ -76,26 +97,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
         if (event === 'SIGNED_OUT') {
           setUser(null);
+          setEmailVerified(false);
           return;
         }
         
         if (session?.user) {
-          const [role, profile] = await Promise.all([
-            fetchUserRole(session.user.id),
-            fetchUserProfile(session.user.id)
-          ]);
-          const userData: User = {
-            id: session.user.id,
-            email: session.user.email || '',
-            full_name: profile.full_name || session.user.user_metadata?.name || session.user.user_metadata?.full_name || null,
-            phone: profile.phone || session.user.phone || null,
-            role,
-            profile_image: profile.profile_image || session.user.user_metadata?.avatar_url || null,
-            bio: profile.bio || null,
-            created_at: session.user.created_at,
-            updated_at: null
-          };
+          const userData = await buildUserData(session.user);
           setUser(userData);
+          setEmailVerified(!!session.user.email_confirmed_at);
         }
       });
 
@@ -193,15 +202,56 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) throw error;
   };
 
+  const resendVerificationEmail = async (): Promise<void> => {
+    if (!supabase) throw new Error('Authentication service unavailable. Please try again later.');
+    if (!user?.email) throw new Error('No email address found');
+    
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email: user.email,
+    });
+    
+    if (error) throw error;
+  };
+
+  const updateUserRole = async (role: UserRole): Promise<void> => {
+    if (!supabase) throw new Error('Authentication service unavailable. Please try again later.');
+    if (!user?.id) throw new Error('No user found');
+    
+    // Update user metadata
+    const { error: metaError } = await supabase.auth.updateUser({
+      data: { role }
+    });
+    
+    if (metaError) throw metaError;
+    
+    // Update users table
+    const { error: dbError } = await supabase
+      .from('users')
+      .upsert({
+        id: user.id,
+        email: user.email,
+        full_name: user.full_name,
+        role: role
+      }, { onConflict: 'id' });
+    
+    if (dbError) throw dbError;
+    
+    // Update local state
+    setUser(prev => prev ? { ...prev, role, needs_role_selection: false } : null);
+  };
+
   const logout = async () => {
     try {
       if (supabase) {
         await supabase.auth.signOut();
       }
       setUser(null);
+      setEmailVerified(false);
     } catch (error) {
       console.error('Logout error:', error);
       setUser(null);
+      setEmailVerified(false);
     }
   };
 
@@ -213,8 +263,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loginWithGoogle,
       logout, 
       resetPassword,
+      resendVerificationEmail,
+      updateUserRole,
       isLoggedIn: !!user, 
-      isLoading: loading 
+      isLoading: loading,
+      isEmailVerified: emailVerified
     }}>
       {children}
     </AuthContext.Provider>

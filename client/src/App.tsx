@@ -31,6 +31,8 @@ const Signup = lazy(() => import("@/pages/signup"));
 const ForgotPassword = lazy(() => import("@/pages/forgot-password"));
 const ResetPassword = lazy(() => import("@/pages/reset-password"));
 const AuthCallback = lazy(() => import("@/pages/auth-callback"));
+const VerifyEmail = lazy(() => import("@/pages/verify-email"));
+const SelectRole = lazy(() => import("@/pages/select-role"));
 const Agents = lazy(() => import("@/pages/agents"));
 const FAQ = lazy(() => import("@/pages/faq"));
 const Admin = lazy(() => import("@/pages/admin"));
@@ -116,6 +118,16 @@ function Router() {
       <Route path="/auth/callback">
         <ReactSuspense fallback={<LoadingFallback />}>
           <AuthCallback />
+        </ReactSuspense>
+      </Route>
+      <Route path="/verify-email">
+        <ReactSuspense fallback={<LoadingFallback />}>
+          <VerifyEmail />
+        </ReactSuspense>
+      </Route>
+      <Route path="/select-role">
+        <ReactSuspense fallback={<LoadingFallback />}>
+          <SelectRole />
         </ReactSuspense>
       </Route>
       <Route path="/agents">

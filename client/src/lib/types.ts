@@ -117,6 +117,8 @@ export interface User {
   bio: string | null;
   created_at: string;
   updated_at: string | null;
+  email_verified?: boolean;
+  needs_role_selection?: boolean;
 }
 
 export type UserRole = 'renter' | 'buyer' | 'landlord' | 'property_manager' | 'agent' | 'admin';
@@ -146,8 +148,11 @@ export interface AuthContextType {
   loginWithGoogle: () => Promise<void>;
   logout: () => void;
   resetPassword: (email: string) => Promise<void>;
+  resendVerificationEmail: () => Promise<void>;
+  updateUserRole: (role: UserRole) => Promise<void>;
   isLoggedIn: boolean;
   isLoading: boolean;
+  isEmailVerified: boolean;
 }
 
 // Application types aligned with database

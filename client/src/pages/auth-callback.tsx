@@ -60,28 +60,57 @@ export default function AuthCallback() {
           }
 
           if (data.user) {
-            // Ensure user exists in our users table
-            const { error: upsertError } = await supabase
+            // Check if this is a new user (created within the last minute)
+            const createdAt = new Date(data.user.created_at);
+            const now = new Date();
+            const isNewUser = (now.getTime() - createdAt.getTime()) < 60000;
+            
+            // Check if user exists in our table
+            const { data: existingUser } = await supabase
               .from('users')
-              .upsert({
-                id: data.user.id,
-                email: data.user.email,
-                full_name: data.user.user_metadata?.full_name || data.user.user_metadata?.name || null,
-                profile_image: data.user.user_metadata?.avatar_url || null,
-                role: 'user'
-              }, { onConflict: 'id', ignoreDuplicates: true });
+              .select('id, role')
+              .eq('id', data.user.id)
+              .single();
+            
+            if (!existingUser) {
+              // New OAuth user - create profile and redirect to role selection
+              const { error: upsertError } = await supabase
+                .from('users')
+                .upsert({
+                  id: data.user.id,
+                  email: data.user.email,
+                  full_name: data.user.user_metadata?.full_name || data.user.user_metadata?.name || null,
+                  profile_image: data.user.user_metadata?.avatar_url || null,
+                  role: null // Will be set during role selection
+                }, { onConflict: 'id' });
 
-            if (upsertError) {
-              console.error('Failed to create user profile:', upsertError);
+              if (upsertError) {
+                console.error('Failed to create user profile:', upsertError);
+              }
+              
+              // Redirect new OAuth users to role selection
+              setLocation('/select-role');
+              return;
+            }
+            
+            // Existing user - check role and redirect
+            if (!existingUser.role || existingUser.role === 'user') {
+              // User exists but hasn't selected a role yet
+              if (isNewUser) {
+                setLocation('/select-role');
+                return;
+              }
             }
 
             // Fetch user role and redirect
-            const role = await fetchUserRole(data.user.id);
+            const role = existingUser.role || await fetchUserRole(data.user.id);
             
             if (role === 'agent') {
               setLocation('/agent-dashboard');
             } else if (role === 'admin') {
               setLocation('/admin');
+            } else if (role === 'landlord' || role === 'property_manager') {
+              setLocation('/seller-dashboard');
             } else {
               setLocation('/');
             }
