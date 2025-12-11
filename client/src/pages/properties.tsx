@@ -38,23 +38,14 @@ export default function Properties() {
   
   // Filters
   const [search, setSearch] = useState("");
-  const [priceMin, setPriceMin] = useState("any");
+  const [priceMin, setPriceMin] = useState("0");
+  const [priceMax, setPriceMax] = useState("10000");
   const [bedrooms, setBedrooms] = useState("any");
+  const [bathrooms, setBathrooms] = useState("any");
   const [homeType, setHomeType] = useState("any");
-  const [savedSearches, setSavedSearches] = useState<Array<{search: string; priceMin: string; bedrooms: string; homeType: string}>>(
+  const [savedSearches, setSavedSearches] = useState<Array<{search: string; priceMin: string; priceMax: string; bedrooms: string; bathrooms: string; homeType: string}>>(
     JSON.parse(localStorage.getItem("choiceProperties_savedSearches") || "[]")
   );
-
-  const handleSaveSearch = () => {
-    const newSearch = { search, priceMin, bedrooms, homeType };
-    const updated = [...savedSearches, newSearch];
-    localStorage.setItem("choiceProperties_savedSearches", JSON.stringify(updated));
-    setSavedSearches(updated);
-    toast({
-      title: "Search Saved",
-      description: "Your search criteria has been saved for future reference."
-    });
-  };
 
   useEffect(() => {
     let result = allProperties;
@@ -68,14 +59,22 @@ export default function Properties() {
       );
     }
 
-    if (priceMin !== "any") {
-      const minVal = parseInt(priceMin);
-      result = result.filter(p => p.price ? parseInt(p.price) >= minVal : false);
-    }
+    // Price range filter
+    const minVal = parseInt(priceMin) || 0;
+    const maxVal = parseInt(priceMax) || 10000;
+    result = result.filter(p => {
+      const price = p.price ? parseInt(p.price) : 0;
+      return price >= minVal && price <= maxVal;
+    });
 
     if (bedrooms !== "any") {
       const minBeds = parseInt(bedrooms);
       result = result.filter(p => (p.bedrooms || 0) >= minBeds);
+    }
+
+    if (bathrooms !== "any") {
+      const minBaths = parseFloat(bathrooms);
+      result = result.filter(p => (parseFloat(p.bathrooms || "0") || 0) >= minBaths);
     }
 
     if (homeType !== "any") {
@@ -92,12 +91,12 @@ export default function Properties() {
     }
 
     setFilteredProperties(result);
-  }, [search, priceMin, bedrooms, homeType, sortBy, allProperties]);
+  }, [search, priceMin, priceMax, bedrooms, bathrooms, homeType, sortBy, allProperties]);
 
   const saveSearch = () => {
-    const newSearch = { search, priceMin, bedrooms, homeType };
+    const newSearch = { search, priceMin, priceMax, bedrooms, bathrooms, homeType };
     const isDuplicate = savedSearches.some(s => 
-      s.search === search && s.priceMin === priceMin && s.bedrooms === bedrooms && s.homeType === homeType
+      s.search === search && s.priceMin === priceMin && s.priceMax === priceMax && s.bedrooms === bedrooms && s.bathrooms === bathrooms && s.homeType === homeType
     );
     
     if (!isDuplicate) {
@@ -120,7 +119,9 @@ export default function Properties() {
   const loadSearch = (s: typeof savedSearches[0]) => {
     setSearch(s.search);
     setPriceMin(s.priceMin);
+    setPriceMax(s.priceMax);
     setBedrooms(s.bedrooms);
+    setBathrooms(s.bathrooms);
     setHomeType(s.homeType);
   };
 
@@ -132,8 +133,10 @@ export default function Properties() {
 
   const resetFilters = () => {
     setSearch("");
-    setPriceMin("any");
+    setPriceMin("0");
+    setPriceMax("10000");
     setBedrooms("any");
+    setBathrooms("any");
     setHomeType("any");
     setSortBy("featured");
   };
@@ -185,20 +188,33 @@ export default function Properties() {
                 <Search className="absolute right-3 top-2.5 h-5 w-5 text-primary dark:text-blue-400 cursor-pointer" />
             </div>
 
-            <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
-                <Select value={priceMin} onValueChange={setPriceMin}>
-                    <SelectTrigger className={`w-[140px] h-10 border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white transition-all duration-200 ${priceMin !== 'any' ? 'border-primary dark:border-blue-400 ring-2 ring-primary/20 dark:ring-blue-500/20' : ''}`} data-testid="select-price-min">
-                        <SelectValue placeholder="Min Price" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="any">Any Price</SelectItem>
-                        <SelectItem value="1000">$1,000+</SelectItem>
-                        <SelectItem value="2000">$2,000+</SelectItem>
-                        <SelectItem value="3000">$3,000+</SelectItem>
-                        <SelectItem value="4000">$4,000+</SelectItem>
-                        <SelectItem value="5000">$5,000+</SelectItem>
-                    </SelectContent>
-                </Select>
+            <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0 items-center">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-gray-600 dark:text-gray-400 whitespace-nowrap">$</label>
+                  <input 
+                    type="number" 
+                    min="0" 
+                    max="10000"
+                    step="100"
+                    value={priceMin} 
+                    onChange={(e) => setPriceMin(e.target.value)}
+                    className="w-[80px] h-10 px-2 border border-gray-300 dark:border-gray-700 rounded dark:bg-gray-800 dark:text-white text-sm focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    placeholder="Min"
+                    data-testid="input-price-min"
+                  />
+                  <span className="text-xs text-gray-500 dark:text-gray-400">to</span>
+                  <input 
+                    type="number" 
+                    min="0" 
+                    max="10000"
+                    step="100"
+                    value={priceMax} 
+                    onChange={(e) => setPriceMax(e.target.value)}
+                    className="w-[80px] h-10 px-2 border border-gray-300 dark:border-gray-700 rounded dark:bg-gray-800 dark:text-white text-sm focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    placeholder="Max"
+                    data-testid="input-price-max"
+                  />
+                </div>
 
                 <Select value={bedrooms} onValueChange={setBedrooms}>
                     <SelectTrigger className={`w-[120px] h-10 border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white transition-all duration-200 ${bedrooms !== 'any' ? 'border-primary dark:border-blue-400 ring-2 ring-primary/20 dark:ring-blue-500/20' : ''}`} data-testid="select-bedrooms">
@@ -210,6 +226,19 @@ export default function Properties() {
                         <SelectItem value="2">2+ Bd</SelectItem>
                         <SelectItem value="3">3+ Bd</SelectItem>
                         <SelectItem value="4">4+ Bd</SelectItem>
+                    </SelectContent>
+                </Select>
+
+                <Select value={bathrooms} onValueChange={setBathrooms}>
+                    <SelectTrigger className={`w-[120px] h-10 border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white transition-all duration-200 ${bathrooms !== 'any' ? 'border-primary dark:border-blue-400 ring-2 ring-primary/20 dark:ring-blue-500/20' : ''}`} data-testid="select-bathrooms">
+                        <SelectValue placeholder="Baths" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="any">Any Baths</SelectItem>
+                        <SelectItem value="1">1+ Ba</SelectItem>
+                        <SelectItem value="1.5">1.5+ Ba</SelectItem>
+                        <SelectItem value="2">2+ Ba</SelectItem>
+                        <SelectItem value="3">3+ Ba</SelectItem>
                     </SelectContent>
                 </Select>
 
@@ -293,20 +322,32 @@ export default function Properties() {
           </DrawerHeader>
           <div className="p-4 space-y-4 pb-8">
             <div>
-              <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 block">Min Price</label>
-              <Select value={priceMin} onValueChange={setPriceMin}>
-                <SelectTrigger className="w-full" data-testid="select-price-min-mobile">
-                  <SelectValue placeholder="Select min price" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="any">Any Price</SelectItem>
-                  <SelectItem value="1000">$1,000+</SelectItem>
-                  <SelectItem value="2000">$2,000+</SelectItem>
-                  <SelectItem value="3000">$3,000+</SelectItem>
-                  <SelectItem value="4000">$4,000+</SelectItem>
-                  <SelectItem value="5000">$5,000+</SelectItem>
-                </SelectContent>
-              </Select>
+              <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 block">Price Range</label>
+              <div className="flex gap-2 items-center">
+                <input 
+                  type="number" 
+                  min="0" 
+                  max="10000"
+                  step="100"
+                  value={priceMin} 
+                  onChange={(e) => setPriceMin(e.target.value)}
+                  className="flex-1 h-9 px-2 border border-gray-300 dark:border-gray-700 rounded dark:bg-gray-800 dark:text-white text-sm"
+                  placeholder="Min ($)"
+                  data-testid="input-price-min-mobile"
+                />
+                <span className="text-gray-500 dark:text-gray-400">to</span>
+                <input 
+                  type="number" 
+                  min="0" 
+                  max="10000"
+                  step="100"
+                  value={priceMax} 
+                  onChange={(e) => setPriceMax(e.target.value)}
+                  className="flex-1 h-9 px-2 border border-gray-300 dark:border-gray-700 rounded dark:bg-gray-800 dark:text-white text-sm"
+                  placeholder="Max ($)"
+                  data-testid="input-price-max-mobile"
+                />
+              </div>
             </div>
 
             <div>
@@ -321,6 +362,22 @@ export default function Properties() {
                   <SelectItem value="2">2+ Bd</SelectItem>
                   <SelectItem value="3">3+ Bd</SelectItem>
                   <SelectItem value="4">4+ Bd</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 block">Bathrooms</label>
+              <Select value={bathrooms} onValueChange={setBathrooms}>
+                <SelectTrigger className="w-full" data-testid="select-bathrooms-mobile">
+                  <SelectValue placeholder="Select bathrooms" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="any">Any Baths</SelectItem>
+                  <SelectItem value="1">1+ Ba</SelectItem>
+                  <SelectItem value="1.5">1.5+ Ba</SelectItem>
+                  <SelectItem value="2">2+ Ba</SelectItem>
+                  <SelectItem value="3">3+ Ba</SelectItem>
                 </SelectContent>
               </Select>
             </div>
