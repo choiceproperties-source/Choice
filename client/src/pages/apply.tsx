@@ -119,42 +119,79 @@ export default function Apply() {
     uploadProgress 
   } = useDocumentUpload();
 
+  const DRAFT_KEY = `choiceProperties_applicationDraft_${propertyId || 'general'}`;
+
+  const getSavedDraft = (): Partial<ApplyFormValues> | null => {
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.savedAt && Date.now() - parsed.savedAt < 7 * 24 * 60 * 60 * 1000) {
+          return parsed.data;
+        }
+        localStorage.removeItem(DRAFT_KEY);
+      }
+    } catch (e) {
+      console.error("Error loading draft:", e);
+    }
+    return null;
+  };
+
+  const savedDraft = getSavedDraft();
+
   const form = useForm<ApplyFormValues>({
     resolver: zodResolver(applySchema),
     defaultValues: {
-      firstName: "",
-      lastName: "",
-      email: "",
-      phone: "",
-      dateOfBirth: "",
-      currentAddress: "",
-      prevAddress: "",
-      prevLandlord: "",
-      prevLandlordPhone: "",
-      reasonForLeaving: "",
-      employer: "",
-      position: "",
-      income: "",
-      employmentLength: "",
-      reference1Name: "",
-      reference1Phone: "",
-      reference1Relationship: "",
-      reference2Name: "",
-      reference2Phone: "",
-      reference2Relationship: "",
-      hasPets: false,
-      petDescription: "",
-      smokingStatus: "no",
-      numberOfOccupants: "1",
-      criminalHistory: false,
-      criminalDetails: "",
-      moveInDate: "",
+      firstName: savedDraft?.firstName || "",
+      lastName: savedDraft?.lastName || "",
+      email: savedDraft?.email || "",
+      phone: savedDraft?.phone || "",
+      dateOfBirth: savedDraft?.dateOfBirth || "",
+      currentAddress: savedDraft?.currentAddress || "",
+      prevAddress: savedDraft?.prevAddress || "",
+      prevLandlord: savedDraft?.prevLandlord || "",
+      prevLandlordPhone: savedDraft?.prevLandlordPhone || "",
+      reasonForLeaving: savedDraft?.reasonForLeaving || "",
+      employer: savedDraft?.employer || "",
+      position: savedDraft?.position || "",
+      income: savedDraft?.income || "",
+      employmentLength: savedDraft?.employmentLength || "",
+      reference1Name: savedDraft?.reference1Name || "",
+      reference1Phone: savedDraft?.reference1Phone || "",
+      reference1Relationship: savedDraft?.reference1Relationship || "",
+      reference2Name: savedDraft?.reference2Name || "",
+      reference2Phone: savedDraft?.reference2Phone || "",
+      reference2Relationship: savedDraft?.reference2Relationship || "",
+      hasPets: savedDraft?.hasPets || false,
+      petDescription: savedDraft?.petDescription || "",
+      smokingStatus: savedDraft?.smokingStatus || "no",
+      numberOfOccupants: savedDraft?.numberOfOccupants || "1",
+      criminalHistory: savedDraft?.criminalHistory || false,
+      criminalDetails: savedDraft?.criminalDetails || "",
+      moveInDate: savedDraft?.moveInDate || "",
       agreeToBackgroundCheck: false,
       agreeToTerms: false,
       signature: "",
     },
     mode: "onChange"
   });
+
+  useEffect(() => {
+    const subscription = form.watch((values) => {
+      if (!isSubmitted && values.firstName) {
+        const draftData = { ...values };
+        delete (draftData as any).agreeToBackgroundCheck;
+        delete (draftData as any).agreeToTerms;
+        delete (draftData as any).signature;
+        localStorage.setItem(DRAFT_KEY, JSON.stringify({
+          data: draftData,
+          savedAt: Date.now(),
+          step: currentStep
+        }));
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [form, isSubmitted, currentStep, DRAFT_KEY]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -265,7 +302,11 @@ export default function Apply() {
       };
 
       if (token && user) {
-        await apiRequest('POST', '/api/applications', applicationData);
+        const response = await apiRequest('POST', '/api/applications', applicationData);
+        const result = await response.json();
+        if (result && result.data && result.data.id) {
+          setApplicationId(result.data.id);
+        }
         queryClient.invalidateQueries({ queryKey: ['/api/applications/user', user.id] });
       } else {
         const applications = JSON.parse(localStorage.getItem('choiceProperties_applications') || '[]');
@@ -281,6 +322,7 @@ export default function Apply() {
         localStorage.setItem('choiceProperties_applications', JSON.stringify(applications));
       }
       
+      localStorage.removeItem(DRAFT_KEY);
       setIsSubmitted(true);
       window.scrollTo(0, 0);
       toast({
@@ -497,6 +539,10 @@ export default function Apply() {
                 Step {currentStep} of {steps.length}
               </span>
             </div>
+            <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+              <CheckCircle className="h-3 w-3 text-green-500" />
+              Progress auto-saved
+            </p>
           </div>
         </div>
       </div>
@@ -988,16 +1034,18 @@ export default function Apply() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Smoking Status</FormLabel>
-                          <FormControl>
-                            <select 
-                              className="w-full p-2 border rounded-md bg-background"
-                              {...field}
-                            >
-                              <option value="no">Non-smoker</option>
-                              <option value="outside">Smoke outside only</option>
-                              <option value="yes">Yes, I smoke</option>
-                            </select>
-                          </FormControl>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger data-testid="select-smoking-status">
+                                <SelectValue placeholder="Select smoking status" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="no" data-testid="select-item-non-smoker">Non-smoker</SelectItem>
+                              <SelectItem value="outside" data-testid="select-item-outside">Smoke outside only</SelectItem>
+                              <SelectItem value="yes" data-testid="select-item-smoker">Yes, I smoke</SelectItem>
+                            </SelectContent>
+                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}
