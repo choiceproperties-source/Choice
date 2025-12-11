@@ -30,19 +30,11 @@ export function useDocumentUpload(options: UseDocumentUploadOptions = {}) {
     file: File, 
     docType: UploadedDocument['docType'] = 'other'
   ): Promise<UploadedDocument | null> => {
+    // Allow uploads for both authenticated and guest users
     if (!supabase) {
       toast({
         title: 'Upload Error',
         description: 'Storage service is not configured',
-        variant: 'destructive',
-      });
-      return null;
-    }
-
-    if (!user) {
-      toast({
-        title: 'Authentication Required',
-        description: 'Please log in to upload documents',
         variant: 'destructive',
       });
       return null;
@@ -74,9 +66,44 @@ export function useDocumentUpload(options: UseDocumentUploadOptions = {}) {
     try {
       const timestamp = Date.now();
       const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-      const filePath = `${user.id}/${docType}_${timestamp}_${sanitizedName}`;
+      
+      // For guest users, store document in localStorage instead of Supabase
+      if (!user) {
+        const reader = new FileReader();
+        return new Promise((resolve) => {
+          reader.onload = () => {
+            const base64Data = reader.result as string;
+            const doc: UploadedDocument = {
+              id: `${timestamp}_${Math.random().toString(36).substr(2, 9)}`,
+              name: file.name,
+              type: file.type,
+              size: file.size,
+              url: base64Data,
+              storagePath: '',
+              docType,
+              uploadedAt: new Date().toISOString(),
+            };
 
-      const { data, error } = await supabase.storage
+            setUploadedDocs(prev => [...prev, doc]);
+            setUploadProgress(100);
+
+            toast({
+              title: 'Document Uploaded',
+              description: `${file.name} has been uploaded successfully`,
+            });
+
+            options.onUploadComplete?.(doc);
+            setIsUploading(false);
+            resolve(doc);
+          };
+          reader.readAsDataURL(file);
+        });
+      }
+
+      // For authenticated users, upload to Supabase
+      const filePath = `${user!.id}/${docType}_${timestamp}_${sanitizedName}`;
+
+      const { data, error } = await supabase!.storage
         .from('documents')
         .upload(filePath, file, {
           cacheControl: '3600',
@@ -87,7 +114,7 @@ export function useDocumentUpload(options: UseDocumentUploadOptions = {}) {
         throw error;
       }
 
-      const { data: signedUrlData } = await supabase.storage
+      const { data: signedUrlData } = await supabase!.storage
         .from('documents')
         .createSignedUrl(data.path, 60 * 60 * 24 * 365);
 

@@ -223,6 +223,25 @@ export function getDocumentRequestEmailTemplate(data: {
   `;
 }
 
+// Co-applicant invitation template
+export function getCoApplicantInvitationEmailTemplate(data: {
+  coApplicantName: string;
+  mainApplicantName: string;
+  propertyTitle: string;
+  invitationLink?: string;
+}) {
+  return `
+    <h2>You've Been Invited to Join an Application</h2>
+    <p>Dear ${escapeHtml(data.coApplicantName)},</p>
+    <p>${escapeHtml(data.mainApplicantName)} has invited you to be a co-applicant for the property <strong>${escapeHtml(data.propertyTitle)}</strong> on Choice Properties.</p>
+    <p>As a co-applicant, you'll need to provide information about your income, employment, and rental history to strengthen the application.</p>
+    <p>To complete your co-applicant profile, please click the link below:</p>
+    ${data.invitationLink ? `<p><a href="${escapeHtml(data.invitationLink)}" style="display: inline-block; padding: 10px 20px; background-color: #2563eb; color: white; text-decoration: none; border-radius: 5px;">Complete Co-Applicant Profile</a></p>` : ''}
+    <p>If you have any questions or need assistance, please contact the property owner or our support team.</p>
+    <p>Best regards,<br>Choice Properties Team</p>
+  `;
+}
+
 // Owner notification when new application received
 export function getNewApplicationNotificationTemplate(data: {
   ownerName: string;

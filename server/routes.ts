@@ -268,6 +268,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ===== APPLICATIONS =====
+  // Endpoint for guest and authenticated users to submit applications
+  app.post("/api/applications/guest", optionalAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const validation = insertApplicationSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error.errors[0].message });
+      }
+
+      const guestEmail = (req.body as any).guestEmail;
+      const guestName = (req.body as any).guestName;
+
+      const applicationData = {
+        ...validation.data,
+        user_id: req.user?.id || null,
+      };
+
+      const { data, error } = await supabase
+        .from("applications")
+        .insert([applicationData])
+        .select();
+
+      if (error) throw error;
+
+      // Send confirmation email to authenticated user or guest
+      const emailTo = req.user ? 
+        (await supabase.from("users").select("email, full_name").eq("id", req.user.id).single()).data :
+        { email: guestEmail, full_name: guestName };
+
+      const { data: propertyData } = await supabase
+        .from("properties")
+        .select("title")
+        .eq("id", validation.data.propertyId)
+        .single();
+
+      if (emailTo?.email) {
+        sendEmail({
+          to: emailTo.email,
+          subject: "Your Application Has Been Received",
+          html: getApplicationConfirmationEmailTemplate({
+            applicantName: emailTo.full_name || "Applicant",
+            propertyTitle: propertyData?.title || "Your Property",
+          }),
+        }).catch((err) => console.error("Email send error:", err));
+      }
+
+      return res.json(success(data[0], "Application submitted successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to submit application"));
+    }
+  });
+
   app.post("/api/applications", authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
       const validation = insertApplicationSchema.safeParse(req.body);
@@ -611,7 +662,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { data: application } = await supabase
         .from("applications")
-        .select("user_id")
+        .select("user_id, property_id, personal_info")
         .eq("id", req.params.applicationId)
         .single();
 
@@ -645,7 +696,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (error) throw error;
 
-      return res.json(success(data[0], "Co-applicant added successfully"));
+      // Get property info for email
+      const { data: propertyData } = await supabase
+        .from("properties")
+        .select("title")
+        .eq("id", application.property_id)
+        .single();
+
+      // Get main applicant name from personal info
+      const mainApplicantName = (application.personal_info as any)?.firstName || "Applicant";
+
+      // Send invitation email (fire-and-forget)
+      const { getCoApplicantInvitationEmailTemplate } = await import("./email");
+      sendEmail({
+        to: email,
+        subject: `You've Been Invited as a Co-Applicant - ${propertyData?.title || 'Choice Properties'}`,
+        html: getCoApplicantInvitationEmailTemplate({
+          coApplicantName: fullName,
+          mainApplicantName: mainApplicantName,
+          propertyTitle: propertyData?.title || "the property",
+          invitationLink: `${process.env.PUBLIC_URL || 'https://choice-properties.replit.dev'}/applications/${req.params.applicationId}`,
+        }),
+      }).catch((err) => console.error("Failed to send co-applicant invitation email:", err));
+
+      return res.json(success(data[0], "Co-applicant added successfully and invitation email sent"));
     } catch (err: any) {
       return res.status(500).json(errorResponse("Failed to add co-applicant"));
     }

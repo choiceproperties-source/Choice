@@ -314,25 +314,32 @@ export default function Apply() {
         signature: data.signature
       };
 
-      if (token && user) {
-        const response = await apiRequest('POST', '/api/applications', applicationData);
-        const result = await response.json();
-        if (result && result.data && result.data.id) {
-          setApplicationId(result.data.id);
-        }
-        queryClient.invalidateQueries({ queryKey: ['/api/applications/user', user.id] });
-      } else {
-        const applications = JSON.parse(localStorage.getItem('choiceProperties_applications') || '[]');
-        applications.push({
+      // Submit application - works for both authenticated and guest users
+      const response = await fetch('/api/applications/guest', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
           ...applicationData,
-          id: applications.length + 1,
-          property_title: property?.title || 'Unknown Property',
-          user_name: `${data.firstName} ${data.lastName}`,
-          user_email: data.email,
-          submitted_at: new Date().toISOString(),
-          status: 'pending'
-        });
-        localStorage.setItem('choiceProperties_applications', JSON.stringify(applications));
+          guestEmail: !user ? data.email : undefined,
+          guestName: !user ? `${data.firstName} ${data.lastName}` : undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to submit application');
+      }
+
+      const result = await response.json();
+      if (result?.data?.id) {
+        setApplicationId(result.data.id);
+        if (user) {
+          queryClient.invalidateQueries({ queryKey: ['/api/applications/user', user.id] });
+        }
+      } else {
+        throw new Error('No application ID returned');
       }
       
       localStorage.removeItem(DRAFT_KEY);
