@@ -43,6 +43,31 @@ export const properties = pgTable("properties", {
   deletedAt: timestamp("deleted_at"),
 });
 
+// Application status workflow: draft -> pending -> under_review -> approved/rejected/expired
+// Valid transitions: draft->pending, pending->under_review, under_review->approved/rejected, pending->expired
+export const APPLICATION_STATUSES = [
+  "draft",
+  "pending", 
+  "under_review",
+  "pending_verification",
+  "approved",
+  "approved_pending_lease",
+  "rejected",
+  "withdrawn",
+  "expired"
+] as const;
+
+export const REJECTION_CATEGORIES = [
+  "income_insufficient",
+  "credit_issues",
+  "background_check_failed",
+  "rental_history_issues",
+  "incomplete_application",
+  "missing_documents",
+  "verification_failed",
+  "other"
+] as const;
+
 export const applications = pgTable("applications", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   propertyId: uuid("property_id").references(() => properties.id, { onDelete: "cascade" }),
@@ -54,7 +79,50 @@ export const applications = pgTable("applications", {
   references: jsonb("references"),
   disclosures: jsonb("disclosures"),
   documents: jsonb("documents"),
-  status: text("status").default("pending"),
+  status: text("status").default("draft"),
+  previousStatus: text("previous_status"),
+  statusHistory: jsonb("status_history").$type<Array<{
+    status: string;
+    changedAt: string;
+    changedBy: string;
+    reason?: string;
+  }>>(),
+  reviewedBy: uuid("reviewed_by").references(() => users.id),
+  reviewedAt: timestamp("reviewed_at"),
+  // Scoring
+  score: integer("score"),
+  scoreBreakdown: jsonb("score_breakdown").$type<{
+    incomeScore: number;
+    creditScore: number;
+    rentalHistoryScore: number;
+    employmentScore: number;
+    documentsScore: number;
+    totalScore: number;
+    maxScore: number;
+    flags: string[];
+  }>(),
+  scoredAt: timestamp("scored_at"),
+  // Rejection
+  rejectionCategory: text("rejection_category"),
+  rejectionReason: text("rejection_reason"),
+  rejectionDetails: jsonb("rejection_details").$type<{
+    categories: string[];
+    explanation: string;
+    appealable: boolean;
+  }>(),
+  // Documents
+  requiredDocuments: jsonb("required_documents").$type<string[]>(),
+  documentStatus: jsonb("document_status").$type<Record<string, {
+    uploaded: boolean;
+    verified: boolean;
+    verifiedAt?: string;
+    verifiedBy?: string;
+    notes?: string;
+  }>>(),
+  // Expiration
+  expiresAt: timestamp("expires_at"),
+  expiredAt: timestamp("expired_at"),
+  // Application fee
   applicationFee: decimal("application_fee", { precision: 8, scale: 2 }),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -62,6 +130,51 @@ export const applications = pgTable("applications", {
 }, (table) => ({
   userPropertyUnique: unique().on(table.userId, table.propertyId),
 }));
+
+// Co-applicants for multiple people on one application
+export const coApplicants = pgTable("co_applicants", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  applicationId: uuid("application_id").references(() => applications.id, { onDelete: "cascade" }),
+  email: text("email").notNull(),
+  fullName: text("full_name").notNull(),
+  phone: text("phone"),
+  relationship: text("relationship"), // spouse, roommate, family, etc.
+  personalInfo: jsonb("personal_info"),
+  employment: jsonb("employment"),
+  income: decimal("income", { precision: 12, scale: 2 }),
+  status: text("status").default("pending"), // pending, verified, rejected
+  invitedAt: timestamp("invited_at").defaultNow(),
+  respondedAt: timestamp("responded_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Application comments for internal notes and tracking
+export const applicationComments = pgTable("application_comments", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  applicationId: uuid("application_id").references(() => applications.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+  comment: text("comment").notNull(),
+  commentType: text("comment_type").default("note"), // note, decision, verification, flag
+  isInternal: boolean("is_internal").default(true), // internal notes vs. applicant-visible
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Application notifications for tracking sent notifications
+export const applicationNotifications = pgTable("application_notifications", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  applicationId: uuid("application_id").references(() => applications.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+  notificationType: text("notification_type").notNull(), // status_change, document_request, reminder, expiration_warning
+  channel: text("channel").default("email"), // email, in_app, sms
+  subject: text("subject"),
+  content: text("content"),
+  sentAt: timestamp("sent_at"),
+  readAt: timestamp("read_at"),
+  status: text("status").default("pending"), // pending, sent, failed, read
+  createdAt: timestamp("created_at").defaultNow(),
+});
 
 export const inquiries = pgTable("inquiries", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -166,6 +279,38 @@ export const insertApplicationSchema = createInsertSchema(applications).omit({
   createdAt: true,
   updatedAt: true,
   deletedAt: true,
+  reviewedBy: true,
+  reviewedAt: true,
+  score: true,
+  scoreBreakdown: true,
+  scoredAt: true,
+  rejectionCategory: true,
+  rejectionReason: true,
+  rejectionDetails: true,
+  expiredAt: true,
+  statusHistory: true,
+  previousStatus: true,
+});
+
+export const insertCoApplicantSchema = createInsertSchema(coApplicants).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  invitedAt: true,
+  respondedAt: true,
+});
+
+export const insertApplicationCommentSchema = createInsertSchema(applicationComments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertApplicationNotificationSchema = createInsertSchema(applicationNotifications).omit({
+  id: true,
+  createdAt: true,
+  sentAt: true,
+  readAt: true,
 });
 
 export const insertInquirySchema = createInsertSchema(inquiries).omit({
@@ -218,6 +363,18 @@ export type Property = typeof properties.$inferSelect;
 
 export type InsertApplication = z.infer<typeof insertApplicationSchema>;
 export type Application = typeof applications.$inferSelect;
+
+export type InsertCoApplicant = z.infer<typeof insertCoApplicantSchema>;
+export type CoApplicant = typeof coApplicants.$inferSelect;
+
+export type InsertApplicationComment = z.infer<typeof insertApplicationCommentSchema>;
+export type ApplicationComment = typeof applicationComments.$inferSelect;
+
+export type InsertApplicationNotification = z.infer<typeof insertApplicationNotificationSchema>;
+export type ApplicationNotification = typeof applicationNotifications.$inferSelect;
+
+export type ApplicationStatus = typeof APPLICATION_STATUSES[number];
+export type RejectionCategory = typeof REJECTION_CATEGORIES[number];
 
 export type InsertInquiry = z.infer<typeof insertInquirySchema>;
 export type Inquiry = typeof inquiries.$inferSelect;

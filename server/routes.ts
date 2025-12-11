@@ -402,6 +402,564 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get application with full details (co-applicants, comments, notifications)
+  app.get("/api/applications/:id/full", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { getApplicationWithDetails } = await import("./application-service");
+      const application = await getApplicationWithDetails(req.params.id);
+      
+      if (!application) {
+        return res.status(404).json(errorResponse("Application not found"));
+      }
+
+      // Check authorization
+      const { data: property } = await supabase
+        .from("properties")
+        .select("owner_id")
+        .eq("id", application.property_id)
+        .single();
+
+      const isApplicant = application.user_id === req.user!.id;
+      const isPropertyOwner = property?.owner_id === req.user!.id;
+      const isAdmin = req.user!.role === "admin";
+
+      if (!isApplicant && !isPropertyOwner && !isAdmin) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      // Filter out internal comments for applicants
+      if (isApplicant && !isPropertyOwner && !isAdmin) {
+        application.comments = application.comments.filter((c: any) => !c.is_internal);
+      }
+
+      return res.json(success(application, "Application details fetched successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to fetch application details"));
+    }
+  });
+
+  // Update application status with validation
+  app.patch("/api/applications/:id/status", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { status, rejectionCategory, rejectionReason, rejectionDetails, reason } = req.body;
+      
+      if (!status) {
+        return res.status(400).json({ error: "Status is required" });
+      }
+
+      // Verify authorization
+      const { data: application } = await supabase
+        .from("applications")
+        .select("user_id, property_id, status")
+        .eq("id", req.params.id)
+        .single();
+
+      if (!application) {
+        return res.status(404).json({ error: "Application not found" });
+      }
+
+      const { data: property } = await supabase
+        .from("properties")
+        .select("owner_id")
+        .eq("id", application.property_id)
+        .single();
+
+      const isApplicant = application.user_id === req.user!.id;
+      const isPropertyOwner = property?.owner_id === req.user!.id;
+      const isAdmin = req.user!.role === "admin";
+
+      // Only applicant can withdraw, only property owner/admin can approve/reject
+      if (status === "withdrawn" && !isApplicant) {
+        return res.status(403).json({ error: "Only applicant can withdraw application" });
+      }
+      
+      if (["approved", "rejected", "under_review", "pending_verification"].includes(status) && !isPropertyOwner && !isAdmin) {
+        return res.status(403).json({ error: "Only property owner can update this status" });
+      }
+
+      const { updateApplicationStatus } = await import("./application-service");
+      const result = await updateApplicationStatus(req.params.id, status, req.user!.id, {
+        rejectionCategory,
+        rejectionReason,
+        rejectionDetails,
+        reason,
+      });
+
+      if (!result.success) {
+        return res.status(400).json({ error: result.error });
+      }
+
+      return res.json(success(result.data, "Application status updated successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to update application status"));
+    }
+  });
+
+  // Calculate and update application score
+  app.post("/api/applications/:id/score", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      // Verify authorization - only property owner or admin can score
+      const { data: application } = await supabase
+        .from("applications")
+        .select("*, properties(owner_id)")
+        .eq("id", req.params.id)
+        .single();
+
+      if (!application) {
+        return res.status(404).json({ error: "Application not found" });
+      }
+
+      const isPropertyOwner = (application.properties as any)?.owner_id === req.user!.id;
+      const isAdmin = req.user!.role === "admin";
+
+      if (!isPropertyOwner && !isAdmin) {
+        return res.status(403).json({ error: "Only property owner can score applications" });
+      }
+
+      const { calculateApplicationScore } = await import("./application-service");
+      const scoreBreakdown = calculateApplicationScore({
+        personalInfo: application.personal_info,
+        employment: application.employment,
+        rentalHistory: application.rental_history,
+        documents: application.documents,
+        documentStatus: application.document_status,
+      });
+
+      const { data, error } = await supabase
+        .from("applications")
+        .update({
+          score: scoreBreakdown.totalScore,
+          score_breakdown: scoreBreakdown,
+          scored_at: new Date().toISOString(),
+        })
+        .eq("id", req.params.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      return res.json(success({ application: data, scoreBreakdown }, "Application scored successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to score application"));
+    }
+  });
+
+  // Compare applications for a property
+  app.get("/api/applications/compare/:propertyId", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data: property } = await supabase
+        .from("properties")
+        .select("owner_id")
+        .eq("id", req.params.propertyId)
+        .single();
+
+      if (!property) {
+        return res.status(404).json({ error: "Property not found" });
+      }
+
+      const isPropertyOwner = property.owner_id === req.user!.id;
+      const isAdmin = req.user!.role === "admin";
+
+      if (!isPropertyOwner && !isAdmin) {
+        return res.status(403).json({ error: "Only property owner can compare applications" });
+      }
+
+      const { compareApplications } = await import("./application-service");
+      const comparisons = await compareApplications(req.params.propertyId);
+
+      return res.json(success(comparisons, "Applications compared successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to compare applications"));
+    }
+  });
+
+  // ===== CO-APPLICANTS =====
+  app.post("/api/applications/:applicationId/co-applicants", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data: application } = await supabase
+        .from("applications")
+        .select("user_id")
+        .eq("id", req.params.applicationId)
+        .single();
+
+      if (!application) {
+        return res.status(404).json({ error: "Application not found" });
+      }
+
+      if (application.user_id !== req.user!.id) {
+        return res.status(403).json({ error: "Only applicant can add co-applicants" });
+      }
+
+      const { email, fullName, phone, relationship, personalInfo, employment, income } = req.body;
+
+      if (!email || !fullName) {
+        return res.status(400).json({ error: "Email and full name are required" });
+      }
+
+      const { data, error } = await supabase
+        .from("co_applicants")
+        .insert([{
+          application_id: req.params.applicationId,
+          email,
+          full_name: fullName,
+          phone,
+          relationship,
+          personal_info: personalInfo,
+          employment,
+          income,
+        }])
+        .select();
+
+      if (error) throw error;
+
+      return res.json(success(data[0], "Co-applicant added successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to add co-applicant"));
+    }
+  });
+
+  app.get("/api/applications/:applicationId/co-applicants", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data: application } = await supabase
+        .from("applications")
+        .select("user_id, property_id")
+        .eq("id", req.params.applicationId)
+        .single();
+
+      if (!application) {
+        return res.status(404).json({ error: "Application not found" });
+      }
+
+      const { data: property } = await supabase
+        .from("properties")
+        .select("owner_id")
+        .eq("id", application.property_id)
+        .single();
+
+      const isApplicant = application.user_id === req.user!.id;
+      const isPropertyOwner = property?.owner_id === req.user!.id;
+      const isAdmin = req.user!.role === "admin";
+
+      if (!isApplicant && !isPropertyOwner && !isAdmin) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      const { data, error } = await supabase
+        .from("co_applicants")
+        .select("*")
+        .eq("application_id", req.params.applicationId);
+
+      if (error) throw error;
+
+      return res.json(success(data, "Co-applicants fetched successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to fetch co-applicants"));
+    }
+  });
+
+  app.delete("/api/co-applicants/:id", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data: coApplicant } = await supabase
+        .from("co_applicants")
+        .select("application_id")
+        .eq("id", req.params.id)
+        .single();
+
+      if (!coApplicant) {
+        return res.status(404).json({ error: "Co-applicant not found" });
+      }
+
+      const { data: application } = await supabase
+        .from("applications")
+        .select("user_id")
+        .eq("id", coApplicant.application_id)
+        .single();
+
+      if (application?.user_id !== req.user!.id && req.user!.role !== "admin") {
+        return res.status(403).json({ error: "Only applicant can remove co-applicants" });
+      }
+
+      const { error } = await supabase
+        .from("co_applicants")
+        .delete()
+        .eq("id", req.params.id);
+
+      if (error) throw error;
+
+      return res.json(success(null, "Co-applicant removed successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to remove co-applicant"));
+    }
+  });
+
+  // ===== APPLICATION COMMENTS =====
+  app.post("/api/applications/:applicationId/comments", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data: application } = await supabase
+        .from("applications")
+        .select("user_id, property_id")
+        .eq("id", req.params.applicationId)
+        .single();
+
+      if (!application) {
+        return res.status(404).json({ error: "Application not found" });
+      }
+
+      const { data: property } = await supabase
+        .from("properties")
+        .select("owner_id")
+        .eq("id", application.property_id)
+        .single();
+
+      const isApplicant = application.user_id === req.user!.id;
+      const isPropertyOwner = property?.owner_id === req.user!.id;
+      const isAdmin = req.user!.role === "admin";
+
+      if (!isApplicant && !isPropertyOwner && !isAdmin) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      const { comment, commentType, isInternal } = req.body;
+
+      if (!comment) {
+        return res.status(400).json({ error: "Comment is required" });
+      }
+
+      // Applicants can only add non-internal comments
+      const actualIsInternal = isApplicant && !isPropertyOwner && !isAdmin ? false : (isInternal ?? true);
+
+      const { data, error } = await supabase
+        .from("application_comments")
+        .insert([{
+          application_id: req.params.applicationId,
+          user_id: req.user!.id,
+          comment,
+          comment_type: commentType || "note",
+          is_internal: actualIsInternal,
+        }])
+        .select("*, users(id, full_name)");
+
+      if (error) throw error;
+
+      return res.json(success(data[0], "Comment added successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to add comment"));
+    }
+  });
+
+  app.get("/api/applications/:applicationId/comments", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data: application } = await supabase
+        .from("applications")
+        .select("user_id, property_id")
+        .eq("id", req.params.applicationId)
+        .single();
+
+      if (!application) {
+        return res.status(404).json({ error: "Application not found" });
+      }
+
+      const { data: property } = await supabase
+        .from("properties")
+        .select("owner_id")
+        .eq("id", application.property_id)
+        .single();
+
+      const isApplicant = application.user_id === req.user!.id;
+      const isPropertyOwner = property?.owner_id === req.user!.id;
+      const isAdmin = req.user!.role === "admin";
+
+      if (!isApplicant && !isPropertyOwner && !isAdmin) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      let query = supabase
+        .from("application_comments")
+        .select("*, users(id, full_name)")
+        .eq("application_id", req.params.applicationId)
+        .order("created_at", { ascending: true });
+
+      // Filter out internal comments for applicants
+      if (isApplicant && !isPropertyOwner && !isAdmin) {
+        query = query.eq("is_internal", false);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      return res.json(success(data, "Comments fetched successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to fetch comments"));
+    }
+  });
+
+  // ===== APPLICATION NOTIFICATIONS =====
+  app.get("/api/applications/:applicationId/notifications", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data: application } = await supabase
+        .from("applications")
+        .select("user_id")
+        .eq("id", req.params.applicationId)
+        .single();
+
+      if (!application || application.user_id !== req.user!.id) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      const { data, error } = await supabase
+        .from("application_notifications")
+        .select("*")
+        .eq("application_id", req.params.applicationId)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      return res.json(success(data, "Notifications fetched successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to fetch notifications"));
+    }
+  });
+
+  app.patch("/api/notifications/:id/read", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data: notification } = await supabase
+        .from("application_notifications")
+        .select("user_id")
+        .eq("id", req.params.id)
+        .single();
+
+      if (!notification || notification.user_id !== req.user!.id) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      const { data, error } = await supabase
+        .from("application_notifications")
+        .update({ read_at: new Date().toISOString(), status: "read" })
+        .eq("id", req.params.id)
+        .select();
+
+      if (error) throw error;
+
+      return res.json(success(data[0], "Notification marked as read"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to mark notification as read"));
+    }
+  });
+
+  // Get all user notifications
+  app.get("/api/user/notifications", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data, error } = await supabase
+        .from("application_notifications")
+        .select("*, applications(id, property_id, properties(title))")
+        .eq("user_id", req.user!.id)
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+
+      return res.json(success(data, "User notifications fetched successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to fetch user notifications"));
+    }
+  });
+
+  // Document status update
+  app.patch("/api/applications/:id/documents/:docType", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data: application } = await supabase
+        .from("applications")
+        .select("user_id, property_id, document_status")
+        .eq("id", req.params.id)
+        .single();
+
+      if (!application) {
+        return res.status(404).json({ error: "Application not found" });
+      }
+
+      const { data: property } = await supabase
+        .from("properties")
+        .select("owner_id")
+        .eq("id", application.property_id)
+        .single();
+
+      const isPropertyOwner = property?.owner_id === req.user!.id;
+      const isAdmin = req.user!.role === "admin";
+
+      if (!isPropertyOwner && !isAdmin) {
+        return res.status(403).json({ error: "Only property owner can verify documents" });
+      }
+
+      const { verified, notes } = req.body;
+      const docType = req.params.docType;
+
+      const currentDocStatus = application.document_status || {};
+      const updatedDocStatus = {
+        ...currentDocStatus,
+        [docType]: {
+          ...currentDocStatus[docType],
+          verified: verified ?? false,
+          verifiedAt: verified ? new Date().toISOString() : undefined,
+          verifiedBy: verified ? req.user!.id : undefined,
+          notes,
+        },
+      };
+
+      const { data, error } = await supabase
+        .from("applications")
+        .update({ document_status: updatedDocStatus })
+        .eq("id", req.params.id)
+        .select();
+
+      if (error) throw error;
+
+      return res.json(success(data[0], "Document status updated successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to update document status"));
+    }
+  });
+
+  // Set application expiration
+  app.patch("/api/applications/:id/expiration", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data: application } = await supabase
+        .from("applications")
+        .select("property_id")
+        .eq("id", req.params.id)
+        .single();
+
+      if (!application) {
+        return res.status(404).json({ error: "Application not found" });
+      }
+
+      const { data: property } = await supabase
+        .from("properties")
+        .select("owner_id")
+        .eq("id", application.property_id)
+        .single();
+
+      const isPropertyOwner = property?.owner_id === req.user!.id;
+      const isAdmin = req.user!.role === "admin";
+
+      if (!isPropertyOwner && !isAdmin) {
+        return res.status(403).json({ error: "Only property owner can set expiration" });
+      }
+
+      const { setApplicationExpiration } = await import("./application-service");
+      const daysUntilExpiration = req.body.daysUntilExpiration || 30;
+      const result = await setApplicationExpiration(req.params.id, daysUntilExpiration);
+
+      if (!result) {
+        return res.status(500).json(errorResponse("Failed to set expiration"));
+      }
+
+      return res.json(success(null, `Application expires in ${daysUntilExpiration} days`));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to set application expiration"));
+    }
+  });
+
   // ===== INQUIRIES =====
   app.post("/api/inquiries", inquiryLimiter, async (req, res) => {
     try {

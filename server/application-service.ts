@@ -1,0 +1,536 @@
+import { supabase } from "./supabase";
+import { APPLICATION_STATUSES, REJECTION_CATEGORIES, type ApplicationStatus, type RejectionCategory } from "@shared/schema";
+import { sendEmail } from "./email";
+
+// Valid status transitions
+const STATUS_TRANSITIONS: Record<ApplicationStatus, ApplicationStatus[]> = {
+  draft: ["pending", "withdrawn"],
+  pending: ["under_review", "withdrawn", "expired"],
+  under_review: ["pending_verification", "approved", "rejected", "withdrawn"],
+  pending_verification: ["approved", "rejected", "under_review", "withdrawn"],
+  approved: ["approved_pending_lease"],
+  approved_pending_lease: [],
+  rejected: [],
+  withdrawn: [],
+  expired: [],
+};
+
+export function isValidStatusTransition(
+  currentStatus: ApplicationStatus,
+  newStatus: ApplicationStatus
+): boolean {
+  const validTransitions = STATUS_TRANSITIONS[currentStatus] || [];
+  return validTransitions.includes(newStatus);
+}
+
+export function getValidNextStatuses(currentStatus: ApplicationStatus): ApplicationStatus[] {
+  return STATUS_TRANSITIONS[currentStatus] || [];
+}
+
+// Calculate application score based on provided information
+export interface ScoreBreakdown {
+  incomeScore: number;
+  creditScore: number;
+  rentalHistoryScore: number;
+  employmentScore: number;
+  documentsScore: number;
+  totalScore: number;
+  maxScore: number;
+  flags: string[];
+}
+
+export function calculateApplicationScore(application: {
+  personalInfo?: any;
+  employment?: any;
+  rentalHistory?: any;
+  documents?: any;
+  documentStatus?: any;
+}): ScoreBreakdown {
+  const flags: string[] = [];
+  let incomeScore = 0;
+  let creditScore = 0;
+  let rentalHistoryScore = 0;
+  let employmentScore = 0;
+  let documentsScore = 0;
+
+  // Income score (max 25 points)
+  const employment = application.employment || {};
+  const monthlyIncome = parseFloat(employment.monthlyIncome || employment.income || 0);
+  if (monthlyIncome >= 5000) {
+    incomeScore = 25;
+  } else if (monthlyIncome >= 4000) {
+    incomeScore = 22;
+  } else if (monthlyIncome >= 3000) {
+    incomeScore = 18;
+  } else if (monthlyIncome >= 2000) {
+    incomeScore = 12;
+  } else if (monthlyIncome > 0) {
+    incomeScore = 5;
+    flags.push("low_income");
+  } else {
+    flags.push("no_income_provided");
+  }
+
+  // Credit score placeholder (max 25 points)
+  // In real scenario, this would integrate with credit check service
+  const personalInfo = application.personalInfo || {};
+  if (personalInfo.ssnProvided || personalInfo.ssn) {
+    creditScore = 20; // Assume decent credit if SSN provided for check
+  } else {
+    creditScore = 10;
+    flags.push("no_credit_check");
+  }
+
+  // Rental history score (max 20 points)
+  const rentalHistory = application.rentalHistory || {};
+  const yearsRenting = parseInt(rentalHistory.yearsRenting || rentalHistory.duration || 0);
+  if (yearsRenting >= 3) {
+    rentalHistoryScore = 20;
+  } else if (yearsRenting >= 2) {
+    rentalHistoryScore = 16;
+  } else if (yearsRenting >= 1) {
+    rentalHistoryScore = 12;
+  } else if (yearsRenting > 0) {
+    rentalHistoryScore = 8;
+  } else {
+    rentalHistoryScore = 5;
+    flags.push("limited_rental_history");
+  }
+
+  // Check for evictions
+  if (rentalHistory.hasEviction || rentalHistory.evicted) {
+    rentalHistoryScore = Math.max(0, rentalHistoryScore - 15);
+    flags.push("previous_eviction");
+  }
+
+  // Employment score (max 15 points)
+  const employmentLength = parseInt(employment.yearsEmployed || employment.duration || 0);
+  const isEmployed = employment.employed !== false && employment.status !== "unemployed";
+  
+  if (isEmployed && employmentLength >= 2) {
+    employmentScore = 15;
+  } else if (isEmployed && employmentLength >= 1) {
+    employmentScore = 12;
+  } else if (isEmployed) {
+    employmentScore = 8;
+  } else {
+    employmentScore = 3;
+    flags.push("unemployed");
+  }
+
+  // Documents score (max 15 points)
+  const documents = application.documents || {};
+  const documentStatus = application.documentStatus || {};
+  const requiredDocs = ["id", "proof_of_income", "employment_verification"];
+  let uploadedDocs = 0;
+  let verifiedDocs = 0;
+
+  for (const doc of requiredDocs) {
+    if (documents[doc] || documentStatus[doc]?.uploaded) {
+      uploadedDocs++;
+    }
+    if (documentStatus[doc]?.verified) {
+      verifiedDocs++;
+    }
+  }
+
+  if (verifiedDocs >= 3) {
+    documentsScore = 15;
+  } else if (uploadedDocs >= 3) {
+    documentsScore = 12;
+  } else if (uploadedDocs >= 2) {
+    documentsScore = 8;
+  } else if (uploadedDocs >= 1) {
+    documentsScore = 5;
+  } else {
+    documentsScore = 0;
+    flags.push("missing_documents");
+  }
+
+  const totalScore = incomeScore + creditScore + rentalHistoryScore + employmentScore + documentsScore;
+  const maxScore = 100;
+
+  return {
+    incomeScore,
+    creditScore,
+    rentalHistoryScore,
+    employmentScore,
+    documentsScore,
+    totalScore,
+    maxScore,
+    flags,
+  };
+}
+
+// Update application status with validation and history tracking
+export async function updateApplicationStatus(
+  applicationId: string,
+  newStatus: ApplicationStatus,
+  userId: string,
+  options?: {
+    rejectionCategory?: RejectionCategory;
+    rejectionReason?: string;
+    rejectionDetails?: {
+      categories: string[];
+      explanation: string;
+      appealable: boolean;
+    };
+    reason?: string;
+  }
+): Promise<{ success: boolean; error?: string; data?: any }> {
+  try {
+    // Get current application
+    const { data: application, error: fetchError } = await supabase
+      .from("applications")
+      .select("*, users(email, full_name), properties(title)")
+      .eq("id", applicationId)
+      .single();
+
+    if (fetchError || !application) {
+      return { success: false, error: "Application not found" };
+    }
+
+    const currentStatus = application.status as ApplicationStatus;
+
+    // Validate transition
+    if (!isValidStatusTransition(currentStatus, newStatus)) {
+      return {
+        success: false,
+        error: `Invalid status transition from ${currentStatus} to ${newStatus}. Valid transitions: ${getValidNextStatuses(currentStatus).join(", ")}`,
+      };
+    }
+
+    // Build status history entry
+    const historyEntry = {
+      status: newStatus,
+      changedAt: new Date().toISOString(),
+      changedBy: userId,
+      reason: options?.reason,
+    };
+
+    const statusHistory = [...(application.status_history || []), historyEntry];
+
+    // Build update object
+    const updateData: any = {
+      status: newStatus,
+      previous_status: currentStatus,
+      status_history: statusHistory,
+      updated_at: new Date().toISOString(),
+    };
+
+    // Handle rejection-specific fields
+    if (newStatus === "rejected") {
+      updateData.rejection_category = options?.rejectionCategory;
+      updateData.rejection_reason = options?.rejectionReason;
+      updateData.rejection_details = options?.rejectionDetails;
+      updateData.reviewed_by = userId;
+      updateData.reviewed_at = new Date().toISOString();
+    }
+
+    // Handle approval
+    if (newStatus === "approved" || newStatus === "approved_pending_lease") {
+      updateData.reviewed_by = userId;
+      updateData.reviewed_at = new Date().toISOString();
+    }
+
+    // Handle expiration
+    if (newStatus === "expired") {
+      updateData.expired_at = new Date().toISOString();
+    }
+
+    // Update the application
+    const { data: updated, error: updateError } = await supabase
+      .from("applications")
+      .update(updateData)
+      .eq("id", applicationId)
+      .select()
+      .single();
+
+    if (updateError) {
+      return { success: false, error: updateError.message };
+    }
+
+    // Create notification record
+    await createApplicationNotification(
+      applicationId,
+      application.user_id,
+      "status_change",
+      `Application Status: ${newStatus.replace(/_/g, " ").toUpperCase()}`,
+      getStatusChangeEmailContent(newStatus, application, options)
+    );
+
+    return { success: true, data: updated };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+// Create notification and send email
+async function createApplicationNotification(
+  applicationId: string,
+  userId: string,
+  notificationType: string,
+  subject: string,
+  content: string
+): Promise<void> {
+  try {
+    // Get user email
+    const { data: user } = await supabase
+      .from("users")
+      .select("email, full_name")
+      .eq("id", userId)
+      .single();
+
+    // Create notification record
+    await supabase.from("application_notifications").insert([
+      {
+        application_id: applicationId,
+        user_id: userId,
+        notification_type: notificationType,
+        channel: "email",
+        subject,
+        content,
+        status: "pending",
+      },
+    ]);
+
+    // Send email (fire and forget)
+    if (user?.email) {
+      sendEmail({
+        to: user.email,
+        subject,
+        html: content,
+      })
+        .then(async () => {
+          // Update notification status to sent
+          await supabase
+            .from("application_notifications")
+            .update({ status: "sent", sent_at: new Date().toISOString() })
+            .eq("application_id", applicationId)
+            .eq("notification_type", notificationType)
+            .eq("status", "pending");
+        })
+        .catch((err) => {
+          console.error("Failed to send notification email:", err);
+        });
+    }
+  } catch (err) {
+    console.error("Failed to create notification:", err);
+  }
+}
+
+function getStatusChangeEmailContent(
+  status: ApplicationStatus,
+  application: any,
+  options?: { rejectionReason?: string; rejectionDetails?: any }
+): string {
+  const applicantName = application.users?.full_name || "Applicant";
+  const propertyTitle = application.properties?.title || "the property";
+
+  const statusMessages: Record<ApplicationStatus, string> = {
+    draft: "",
+    pending: `
+      <h2>Application Submitted</h2>
+      <p>Dear ${applicantName},</p>
+      <p>Your application for <strong>${propertyTitle}</strong> has been successfully submitted and is now pending review.</p>
+      <p>We will notify you once the property owner reviews your application.</p>
+    `,
+    under_review: `
+      <h2>Application Under Review</h2>
+      <p>Dear ${applicantName},</p>
+      <p>Great news! Your application for <strong>${propertyTitle}</strong> is now being reviewed by the property owner.</p>
+      <p>We will keep you updated on any changes to your application status.</p>
+    `,
+    pending_verification: `
+      <h2>Verification Required</h2>
+      <p>Dear ${applicantName},</p>
+      <p>Your application for <strong>${propertyTitle}</strong> requires additional verification.</p>
+      <p>Please ensure all your documents are up to date and accurate. You may be contacted for additional information.</p>
+    `,
+    approved: `
+      <h2>Congratulations! Application Approved</h2>
+      <p>Dear ${applicantName},</p>
+      <p>We are pleased to inform you that your application for <strong>${propertyTitle}</strong> has been approved!</p>
+      <p>The property owner will be in touch with you shortly regarding the next steps for your lease agreement.</p>
+    `,
+    approved_pending_lease: `
+      <h2>Approved - Lease Pending</h2>
+      <p>Dear ${applicantName},</p>
+      <p>Your application for <strong>${propertyTitle}</strong> has been approved and is pending lease signing.</p>
+      <p>Please check your email for the lease agreement and follow the instructions to complete the process.</p>
+    `,
+    rejected: `
+      <h2>Application Status Update</h2>
+      <p>Dear ${applicantName},</p>
+      <p>We regret to inform you that your application for <strong>${propertyTitle}</strong> was not approved at this time.</p>
+      ${options?.rejectionReason ? `<p><strong>Reason:</strong> ${options.rejectionReason}</p>` : ""}
+      ${options?.rejectionDetails?.appealable ? "<p>If you believe this decision was made in error, you may appeal by contacting the property owner.</p>" : ""}
+      <p>We encourage you to continue your search for the perfect home.</p>
+    `,
+    withdrawn: `
+      <h2>Application Withdrawn</h2>
+      <p>Dear ${applicantName},</p>
+      <p>Your application for <strong>${propertyTitle}</strong> has been withdrawn as requested.</p>
+      <p>If you wish to apply again in the future, please submit a new application.</p>
+    `,
+    expired: `
+      <h2>Application Expired</h2>
+      <p>Dear ${applicantName},</p>
+      <p>Your application for <strong>${propertyTitle}</strong> has expired due to inactivity.</p>
+      <p>If you are still interested in this property, please submit a new application.</p>
+    `,
+  };
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        h2 { color: #2563eb; }
+        p { margin: 10px 0; }
+      </style>
+    </head>
+    <body>
+      ${statusMessages[status]}
+      <hr>
+      <p style="color: #666; font-size: 12px;">
+        This is an automated message from Choice Properties. Please do not reply to this email.
+      </p>
+    </body>
+    </html>
+  `;
+}
+
+// Check and expire old applications
+export async function expireOldApplications(daysOld: number = 30): Promise<number> {
+  try {
+    const expirationDate = new Date();
+    expirationDate.setDate(expirationDate.getDate() - daysOld);
+
+    const { data: expiredApps, error } = await supabase
+      .from("applications")
+      .select("id, user_id")
+      .eq("status", "pending")
+      .lt("created_at", expirationDate.toISOString())
+      .is("expired_at", null);
+
+    if (error || !expiredApps) {
+      console.error("Error fetching expired applications:", error);
+      return 0;
+    }
+
+    let expiredCount = 0;
+    for (const app of expiredApps) {
+      const result = await updateApplicationStatus(app.id, "expired", "system", {
+        reason: "Application expired due to inactivity",
+      });
+      if (result.success) {
+        expiredCount++;
+      }
+    }
+
+    return expiredCount;
+  } catch (err) {
+    console.error("Error expiring applications:", err);
+    return 0;
+  }
+}
+
+// Get application with full details including co-applicants and comments
+export async function getApplicationWithDetails(applicationId: string): Promise<any> {
+  try {
+    const { data: application, error } = await supabase
+      .from("applications")
+      .select(`
+        *,
+        properties(*),
+        users(id, full_name, email, phone, profile_image)
+      `)
+      .eq("id", applicationId)
+      .single();
+
+    if (error) throw error;
+
+    // Get co-applicants
+    const { data: coApplicants } = await supabase
+      .from("co_applicants")
+      .select("*")
+      .eq("application_id", applicationId);
+
+    // Get comments
+    const { data: comments } = await supabase
+      .from("application_comments")
+      .select("*, users(id, full_name)")
+      .eq("application_id", applicationId)
+      .order("created_at", { ascending: true });
+
+    // Get notifications
+    const { data: notifications } = await supabase
+      .from("application_notifications")
+      .select("*")
+      .eq("application_id", applicationId)
+      .order("created_at", { ascending: false });
+
+    return {
+      ...application,
+      coApplicants: coApplicants || [],
+      comments: comments || [],
+      notifications: notifications || [],
+    };
+  } catch (err) {
+    console.error("Error fetching application details:", err);
+    return null;
+  }
+}
+
+// Compare applications for a property (for property owners)
+export async function compareApplications(propertyId: string): Promise<any[]> {
+  try {
+    const { data: applications, error } = await supabase
+      .from("applications")
+      .select(`
+        *,
+        users(id, full_name, email, phone)
+      `)
+      .eq("property_id", propertyId)
+      .not("status", "in", '("draft","withdrawn","expired")')
+      .order("score", { ascending: false, nullsFirst: false });
+
+    if (error) throw error;
+
+    return (applications || []).map((app) => ({
+      id: app.id,
+      applicant: app.users,
+      status: app.status,
+      score: app.score,
+      scoreBreakdown: app.score_breakdown,
+      submittedAt: app.created_at,
+      employment: app.employment,
+      personalInfo: app.personal_info,
+    }));
+  } catch (err) {
+    console.error("Error comparing applications:", err);
+    return [];
+  }
+}
+
+// Set application expiration date
+export async function setApplicationExpiration(
+  applicationId: string,
+  daysUntilExpiration: number = 30
+): Promise<boolean> {
+  try {
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + daysUntilExpiration);
+
+    const { error } = await supabase
+      .from("applications")
+      .update({ expires_at: expiresAt.toISOString() })
+      .eq("id", applicationId);
+
+    return !error;
+  } catch (err) {
+    return false;
+  }
+}
