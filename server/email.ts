@@ -258,3 +258,69 @@ export function getScoringCompleteEmailTemplate(data: {
     <p>Best regards,<br>Choice Properties Team</p>
   `;
 }
+
+// Co-applicant invitation template
+export function getCoApplicantInviteEmailTemplate(data: {
+  coApplicantName: string;
+  primaryApplicantName: string;
+  propertyTitle: string;
+  relationship: string;
+  applicationLink: string;
+}) {
+  return `
+    <h2>You've Been Added as a Co-Applicant</h2>
+    <p>Dear ${escapeHtml(data.coApplicantName)},</p>
+    <p><strong>${escapeHtml(data.primaryApplicantName)}</strong> has added you as a ${escapeHtml(data.relationship)} on their rental application for <strong>${escapeHtml(data.propertyTitle)}</strong>.</p>
+    <p>To complete the application, you'll need to verify your identity and provide some basic information.</p>
+    <p><a href="${escapeHtml(data.applicationLink)}" style="display: inline-block; background-color: #3B82F6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 16px 0;">Complete Your Application</a></p>
+    <p>If you did not expect this invitation, please ignore this email or contact us.</p>
+    <p>Best regards,<br>Choice Properties Team</p>
+  `;
+}
+
+// Background check initiated template
+export function getBackgroundCheckEmailTemplate(data: {
+  applicantName: string;
+  propertyTitle: string;
+}) {
+  return `
+    <h2>Background Check Initiated</h2>
+    <p>Dear ${escapeHtml(data.applicantName)},</p>
+    <p>As part of your application for <strong>${escapeHtml(data.propertyTitle)}</strong>, we have initiated a background verification process.</p>
+    <p>This typically includes:</p>
+    <ul>
+      <li>Identity verification</li>
+      <li>Employment verification</li>
+      <li>Rental history review</li>
+      <li>Credit assessment</li>
+      <li>Background screening</li>
+    </ul>
+    <p>This process usually takes 5-10 business days. We'll notify you when it's complete.</p>
+    <p>Best regards,<br>Choice Properties Team</p>
+  `;
+}
+
+// Verification complete template
+export function getVerificationCompleteEmailTemplate(data: {
+  applicantName: string;
+  propertyTitle: string;
+  passed: boolean;
+}) {
+  if (data.passed) {
+    return `
+      <h2>Verification Complete - Passed</h2>
+      <p>Dear ${escapeHtml(data.applicantName)},</p>
+      <p>Great news! The verification process for your application to <strong>${escapeHtml(data.propertyTitle)}</strong> has been completed successfully.</p>
+      <p>Your application is now pending final review by the property owner. We'll notify you once a decision has been made.</p>
+      <p>Best regards,<br>Choice Properties Team</p>
+    `;
+  } else {
+    return `
+      <h2>Verification Update</h2>
+      <p>Dear ${escapeHtml(data.applicantName)},</p>
+      <p>The verification process for your application to <strong>${escapeHtml(data.propertyTitle)}</strong> has been completed. Unfortunately, some items require additional attention.</p>
+      <p>Please check your application dashboard for more details or contact us if you have questions.</p>
+      <p>Best regards,<br>Choice Properties Team</p>
+    `;
+  }
+}

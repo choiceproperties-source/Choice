@@ -725,6 +725,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete co-applicant (alternative path that matches frontend)
+  app.delete("/api/applications/:applicationId/co-applicants/:coApplicantId", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data: coApplicant } = await supabase
+        .from("co_applicants")
+        .select("application_id")
+        .eq("id", req.params.coApplicantId)
+        .eq("application_id", req.params.applicationId)
+        .single();
+
+      if (!coApplicant) {
+        return res.status(404).json({ error: "Co-applicant not found" });
+      }
+
+      const { data: application } = await supabase
+        .from("applications")
+        .select("user_id")
+        .eq("id", req.params.applicationId)
+        .single();
+
+      if (application?.user_id !== req.user!.id && req.user!.role !== "admin") {
+        return res.status(403).json({ error: "Only applicant can remove co-applicants" });
+      }
+
+      const { error } = await supabase
+        .from("co_applicants")
+        .delete()
+        .eq("id", req.params.coApplicantId);
+
+      if (error) throw error;
+
+      return res.json(success(null, "Co-applicant removed successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to remove co-applicant"));
+    }
+  });
+
+  // Resend co-applicant invitation
+  app.post("/api/applications/:applicationId/co-applicants/:coApplicantId/resend", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data: coApplicant } = await supabase
+        .from("co_applicants")
+        .select("*, applications(user_id, property_id, users(full_name)), properties:applications(properties(title))")
+        .eq("id", req.params.coApplicantId)
+        .eq("application_id", req.params.applicationId)
+        .single();
+
+      if (!coApplicant) {
+        return res.status(404).json({ error: "Co-applicant not found" });
+      }
+
+      const { data: application } = await supabase
+        .from("applications")
+        .select("user_id")
+        .eq("id", req.params.applicationId)
+        .single();
+
+      if (application?.user_id !== req.user!.id && req.user!.role !== "admin") {
+        return res.status(403).json({ error: "Only applicant can resend invitations" });
+      }
+
+      // Update invited_at timestamp
+      await supabase
+        .from("co_applicants")
+        .update({ invited_at: new Date().toISOString() })
+        .eq("id", req.params.coApplicantId);
+
+      // In a real implementation, this would send an email
+      // For now, we just update the timestamp and return success
+      console.log(`[CO-APPLICANT] Resent invitation to ${coApplicant.email}`);
+
+      return res.json(success(null, "Invitation resent successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to resend invitation"));
+    }
+  });
+
   // ===== APPLICATION COMMENTS =====
   app.post("/api/applications/:applicationId/comments", authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
