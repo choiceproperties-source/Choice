@@ -181,10 +181,64 @@ export function useOwnerApplications() {
 
   const applications = response?.success ? response.data : [];
 
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({
+      applicationId,
+      status,
+      options,
+    }: {
+      applicationId: string;
+      status: string;
+      options?: {
+        rejectionCategory?: string;
+        rejectionReason?: string;
+        reason?: string;
+      };
+    }) => {
+      return apiRequest('PATCH', `/api/applications/${applicationId}/status`, {
+        status,
+        ...options,
+      });
+    },
+    onSuccess: () => {
+      toast({ title: 'Application status updated' });
+      queryClient.invalidateQueries({ queryKey: ['/api/applications/owner'] });
+      refetch();
+    },
+    onError: (err: any) => {
+      toast({
+        title: 'Failed to update status',
+        description: err.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const scoreApplicationMutation = useMutation({
+    mutationFn: async (applicationId: string) => {
+      return apiRequest('POST', `/api/applications/${applicationId}/score`);
+    },
+    onSuccess: () => {
+      toast({ title: 'Application scored successfully' });
+      refetch();
+    },
+    onError: (err: any) => {
+      toast({
+        title: 'Failed to score application',
+        description: err.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
   return {
     applications,
     isLoading,
     error,
     refetch,
+    updateStatus: updateStatusMutation.mutate,
+    isUpdatingStatus: updateStatusMutation.isPending,
+    scoreApplication: scoreApplicationMutation.mutate,
+    isScoringApplication: scoreApplicationMutation.isPending,
   };
 }

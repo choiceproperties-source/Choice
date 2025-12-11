@@ -93,7 +93,14 @@ export default function AgentDashboard() {
     updateRequirement,
   } = useRequirements();
   const { properties, loading: propsLoading } = useProperties();
-  const { applications: ownerApplications, isLoading: appsLoading } = useOwnerApplications();
+  const { 
+    applications: ownerApplications, 
+    isLoading: appsLoading,
+    updateStatus,
+    isUpdatingStatus,
+    scoreApplication,
+    isScoringApplication,
+  } = useOwnerApplications();
 
   // Redirect if not logged in or not an agent
   if (!isLoggedIn || !user) {
@@ -546,6 +553,63 @@ export default function AgentDashboard() {
                             View Property
                           </Button>
                         </Link>
+                      )}
+                      {!app.score && (
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => scoreApplication(app.id)}
+                          disabled={isScoringApplication}
+                          data-testid={`button-score-application-${app.id}`}
+                        >
+                          <Target className="h-4 w-4 mr-2" />
+                          Score
+                        </Button>
+                      )}
+                      {app.status !== 'approved' && app.status !== 'approved_pending_lease' && app.status !== 'rejected' && (
+                        <>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="text-green-600 border-green-600"
+                            onClick={() => updateStatus({ applicationId: app.id, status: 'approved' })}
+                            disabled={isUpdatingStatus}
+                            data-testid={`button-approve-application-${app.id}`}
+                          >
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            Approve
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="text-red-600 border-red-600"
+                            onClick={() => updateStatus({ 
+                              applicationId: app.id, 
+                              status: 'rejected',
+                              options: { rejectionReason: 'Application does not meet criteria' }
+                            })}
+                            disabled={isUpdatingStatus}
+                            data-testid={`button-reject-application-${app.id}`}
+                          >
+                            <XCircle className="h-4 w-4 mr-2" />
+                            Reject
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="text-orange-600 border-orange-600"
+                            onClick={() => updateStatus({ 
+                              applicationId: app.id, 
+                              status: 'pending_verification',
+                              options: { reason: 'Additional documents required' }
+                            })}
+                            disabled={isUpdatingStatus}
+                            data-testid={`button-request-docs-${app.id}`}
+                          >
+                            <FileText className="h-4 w-4 mr-2" />
+                            Request Docs
+                          </Button>
+                        </>
                       )}
                     </div>
                   </Card>
