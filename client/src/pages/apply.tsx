@@ -16,10 +16,12 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
-import { CheckCircle2, AlertCircle, Upload, UserPlus, Trash2, FileText, ArrowRight, ArrowLeft, Shield, Clock, DollarSign, Home as HomeIcon, Loader2 } from "lucide-react";
+import { CheckCircle2, AlertCircle, Upload, UserPlus, Trash2, FileText, ArrowRight, ArrowLeft, Shield, Clock, DollarSign, Home as HomeIcon, Loader2, CheckCircle } from "lucide-react";
 import { Breadcrumb } from "@/components/breadcrumb";
 import { trackFormCompletion } from "@/lib/pwa";
 import { updateMetaTags } from "@/lib/seo";
+import { useDocumentUpload, type UploadedDocument } from "@/hooks/use-document-upload";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const applySchema = z.object({
   firstName: z.string().min(2, "First name is required"),
@@ -100,8 +102,16 @@ export default function Apply() {
   const { toast } = useToast();
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
-  const [uploadedFiles, setUploadedFiles] = useState<Array<{name: string, type: string}>>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [selectedDocType, setSelectedDocType] = useState<UploadedDocument['docType']>('id');
+  
+  const { 
+    uploadDocument, 
+    removeDocument, 
+    uploadedDocs, 
+    isUploading,
+    uploadProgress 
+  } = useDocumentUpload();
 
   const form = useForm<ApplyFormValues>({
     resolver: zodResolver(applySchema),
@@ -140,19 +150,18 @@ export default function Apply() {
     mode: "onChange"
   });
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      const file = e.target.files[0];
-      setUploadedFiles(prev => [...prev, { name: file.name, type: file.type }]);
-      toast({
-        title: "File Uploaded",
-        description: `${file.name} has been added to your application.`
-      });
+      const files = Array.from(e.target.files);
+      for (const file of files) {
+        await uploadDocument(file, selectedDocType);
+      }
+      e.target.value = '';
     }
   };
 
-  const removeFile = (index: number) => {
-    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+  const handleRemoveFile = (docId: string) => {
+    removeDocument(docId);
   };
 
   const nextStep = async () => {
@@ -236,7 +245,15 @@ export default function Apply() {
           criminalHistory: data.criminalHistory,
           criminalDetails: data.criminalDetails
         },
-        documents: uploadedFiles,
+        documents: uploadedDocs.map(doc => ({
+          id: doc.id,
+          name: doc.name,
+          type: doc.type,
+          url: doc.url,
+          storagePath: doc.storagePath,
+          docType: doc.docType,
+          uploadedAt: doc.uploadedAt,
+        })),
         applicationFee: property?.application_fee || 50,
         signature: data.signature
       };
@@ -972,45 +989,92 @@ export default function Apply() {
                     <CardDescription>Please upload proof of income and identification.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
-                    <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center hover:bg-muted/10 transition-colors cursor-pointer relative">
-                      <input 
-                        type="file" 
-                        onChange={handleFileUpload} 
-                        className="absolute inset-0 opacity-0 cursor-pointer" 
-                        accept=".pdf,.jpg,.jpeg,.png"
-                        multiple
-                      />
-                      <div className="flex flex-col items-center gap-2">
-                        <div className="w-16 h-16 bg-secondary/10 rounded-full flex items-center justify-center text-secondary">
-                          <Upload className="h-8 w-8" />
+                    <div className="space-y-4">
+                      <div className="flex flex-col gap-2">
+                        <Label>Document Type</Label>
+                        <Select value={selectedDocType} onValueChange={(val) => setSelectedDocType(val as UploadedDocument['docType'])}>
+                          <SelectTrigger className="w-full" data-testid="select-doc-type">
+                            <SelectValue placeholder="Select document type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="id" data-testid="select-item-id">Government-issued ID</SelectItem>
+                            <SelectItem value="proof_of_income" data-testid="select-item-income">Proof of Income</SelectItem>
+                            <SelectItem value="employment_verification" data-testid="select-item-employment">Employment Verification</SelectItem>
+                            <SelectItem value="other" data-testid="select-item-other">Other Document</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors relative ${isUploading ? 'border-primary bg-primary/5' : 'border-muted-foreground/25 hover:bg-muted/10 cursor-pointer'}`}>
+                        <input 
+                          type="file" 
+                          onChange={handleFileUpload} 
+                          className="absolute inset-0 opacity-0 cursor-pointer" 
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          multiple
+                          disabled={isUploading}
+                          data-testid="input-file-upload"
+                        />
+                        <div className="flex flex-col items-center gap-2">
+                          {isUploading ? (
+                            <>
+                              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                              <h4 className="font-semibold text-lg">Uploading... {uploadProgress}%</h4>
+                            </>
+                          ) : (
+                            <>
+                              <div className="w-16 h-16 bg-secondary/10 rounded-full flex items-center justify-center text-secondary">
+                                <Upload className="h-8 w-8" />
+                              </div>
+                              <h4 className="font-semibold text-lg">Click or drag files to upload</h4>
+                              <p className="text-muted-foreground text-sm max-w-md mx-auto">
+                                PDF, JPG, or PNG files. Max 5MB each.
+                              </p>
+                            </>
+                          )}
                         </div>
-                        <h4 className="font-semibold text-lg">Click or drag files to upload</h4>
-                        <p className="text-muted-foreground text-sm max-w-md mx-auto">
-                          PDF, JPG, or PNG files. Max 5MB each.
-                        </p>
                       </div>
                     </div>
 
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <h4 className="font-semibold text-blue-900 mb-2">Required Documents:</h4>
-                      <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
-                        <li>Government-issued photo ID (Driver's License, Passport, or State ID)</li>
-                        <li>Proof of income (Recent pay stubs, bank statements, or tax returns)</li>
-                        <li>Letter of employment (optional but recommended)</li>
+                    <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                      <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">Required Documents:</h4>
+                      <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1 list-disc list-inside">
+                        <li className="flex items-center gap-2">
+                          {uploadedDocs.some(d => d.docType === 'id') ? <CheckCircle className="h-4 w-4 text-green-500" /> : <AlertCircle className="h-4 w-4 text-blue-500" />}
+                          Government-issued photo ID (Driver's License, Passport, or State ID)
+                        </li>
+                        <li className="flex items-center gap-2">
+                          {uploadedDocs.some(d => d.docType === 'proof_of_income') ? <CheckCircle className="h-4 w-4 text-green-500" /> : <AlertCircle className="h-4 w-4 text-blue-500" />}
+                          Proof of income (Recent pay stubs, bank statements, or tax returns)
+                        </li>
+                        <li className="flex items-center gap-2">
+                          {uploadedDocs.some(d => d.docType === 'employment_verification') ? <CheckCircle className="h-4 w-4 text-green-500" /> : <AlertCircle className="h-4 w-4 text-orange-500" />}
+                          Letter of employment (optional but recommended)
+                        </li>
                       </ul>
                     </div>
 
-                    {uploadedFiles.length > 0 && (
+                    {uploadedDocs.length > 0 && (
                       <div className="space-y-2">
-                        <h4 className="font-medium text-sm">Uploaded Files ({uploadedFiles.length})</h4>
-                        {uploadedFiles.map((file, index) => (
-                          <div key={index} className="flex items-center justify-between p-3 bg-muted/20 rounded-md">
-                            <div className="flex items-center gap-3">
-                              <FileText className="h-5 w-5 text-primary" />
-                              <span className="text-sm font-medium truncate max-w-[250px]">{file.name}</span>
-                              <span className="text-xs text-muted-foreground uppercase border px-1 rounded">{file.type.split('/')[1] || 'FILE'}</span>
+                        <h4 className="font-medium text-sm">Uploaded Documents ({uploadedDocs.length})</h4>
+                        {uploadedDocs.map((doc) => (
+                          <div key={doc.id} className="flex items-center justify-between p-3 bg-muted/20 rounded-md" data-testid={`card-uploaded-doc-${doc.id}`}>
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                              <FileText className="h-5 w-5 text-primary shrink-0" />
+                              <div className="min-w-0">
+                                <span className="text-sm font-medium truncate block max-w-[200px]">{doc.name}</span>
+                                <span className="text-xs text-muted-foreground capitalize">{doc.docType.replace(/_/g, ' ')}</span>
+                              </div>
+                              <span className="text-xs text-muted-foreground uppercase border px-1 rounded shrink-0">{doc.type.split('/')[1] || 'FILE'}</span>
                             </div>
-                            <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={() => removeFile(index)}>
+                            <Button 
+                              type="button" 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 text-destructive hover:bg-destructive/10 shrink-0" 
+                              onClick={() => handleRemoveFile(doc.id)}
+                              data-testid={`button-remove-doc-${doc.id}`}
+                            >
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
@@ -1018,19 +1082,19 @@ export default function Apply() {
                       </div>
                     )}
 
-                    <div className="bg-green-50 border border-green-200 p-4 rounded-lg flex gap-3 items-start">
+                    <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 p-4 rounded-lg flex gap-3 items-start">
                       <Shield className="h-5 w-5 text-green-600 mt-0.5 shrink-0" />
-                      <div className="text-sm text-green-900">
+                      <div className="text-sm text-green-900 dark:text-green-100">
                         <p className="font-semibold mb-1">Secure & Encrypted</p>
                         <p>Your documents are encrypted and stored securely. We only share this information with the property management team for verification purposes.</p>
                       </div>
                     </div>
                   </CardContent>
-                  <CardFooter className="justify-between pt-6 border-t bg-muted/5">
+                  <CardFooter className="justify-between pt-6 border-t bg-muted/5 gap-2">
                     <Button type="button" variant="outline" onClick={prevStep}>
                       <ArrowLeft className="mr-2 h-4 w-4" /> Back
                     </Button>
-                    <Button type="button" onClick={nextStep} className="bg-secondary hover:bg-secondary/90 text-primary-foreground font-bold">
+                    <Button type="button" onClick={nextStep} className="bg-secondary hover:bg-secondary/90 text-primary-foreground font-bold" disabled={isUploading}>
                       Next Step <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   </CardFooter>
@@ -1072,7 +1136,7 @@ export default function Apply() {
                         </div>
                         <div>
                           <p className="text-muted-foreground">Documents Uploaded</p>
-                          <p className="font-semibold">{uploadedFiles.length} file(s)</p>
+                          <p className="font-semibold">{uploadedDocs.length} file(s)</p>
                         </div>
                       </div>
                     </div>
