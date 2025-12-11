@@ -119,6 +119,8 @@ export default function Admin() {
   // Filter states
   const [propertyFilter, setPropertyFilter] = useState({ status: 'all', city: '', minPrice: '', maxPrice: '' });
   const [applicationFilter, setApplicationFilter] = useState('all');
+  const [applicationSearch, setApplicationSearch] = useState('');
+  const [applicationSort, setApplicationSort] = useState('newest');
   const [userRoleFilter, setUserRoleFilter] = useState('all');
   const [inquiryFilter, setInquiryFilter] = useState('all');
 
@@ -202,9 +204,35 @@ export default function Admin() {
   }, [properties, propertyFilter]);
 
   const filteredApplications = useMemo(() => {
-    if (applicationFilter === 'all') return applications;
-    return applications.filter(a => a.status === applicationFilter);
-  }, [applications, applicationFilter]);
+    let filtered = applications;
+    
+    // Filter by status
+    if (applicationFilter !== 'all') {
+      filtered = filtered.filter(a => a.status === applicationFilter);
+    }
+    
+    // Filter by search term (applicant name or property title)
+    if (applicationSearch.trim()) {
+      const search = applicationSearch.toLowerCase().trim();
+      filtered = filtered.filter(a => 
+        a.users?.full_name?.toLowerCase().includes(search) ||
+        a.properties?.title?.toLowerCase().includes(search) ||
+        a.id.toLowerCase().includes(search)
+      );
+    }
+    
+    // Sort applications
+    return [...filtered].sort((a, b) => {
+      switch (applicationSort) {
+        case 'newest':
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        case 'oldest':
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        default:
+          return 0;
+      }
+    });
+  }, [applications, applicationFilter, applicationSearch, applicationSort]);
 
   const filteredUsers = useMemo(() => {
     if (userRoleFilter === 'all') return users;
@@ -820,29 +848,55 @@ export default function Admin() {
           {activeSection === 'applications' && !loading && (
             <div className="space-y-4">
               <div className="flex flex-wrap justify-between items-center gap-4">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="text-xl font-semibold">All Applications ({filteredApplications.length})</h3>
-                  <div className="flex gap-2 text-xs">
+                  <div className="flex gap-2 text-xs flex-wrap">
                     <Badge variant="outline" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
                       {stats.pendingApplications} pending
                     </Badge>
                     <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
                       {stats.approvedApplications} approved
                     </Badge>
+                    <Badge variant="outline" className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                      {stats.rejectedApplications} rejected
+                    </Badge>
                   </div>
                 </div>
-                <Select value={applicationFilter} onValueChange={setApplicationFilter}>
-                  <SelectTrigger className="w-36" data-testid="filter-application-status">
-                    <Filter className="h-4 w-4 mr-1" />
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="approved">Approved</SelectItem>
-                    <SelectItem value="rejected">Rejected</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Input
+                    placeholder="Search by name or property..."
+                    value={applicationSearch}
+                    onChange={(e) => setApplicationSearch(e.target.value)}
+                    className="w-48"
+                    data-testid="input-application-search"
+                  />
+                  <Select value={applicationFilter} onValueChange={setApplicationFilter}>
+                    <SelectTrigger className="w-40" data-testid="filter-application-status">
+                      <Filter className="h-4 w-4 mr-1" />
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="under_review">Under Review</SelectItem>
+                      <SelectItem value="pending_verification">Pending Verification</SelectItem>
+                      <SelectItem value="approved">Approved</SelectItem>
+                      <SelectItem value="approved_pending_lease">Approved - Pending Lease</SelectItem>
+                      <SelectItem value="rejected">Rejected</SelectItem>
+                      <SelectItem value="withdrawn">Withdrawn</SelectItem>
+                      <SelectItem value="expired">Expired</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={applicationSort} onValueChange={setApplicationSort}>
+                    <SelectTrigger className="w-32" data-testid="sort-applications">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="newest">Newest First</SelectItem>
+                      <SelectItem value="oldest">Oldest First</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               {filteredApplications.length === 0 ? (

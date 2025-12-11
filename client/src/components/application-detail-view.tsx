@@ -21,6 +21,17 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import {
   Accordion,
   AccordionContent,
   AccordionItem,
@@ -29,6 +40,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
+import { useAuth } from '@/lib/auth-context';
 import {
   User,
   FileText,
@@ -157,11 +169,19 @@ export function ApplicationDetailView({
 }: ApplicationDetailViewProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [showWithdrawDialog, setShowWithdrawDialog] = useState(false);
   const [rejectionCategory, setRejectionCategory] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
+  const [withdrawReason, setWithdrawReason] = useState('');
   const [newComment, setNewComment] = useState('');
   const [isInternalComment, setIsInternalComment] = useState(true);
+  
+  const isApplicant = user?.id === application.userId;
+  const isAdminOrOwner = user?.role === 'admin' || user?.role === 'owner';
+  const canWithdraw = isApplicant && ['draft', 'pending', 'under_review', 'pending_verification'].includes(application.status);
+  const canRecalculateScore = isAdminOrOwner && !isApplicant;
 
   // Status update mutation
   const statusMutation = useMutation({
@@ -253,6 +273,17 @@ export function ApplicationDetailView({
     statusMutation.mutate({ status: 'pending_verification' });
   };
 
+  const handleWithdraw = () => {
+    statusMutation.mutate({ 
+      status: 'withdrawn',
+      options: {
+        reason: withdrawReason || 'Applicant withdrew application',
+      },
+    });
+    setShowWithdrawDialog(false);
+    setWithdrawReason('');
+  };
+
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -301,7 +332,7 @@ export function ApplicationDetailView({
       </div>
 
       {/* Score Card */}
-      {scoreBreakdown && (
+      {scoreBreakdown ? (
         <Card className="p-6" data-testid="card-score-breakdown">
           <div className="flex justify-between items-center mb-4">
             <h3 className="font-semibold text-lg flex items-center gap-2">
@@ -313,19 +344,21 @@ export function ApplicationDetailView({
                 {scoreBreakdown.totalScore}
               </span>
               <span className="text-muted-foreground">/ {scoreBreakdown.maxScore}</span>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => scoreMutation.mutate()}
-                disabled={scoreMutation.isPending}
-                data-testid="button-recalculate-score"
-              >
-                {scoreMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  'Recalculate'
-                )}
-              </Button>
+              {canRecalculateScore && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => scoreMutation.mutate()}
+                  disabled={scoreMutation.isPending}
+                  data-testid="button-recalculate-score"
+                >
+                  {scoreMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    'Recalculate'
+                  )}
+                </Button>
+              )}
             </div>
           </div>
 
@@ -349,7 +382,8 @@ export function ApplicationDetailView({
             ))}
           </div>
 
-          {scoreBreakdown.flags && scoreBreakdown.flags.length > 0 && (
+          {/* Only show flags to admins/owners */}
+          {!isApplicant && scoreBreakdown.flags && scoreBreakdown.flags.length > 0 && (
             <div className="mt-4 pt-4 border-t">
               <p className="text-sm font-medium text-muted-foreground mb-2">Flags:</p>
               <div className="flex gap-2 flex-wrap">
@@ -363,6 +397,37 @@ export function ApplicationDetailView({
             </div>
           )}
         </Card>
+      ) : (
+        /* Score Pending Section - only show after application is submitted */
+        application.status !== 'draft' && (
+          <Card className="p-6" data-testid="card-score-pending">
+            <div className="flex items-center gap-3">
+              <Star className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <h3 className="font-semibold text-foreground">Application Score</h3>
+                <p className="text-sm text-muted-foreground">
+                  {isApplicant 
+                    ? "Your application score will be available after the property manager reviews your submission."
+                    : "Score not yet calculated. Click 'Calculate Score' to generate the application score."}
+                </p>
+              </div>
+              {canRecalculateScore && (
+                <Button
+                  size="sm"
+                  onClick={() => scoreMutation.mutate()}
+                  disabled={scoreMutation.isPending}
+                  className="ml-auto"
+                  data-testid="button-calculate-score"
+                >
+                  {scoreMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : null}
+                  Calculate Score
+                </Button>
+              )}
+            </div>
+          </Card>
+        )
       )}
 
       {/* Action Buttons */}
@@ -459,6 +524,73 @@ export function ApplicationDetailView({
               </Button>
             )}
           </div>
+        </Card>
+      )}
+
+      {/* Applicant Withdrawal Section */}
+      {canWithdraw && (
+        <Card className="p-4" data-testid="card-applicant-actions">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div>
+              <h4 className="font-medium text-foreground">Withdraw Application</h4>
+              <p className="text-sm text-muted-foreground">
+                You can withdraw your application if you no longer wish to proceed.
+              </p>
+            </div>
+            <AlertDialog open={showWithdrawDialog} onOpenChange={setShowWithdrawDialog}>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" className="text-orange-600 border-orange-300" data-testid="button-withdraw">
+                  <XCircle className="h-4 w-4 mr-2" />
+                  Withdraw Application
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Withdraw Application</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to withdraw this application? This action cannot be undone.
+                    You may need to submit a new application if you change your mind.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <div className="py-4">
+                  <label className="text-sm font-medium mb-2 block">Reason (optional)</label>
+                  <Textarea
+                    value={withdrawReason}
+                    onChange={(e) => setWithdrawReason(e.target.value)}
+                    placeholder="Why are you withdrawing this application?"
+                    data-testid="textarea-withdraw-reason"
+                  />
+                </div>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleWithdraw}
+                    className="bg-orange-600 hover:bg-orange-700"
+                    disabled={statusMutation.isPending}
+                    data-testid="button-confirm-withdraw"
+                  >
+                    {statusMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : null}
+                    Confirm Withdrawal
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </Card>
+      )}
+
+      {/* Withdrawn Status Info */}
+      {application.status === 'withdrawn' && (
+        <Card className="p-4 border-l-4 border-orange-500" data-testid="card-withdrawn-info">
+          <h4 className="font-semibold mb-2 flex items-center gap-2">
+            <XCircle className="h-4 w-4 text-orange-500" />
+            Application Withdrawn
+          </h4>
+          <p className="text-sm text-muted-foreground">
+            This application was withdrawn and is no longer being considered.
+          </p>
         </Card>
       )}
 
