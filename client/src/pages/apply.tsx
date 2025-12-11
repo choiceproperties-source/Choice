@@ -3,7 +3,7 @@ import { useLocation, Link } from "wouter";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
 import { useAuth, getAuthToken } from "@/lib/auth-context";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -242,14 +242,8 @@ export default function Apply() {
       };
 
       if (token && user) {
-        await apiRequest('/api/applications', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(applicationData)
-        });
+        await apiRequest('POST', '/api/applications', applicationData);
+        queryClient.invalidateQueries({ queryKey: ['/api/applications/user', user.id] });
       } else {
         const applications = JSON.parse(localStorage.getItem('choiceProperties_applications') || '[]');
         applications.push({
