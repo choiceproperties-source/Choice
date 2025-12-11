@@ -44,19 +44,22 @@ export default function PropertyDetails() {
   const id = params?.id;
   const { isFavorited, toggleFavorite } = useFavorites();
 
-  // Fetch property data from backend
-  const { data: property, isLoading } = useQuery<Property>({
-    queryKey: ['/api/properties', id],
+  // Fetch property data with owner from backend
+  const { data: propertyData, isLoading } = useQuery<{ property: Property; owner: Owner | null }>({
+    queryKey: ['/api/properties', id, 'full'],
     enabled: !!id && !!match,
-    select: (res: any) => res?.data,
+    queryFn: async () => {
+      const res = await fetch(`/api/properties/${id}/full`);
+      const data = await res.json();
+      return {
+        property: data?.data,
+        owner: data?.data?.owner || null
+      };
+    },
   });
 
-  // Fetch owner data if available
-  const { data: owner } = useQuery<Owner>({
-    queryKey: ['/api/users', property?.owner_id],
-    enabled: !!property?.owner_id,
-    select: (res: any) => res?.data,
-  });
+  const property = propertyData?.property;
+  const owner = propertyData?.owner;
 
   // Fetch reviews for this property
   const { data: reviews = [] } = useQuery<Review[]>({

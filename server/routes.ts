@@ -922,5 +922,131 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return res.json(success({ status: "ok", timestamp: new Date().toISOString() }, "Server is healthy"));
   });
 
+  // ===== USER DASHBOARD (All user activities in one call) =====
+  app.get("/api/user/dashboard", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const userId = req.user!.id;
+
+      // Fetch all user activities in parallel
+      const [applicationsResult, favoritesResult, savedSearchesResult, requirementsResult, reviewsResult, propertiesResult] = await Promise.all([
+        // Applications with property details
+        supabase
+          .from("applications")
+          .select(`
+            *,
+            properties:property_id (
+              id, title, address, city, state, price, bedrooms, bathrooms, images, status, property_type
+            )
+          `)
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false }),
+        // Favorites with property details
+        supabase
+          .from("favorites")
+          .select(`
+            id,
+            property_id,
+            created_at,
+            properties:property_id (
+              id, title, address, city, state, price, bedrooms, bathrooms, images, status, property_type, square_feet
+            )
+          `)
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false }),
+        // Saved searches
+        supabase
+          .from("saved_searches")
+          .select("*")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false }),
+        // Requirements
+        supabase
+          .from("requirements")
+          .select("*")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false }),
+        // User's reviews
+        supabase
+          .from("reviews")
+          .select(`
+            *,
+            properties:property_id (id, title, address, city)
+          `)
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false }),
+        // User's properties (if owner/agent)
+        supabase
+          .from("properties")
+          .select("*")
+          .eq("owner_id", userId)
+          .order("created_at", { ascending: false })
+      ]);
+
+      // Transform data to include property info properly
+      const applications = (applicationsResult.data || []).map(app => ({
+        ...app,
+        property: app.properties
+      }));
+
+      const favorites = (favoritesResult.data || []).map(fav => ({
+        ...fav,
+        property: fav.properties
+      }));
+
+      const reviews = (reviewsResult.data || []).map(review => ({
+        ...review,
+        property: review.properties
+      }));
+
+      // Calculate stats
+      const stats = {
+        totalApplications: applications.length,
+        pendingApplications: applications.filter(a => a.status === 'pending').length,
+        approvedApplications: applications.filter(a => a.status === 'approved').length,
+        rejectedApplications: applications.filter(a => a.status === 'rejected').length,
+        totalFavorites: favorites.length,
+        totalSavedSearches: savedSearchesResult.data?.length || 0,
+        totalRequirements: requirementsResult.data?.length || 0,
+        totalReviews: reviews.length,
+        totalProperties: propertiesResult.data?.length || 0
+      };
+
+      return res.json(success({
+        applications,
+        favorites,
+        savedSearches: savedSearchesResult.data || [],
+        requirements: requirementsResult.data || [],
+        reviews,
+        properties: propertiesResult.data || [],
+        stats
+      }, "User dashboard data fetched successfully"));
+    } catch (err: any) {
+      console.error("[DASHBOARD] Error fetching user dashboard:", err);
+      return res.status(500).json(errorResponse("Failed to fetch user dashboard data"));
+    }
+  });
+
+  // ===== PROPERTY WITH OWNER =====
+  app.get("/api/properties/:id/full", async (req, res) => {
+    try {
+      const { data, error } = await supabase
+        .from("properties")
+        .select(`
+          *,
+          owner:owner_id (
+            id, full_name, email, phone, profile_image, bio
+          )
+        `)
+        .eq("id", req.params.id)
+        .single();
+
+      if (error) throw error;
+      
+      return res.json(success(data, "Property with owner fetched successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to fetch property"));
+    }
+  });
+
   return httpServer;
 }

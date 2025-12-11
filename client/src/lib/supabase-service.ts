@@ -79,13 +79,21 @@ export async function deleteProperty(id: string): Promise<boolean> {
 export async function getApplications(userId?: string) {
   if (!supabase) return [];
   try {
-    let query = supabase.from('applications').select('*');
+    let query = supabase.from('applications').select(`
+      *,
+      properties:property_id (
+        id, title, address, city, state, price, bedrooms, bathrooms, images, status, property_type
+      )
+    `);
     if (userId) {
       query = query.eq('user_id', userId);
     }
-    const { data, error } = await query;
+    const { data, error } = await query.order('created_at', { ascending: false });
     if (error) throw error;
-    return data || [];
+    return data?.map(app => ({
+      ...app,
+      property: app.properties
+    })) || [];
   } catch (err) {
     return [];
   }
@@ -163,6 +171,31 @@ export async function getFavorites(userId: string) {
       .eq('user_id', userId);
     if (error) throw error;
     return data?.map(f => f.property_id) || [];
+  } catch (err) {
+    return [];
+  }
+}
+
+export async function getFavoritesWithProperties(userId: string) {
+  if (!supabase) return [];
+  try {
+    const { data, error } = await supabase
+      .from('favorites')
+      .select(`
+        id,
+        property_id,
+        created_at,
+        properties:property_id (
+          id, title, address, city, state, price, bedrooms, bathrooms, images, status, property_type, square_feet
+        )
+      `)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data?.map(fav => ({
+      ...fav,
+      property: fav.properties
+    })) || [];
   } catch (err) {
     return [];
   }
