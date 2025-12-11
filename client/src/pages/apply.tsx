@@ -33,10 +33,12 @@ const applySchema = z.object({
   phone: z.string().min(10, "Phone number is required"),
   dateOfBirth: z.string().min(1, "Date of birth is required"),
   currentAddress: z.string().min(5, "Current address is required"),
+  ssn: z.string().optional(),
   
   prevAddress: z.string().optional(),
   prevLandlord: z.string().optional(),
-  prevLandlordPhone: z.string().optional(),
+  prevLandlordPhone: z.string().regex(/^\d{10}$|^[\d\-\(\)\s]+$/, "Phone number must be valid").optional(),
+  yearsRenting: z.string().optional(),
   reasonForLeaving: z.string().optional(),
   
   employer: z.string().min(2, "Employer name is required"),
@@ -148,9 +150,11 @@ export default function Apply() {
       phone: savedDraft?.phone || "",
       dateOfBirth: savedDraft?.dateOfBirth || "",
       currentAddress: savedDraft?.currentAddress || "",
+      ssn: savedDraft?.ssn || "",
       prevAddress: savedDraft?.prevAddress || "",
       prevLandlord: savedDraft?.prevLandlord || "",
       prevLandlordPhone: savedDraft?.prevLandlordPhone || "",
+      yearsRenting: savedDraft?.yearsRenting || "",
       reasonForLeaving: savedDraft?.reasonForLeaving || "",
       employer: savedDraft?.employer || "",
       position: savedDraft?.position || "",
@@ -508,9 +512,6 @@ export default function Apply() {
                 <span>Est. time: {estimatedMinutes} mins remaining</span>
               </div>
             </div>
-            <div className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2">
-              <Clock className="h-4 w-4" /> Est. time: 10-15 mins
-            </div>
           </div>
         </div>
       </div>
@@ -648,6 +649,21 @@ export default function Apply() {
                         </FormItem>
                       )}
                     />
+
+                    <FormField
+                      control={form.control}
+                      name="ssn"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Social Security Number (optional)</FormLabel>
+                          <FormControl>
+                            <Input placeholder="XXX-XX-XXXX" {...field} type="password" />
+                          </FormControl>
+                          <FormDescription>Providing your SSN helps with credit verification and improves your application score</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </CardContent>
                   <CardFooter className="justify-end pt-6 border-t bg-muted/5">
                     <Button type="button" onClick={nextStep} className="bg-secondary hover:bg-secondary/90 text-primary-foreground font-bold">
@@ -710,6 +726,21 @@ export default function Apply() {
                         )}
                       />
                     </div>
+
+                    <FormField
+                      control={form.control}
+                      name="yearsRenting"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Years of Rental History</FormLabel>
+                          <FormControl>
+                            <Input placeholder="e.g., 3 years, 2, or 6 months" {...field} />
+                          </FormControl>
+                          <FormDescription>How long have you been renting?</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
                     <FormField
                       control={form.control}
@@ -822,8 +853,8 @@ export default function Apply() {
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex gap-3 items-start">
                       <Shield className="h-5 w-5 text-blue-600 mt-0.5 shrink-0" />
                       <div className="text-sm text-blue-900">
-                        <p className="font-semibold mb-1">Income Verification</p>
-                        <p>You'll be asked to upload paystubs or proof of income in a later step. This helps expedite your application.</p>
+                        <p className="font-semibold mb-1">Income Requirement</p>
+                        <p>Your monthly income should be at least 3x the monthly rent. You'll be asked to upload paystubs or proof of income in a later step.</p>
                       </div>
                     </div>
                   </CardContent>
@@ -1189,7 +1220,7 @@ export default function Apply() {
                               <FileText className="h-5 w-5 text-primary shrink-0" />
                               <div className="min-w-0">
                                 <span className="text-sm font-medium truncate block max-w-[200px]">{doc.name}</span>
-                                <span className="text-xs text-muted-foreground capitalize">{doc.docType.replace(/_/g, ' ')}</span>
+                                <span className="text-xs text-muted-foreground capitalize">{doc.docType.replace(/_/g, ' ')} • {(doc.size / 1024 / 1024).toFixed(2)}MB</span>
                               </div>
                               <span className="text-xs text-muted-foreground uppercase border px-1 rounded shrink-0">{doc.type.split('/')[1] || 'FILE'}</span>
                             </div>

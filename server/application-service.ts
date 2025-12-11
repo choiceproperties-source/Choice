@@ -83,14 +83,23 @@ export function calculateApplicationScore(application: {
 
   // Rental history score (max 20 points)
   const rentalHistory = application.rentalHistory || {};
-  const yearsRenting = parseInt(rentalHistory.yearsRenting || rentalHistory.duration || 0);
-  if (yearsRenting >= 3) {
+  let yearsRentingValue = 0;
+  const rentalStr = rentalHistory.yearsRenting || rentalHistory.duration || "0";
+  // Parse strings like "3 years", "3", "6 months", etc.
+  const rentYearMatch = rentalStr.toString().match(/(\d+)\s*(?:year|yr)?/i);
+  const rentMonthMatch = rentalStr.toString().match(/(\d+)\s*(?:month|mo)?/);
+  if (rentYearMatch) {
+    yearsRentingValue = parseInt(rentYearMatch[1]) || 0;
+  } else if (rentMonthMatch && !rentYearMatch) {
+    yearsRentingValue = Math.floor(parseInt(rentMonthMatch[1]) / 12) || 0;
+  }
+  if (yearsRentingValue >= 3) {
     rentalHistoryScore = 20;
-  } else if (yearsRenting >= 2) {
+  } else if (yearsRentingValue >= 2) {
     rentalHistoryScore = 16;
-  } else if (yearsRenting >= 1) {
+  } else if (yearsRentingValue >= 1) {
     rentalHistoryScore = 12;
-  } else if (yearsRenting > 0) {
+  } else if (yearsRentingValue > 0) {
     rentalHistoryScore = 8;
   } else {
     rentalHistoryScore = 5;
@@ -104,12 +113,21 @@ export function calculateApplicationScore(application: {
   }
 
   // Employment score (max 15 points)
-  const employmentLength = parseInt(employment.yearsEmployed || employment.duration || 0);
+  let employmentLengthYears = 0;
+  const employmentStr = employment.yearsEmployed || employment.duration || employment.employmentLength || "0";
+  // Parse strings like "2 years", "2", "6 months", etc.
+  const yearMatch = employmentStr.toString().match(/(\d+)\s*(?:year|yr)?/i);
+  const monthMatch = employmentStr.toString().match(/(\d+)\s*(?:month|mo)?/);
+  if (yearMatch) {
+    employmentLengthYears = parseInt(yearMatch[1]) || 0;
+  } else if (monthMatch && !yearMatch) {
+    employmentLengthYears = Math.floor(parseInt(monthMatch[1]) / 12) || 0;
+  }
   const isEmployed = employment.employed !== false && employment.status !== "unemployed";
   
-  if (isEmployed && employmentLength >= 2) {
+  if (isEmployed && employmentLengthYears >= 2) {
     employmentScore = 15;
-  } else if (isEmployed && employmentLength >= 1) {
+  } else if (isEmployed && employmentLengthYears >= 1) {
     employmentScore = 12;
   } else if (isEmployed) {
     employmentScore = 8;
