@@ -6,9 +6,25 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { CheckCircle2, Home, DollarSign, FileText, AlertCircle } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+
+const AMENITIES = [
+  { id: 'parking', label: 'Parking' },
+  { id: 'gym', label: 'Gym' },
+  { id: 'pool', label: 'Swimming Pool' },
+  { id: 'balcony', label: 'Balcony/Patio' },
+  { id: 'washer', label: 'Washer/Dryer' },
+  { id: 'ac', label: 'Air Conditioning' },
+  { id: 'heating', label: 'Heating' },
+  { id: 'dishwasher', label: 'Dishwasher' },
+  { id: 'storage', label: 'Storage' },
+  { id: 'security', label: '24/7 Security' },
+];
+
+const LEASE_TERMS = ['3 months', '6 months', '12 months', 'Flexible'];
 
 export default function Sell() {
   const { toast } = useToast();
@@ -24,10 +40,16 @@ export default function Sell() {
     sqft: '',
     yearBuilt: '',
     askingPrice: '',
-    description: ''
+    description: '',
+    amenities: [] as string[],
+    furnished: false,
+    petsAllowed: false,
+    leaseTerm: '',
+    utilitiesIncluded: [] as string[],
+    moveInDate: ''
   });
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const createPropertyMutation = useMutation({
     mutationFn: async () => {
@@ -43,6 +65,9 @@ export default function Sell() {
         bathrooms: formData.bathrooms ? parseFloat(formData.bathrooms) : null,
         squareFeet: formData.sqft ? parseInt(formData.sqft) : null,
         propertyType: formData.propertyType,
+        amenities: formData.amenities,
+        furnished: formData.furnished,
+        petsAllowed: formData.petsAllowed,
         status: 'active',
       });
       return response.json();
@@ -56,7 +81,7 @@ export default function Sell() {
       });
     },
     onError: (err: any) => {
-      setError(err.message || "Failed to create listing");
+      setFieldErrors({ submit: err.message || "Failed to create listing" });
       toast({
         title: "Error",
         description: err.message || "Failed to create listing",
@@ -66,17 +91,93 @@ export default function Sell() {
   });
 
   const handleInputChange = (e: any) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-    setError(null);
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+    if (fieldErrors[name]) {
+      setFieldErrors({ ...fieldErrors, [name]: '' });
+    }
+  };
+
+  const validateField = (name: string, value: any): string => {
+    switch (name) {
+      case 'bedrooms':
+        if (value && (parseInt(value) < 0 || parseInt(value) > 20)) return 'Must be between 0-20';
+        break;
+      case 'bathrooms':
+        if (value && (parseFloat(value) < 0 || parseFloat(value) > 20)) return 'Must be between 0-20';
+        break;
+      case 'sqft':
+        if (value && (parseInt(value) < 100 || parseInt(value) > 50000)) return 'Must be between 100-50,000 sqft';
+        break;
+      case 'askingPrice':
+        if (value && (parseFloat(value) < 100 || parseFloat(value) > 50000000)) return 'Must be between $100-$50M';
+        break;
+      case 'zip':
+        if (value && !/^\d{5}(-\d{4})?$/.test(value)) return 'Invalid zip code format';
+        break;
+    }
+    return '';
+  };
+
+  const handleFieldBlur = (e: any) => {
+    const { name, value } = e.target;
+    const error = validateField(name, value);
+    if (error) {
+      setFieldErrors({ ...fieldErrors, [name]: error });
+    }
+  };
+
+  const handleAmenityChange = (amenityId: string) => {
+    setFormData({
+      ...formData,
+      amenities: formData.amenities.includes(amenityId)
+        ? formData.amenities.filter(id => id !== amenityId)
+        : [...formData.amenities, amenityId]
+    });
+  };
+
+  const handleUtilityChange = (utility: string) => {
+    setFormData({
+      ...formData,
+      utilitiesIncluded: formData.utilitiesIncluded.includes(utility)
+        ? formData.utilitiesIncluded.filter(u => u !== utility)
+        : [...formData.utilitiesIncluded, utility]
+    });
+  };
+
+  const validateStep = (currentStep: number): boolean => {
+    const errors: Record<string, string> = {};
+    
+    if (currentStep === 1) {
+      if (!formData.propertyType) errors.propertyType = 'Property type is required';
+      if (!formData.bedrooms) errors.bedrooms = 'Bedrooms is required';
+      if (!formData.bathrooms) errors.bathrooms = 'Bathrooms is required';
+      const bdError = validateField('bedrooms', formData.bedrooms);
+      const baError = validateField('bathrooms', formData.bathrooms);
+      if (bdError) errors.bedrooms = bdError;
+      if (baError) errors.bathrooms = baError;
+    } else if (currentStep === 2) {
+      if (!formData.address) errors.address = 'Address is required';
+      if (!formData.city) errors.city = 'City is required';
+      if (!formData.state) errors.state = 'State is required';
+      if (!formData.zip) errors.zip = 'Zip code is required';
+      const zipError = validateField('zip', formData.zip);
+      if (zipError) errors.zip = zipError;
+    } else if (currentStep === 3) {
+      if (!formData.askingPrice) errors.askingPrice = 'Asking price is required';
+      const priceError = validateField('askingPrice', formData.askingPrice);
+      if (priceError) errors.askingPrice = priceError;
+    }
+
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const handleSubmit = (e: any) => {
     e.preventDefault();
-    if (!formData.propertyType || !formData.address || !formData.city || !formData.state || !formData.zip) {
-      setError("Please fill in all required fields");
-      return;
+    if (validateStep(step)) {
+      createPropertyMutation.mutate();
     }
-    createPropertyMutation.mutate();
   };
 
   if (isSubmitted) {
@@ -133,13 +234,13 @@ export default function Sell() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-8">
-            {error && (
+            {fieldErrors.submit && (
               <Card className="bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800">
                 <CardContent className="p-4 flex gap-3 items-start">
                   <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
                   <div>
                     <p className="font-semibold text-red-900 dark:text-red-100">Error</p>
-                    <p className="text-red-800 dark:text-red-200 text-sm">{error}</p>
+                    <p className="text-red-800 dark:text-red-200 text-sm">{fieldErrors.submit}</p>
                   </div>
                 </CardContent>
               </Card>
@@ -170,12 +271,26 @@ export default function Sell() {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="font-semibold mb-2 block">Bedrooms</label>
-                      <Input type="number" name="bedrooms" value={formData.bedrooms} onChange={handleInputChange} required />
+                      <label className="font-semibold mb-2 block">Bedrooms {fieldErrors.bedrooms && <span className="text-red-600 dark:text-red-400">*</span>}</label>
+                      <Input type="number" min="0" max="20" name="bedrooms" value={formData.bedrooms} onChange={handleInputChange} onBlur={handleFieldBlur} required />
+                      {fieldErrors.bedrooms && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{fieldErrors.bedrooms}</p>}
                     </div>
                     <div>
-                      <label className="font-semibold mb-2 block">Bathrooms</label>
-                      <Input type="number" name="bathrooms" value={formData.bathrooms} onChange={handleInputChange} required />
+                      <label className="font-semibold mb-2 block">Bathrooms {fieldErrors.bathrooms && <span className="text-red-600 dark:text-red-400">*</span>}</label>
+                      <Input type="number" min="0" max="20" step="0.5" name="bathrooms" value={formData.bathrooms} onChange={handleInputChange} onBlur={handleFieldBlur} required />
+                      {fieldErrors.bathrooms && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{fieldErrors.bathrooms}</p>}
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-sm">Property Features</h3>
+                    <div className="flex items-center gap-3">
+                      <Checkbox id="furnished" checked={formData.furnished} onCheckedChange={(checked) => setFormData({...formData, furnished: checked as boolean})} data-testid="checkbox-furnished" />
+                      <label htmlFor="furnished" className="text-sm cursor-pointer">Furnished</label>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Checkbox id="pets" checked={formData.petsAllowed} onCheckedChange={(checked) => setFormData({...formData, petsAllowed: checked as boolean})} data-testid="checkbox-pets" />
+                      <label htmlFor="pets" className="text-sm cursor-pointer">Pets Allowed</label>
                     </div>
                   </div>
                 </CardContent>
@@ -190,12 +305,24 @@ export default function Sell() {
                   <CardDescription>Where is your property located?</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <Input placeholder="Street Address" name="address" value={formData.address} onChange={handleInputChange} required />
-                  <div className="grid grid-cols-2 gap-4">
-                    <Input placeholder="City" name="city" value={formData.city} onChange={handleInputChange} required />
-                    <Input placeholder="State" name="state" value={formData.state} onChange={handleInputChange} required />
+                  <div>
+                    <Input placeholder="Street Address" name="address" value={formData.address} onChange={handleInputChange} required />
+                    {fieldErrors.address && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{fieldErrors.address}</p>}
                   </div>
-                  <Input placeholder="Zip Code" name="zip" value={formData.zip} onChange={handleInputChange} required />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Input placeholder="City" name="city" value={formData.city} onChange={handleInputChange} required />
+                      {fieldErrors.city && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{fieldErrors.city}</p>}
+                    </div>
+                    <div>
+                      <Input placeholder="State" name="state" value={formData.state} onChange={handleInputChange} required />
+                      {fieldErrors.state && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{fieldErrors.state}</p>}
+                    </div>
+                  </div>
+                  <div>
+                    <Input placeholder="Zip Code (12345 or 12345-6789)" name="zip" value={formData.zip} onChange={handleInputChange} onBlur={handleFieldBlur} required />
+                    {fieldErrors.zip && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{fieldErrors.zip}</p>}
+                  </div>
                 </CardContent>
               </Card>
             )}
@@ -210,18 +337,79 @@ export default function Sell() {
                   </CardTitle>
                   <CardDescription>Set your listing price and details</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-6">
                   <div>
-                    <label className="font-semibold mb-2 block">Asking Price ($)</label>
-                    <Input type="number" name="askingPrice" value={formData.askingPrice} onChange={handleInputChange} placeholder="500000" required />
+                    <label className="font-semibold mb-2 block">Asking Price ($) {fieldErrors.askingPrice && <span className="text-red-600 dark:text-red-400">*</span>}</label>
+                    <Input type="number" min="100" name="askingPrice" value={formData.askingPrice} onChange={handleInputChange} onBlur={handleFieldBlur} placeholder="500000" required />
+                    {fieldErrors.askingPrice && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{fieldErrors.askingPrice}</p>}
                   </div>
+
                   <div className="grid grid-cols-2 gap-4">
-                    <Input type="number" placeholder="Square Footage" name="sqft" value={formData.sqft} onChange={handleInputChange} />
-                    <Input type="number" placeholder="Year Built" name="yearBuilt" value={formData.yearBuilt} onChange={handleInputChange} />
+                    <div>
+                      <Input type="number" min="100" max="50000" placeholder="Square Footage" name="sqft" value={formData.sqft} onChange={handleInputChange} onBlur={handleFieldBlur} />
+                      {fieldErrors.sqft && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{fieldErrors.sqft}</p>}
+                    </div>
+                    <Input type="number" min="1800" max="2100" placeholder="Year Built" name="yearBuilt" value={formData.yearBuilt} onChange={handleInputChange} />
                   </div>
+
+                  <div>
+                    <label className="font-semibold mb-3 block">Amenities</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      {AMENITIES.map(amenity => (
+                        <div key={amenity.id} className="flex items-center gap-2">
+                          <Checkbox 
+                            id={amenity.id} 
+                            checked={formData.amenities.includes(amenity.id)}
+                            onCheckedChange={() => handleAmenityChange(amenity.id)}
+                            data-testid={`checkbox-amenity-${amenity.id}`}
+                          />
+                          <label htmlFor={amenity.id} className="text-sm cursor-pointer">{amenity.label}</label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="font-semibold mb-2 block">Lease Term</label>
+                      <select 
+                        name="leaseTerm"
+                        value={formData.leaseTerm}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border rounded-lg bg-background dark:border-gray-700"
+                      >
+                        <option value="">Select term...</option>
+                        {LEASE_TERMS.map(term => (
+                          <option key={term} value={term}>{term}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="font-semibold mb-2 block">Move-In Date</label>
+                      <Input type="date" name="moveInDate" value={formData.moveInDate} onChange={handleInputChange} />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="font-semibold mb-3 block">Utilities Included</label>
+                    <div className="space-y-2">
+                      {['Water', 'Electricity', 'Gas', 'Internet', 'Trash'].map(utility => (
+                        <div key={utility} className="flex items-center gap-2">
+                          <Checkbox 
+                            id={`util-${utility}`}
+                            checked={formData.utilitiesIncluded.includes(utility)}
+                            onCheckedChange={() => handleUtilityChange(utility)}
+                            data-testid={`checkbox-utility-${utility.toLowerCase()}`}
+                          />
+                          <label htmlFor={`util-${utility}`} className="text-sm cursor-pointer">{utility}</label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
                   <div>
                     <label className="font-semibold mb-2 block">Description</label>
-                    <Textarea placeholder="Describe your property..." name="description" value={formData.description} onChange={handleInputChange} rows={4} />
+                    <Textarea placeholder="Describe your property, any special features, recent renovations, etc..." name="description" value={formData.description} onChange={handleInputChange} rows={4} />
                   </div>
                 </CardContent>
               </Card>
