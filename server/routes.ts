@@ -111,6 +111,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/auth/resend-verification", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      if (!req.user?.email) {
+        return res.status(400).json({ error: "No email address found" });
+      }
+
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: req.user.email,
+      });
+
+      if (error) {
+        console.error("[AUTH] Resend verification error:", error.message);
+        return res.status(400).json({ error: error.message || "Failed to resend verification email" });
+      }
+
+      res.json({ success: true, message: "Verification email sent" });
+    } catch (err: any) {
+      console.error("[AUTH] Resend verification exception:", err);
+      res.status(500).json({ error: "Failed to resend verification email" });
+    }
+  });
+
   app.get("/api/auth/me", authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
       const { data, error } = await supabase

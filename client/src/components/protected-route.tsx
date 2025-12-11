@@ -13,7 +13,7 @@ export function ProtectedRoute({
   children,
   requiredRoles,
   redirectTo = "/login",
-  requireEmailVerification = false
+  requireEmailVerification = true
 }: ProtectedRouteProps) {
   const { user, isLoggedIn, isLoading, isEmailVerified } = useAuth();
 

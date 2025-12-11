@@ -56,7 +56,6 @@ export default function Signup() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [signupSuccess, setSignupSuccess] = useState(false);
 
   const form = useForm<ExtendedSignupInput>({
     resolver: zodResolver(extendedSignupSchema),
@@ -78,7 +77,8 @@ export default function Signup() {
     setLoading(true);
     try {
       await signup(data.email, data.fullName, data.password, data.phone, data.role);
-      setSignupSuccess(true);
+      // Redirect to email verification page instead of showing success screen
+      setLocation('/verify-email');
     } catch (err: any) {
       form.setError('root', { message: err.message || 'Signup failed' });
     } finally {
@@ -96,34 +96,6 @@ export default function Signup() {
     }
   };
 
-  if (signupSuccess) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <Navbar />
-        <div className="flex-1 flex items-center justify-center p-4 bg-gradient-to-br from-primary/5 to-secondary/5">
-          <Card className="max-w-md w-full p-8 shadow-xl border-t-4 border-t-green-500 text-center">
-            <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Mail className="h-8 w-8 text-green-600" />
-            </div>
-            <h2 className="text-2xl font-bold mb-2">Check Your Email</h2>
-            <p className="text-muted-foreground mb-6">
-              We've sent a confirmation link to <strong>{form.getValues('email')}</strong>. 
-              Please click the link to verify your email and complete your registration.
-            </p>
-            <p className="text-sm text-muted-foreground mb-4">
-              Didn't receive the email? Check your spam folder or try signing up again.
-            </p>
-            <Link href="/login">
-              <Button variant="outline" className="w-full" data-testid="button-back-to-login">
-                Back to Login
-              </Button>
-            </Link>
-          </Card>
-        </div>
-        <Footer />
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
