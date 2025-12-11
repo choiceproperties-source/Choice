@@ -37,7 +37,10 @@ const applySchema = z.object({
   
   prevAddress: z.string().optional(),
   prevLandlord: z.string().optional(),
-  prevLandlordPhone: z.string().regex(/^\d{10}$|^[\d\-\(\)\s]+$/, "Phone number must be valid").optional(),
+  prevLandlordPhone: z.string().refine(
+    (val) => !val || val.replace(/\D/g, '').length === 10,
+    "Phone number must be exactly 10 digits"
+  ).optional(),
   yearsRenting: z.string().optional(),
   reasonForLeaving: z.string().optional(),
   
@@ -112,6 +115,7 @@ export default function Apply() {
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [applicationId, setApplicationId] = useState<string | null>(null);
   const [coApplicants, setCoApplicants] = useState<any[]>([]);
+  const [lowIncomeAcknowledged, setLowIncomeAcknowledged] = useState(false);
   
   const { 
     uploadDocument, 
@@ -257,19 +261,24 @@ export default function Apply() {
           email: data.email,
           phone: data.phone,
           dateOfBirth: data.dateOfBirth,
-          currentAddress: data.currentAddress
+          currentAddress: data.currentAddress,
+          ssn: data.ssn,
+          ssnProvided: !!data.ssn && data.ssn.length > 0
         },
         rentalHistory: {
           prevAddress: data.prevAddress,
           prevLandlord: data.prevLandlord,
           prevLandlordPhone: data.prevLandlordPhone,
-          reasonForLeaving: data.reasonForLeaving
+          reasonForLeaving: data.reasonForLeaving,
+          yearsRenting: data.yearsRenting
         },
         employment: {
           employer: data.employer,
           position: data.position,
           income: data.income,
+          monthlyIncome: data.income,
           employmentLength: data.employmentLength,
+          yearsEmployed: data.employmentLength,
           moveInDate: data.moveInDate
         },
         references: {
@@ -719,8 +728,13 @@ export default function Apply() {
                           <FormItem>
                             <FormLabel>Previous Landlord Phone</FormLabel>
                             <FormControl>
-                              <Input placeholder="(555) 987-6543" {...field} />
+                              <Input 
+                                placeholder="(555) 987-6543" 
+                                {...field} 
+                                data-testid="input-landlord-phone"
+                              />
                             </FormControl>
+                            <FormDescription>Enter a valid phone number (10 digits)</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -810,16 +824,35 @@ export default function Apply() {
                       <FormField
                         control={form.control}
                         name="income"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Monthly Income ($) <span className="text-red-500">*</span></FormLabel>
-                            <FormControl>
-                              <Input placeholder="5000" type="number" {...field} />
-                            </FormControl>
-                            <FormDescription>Before taxes</FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
+                        render={({ field }) => {
+                          const incomeValue = parseFloat(field.value || "0");
+                          const rentAmount = property?.price || 0;
+                          const requiredIncome = rentAmount * 3;
+                          const meetsRequirement = incomeValue >= requiredIncome;
+                          
+                          return (
+                            <FormItem>
+                              <FormLabel>Monthly Income ($) <span className="text-red-500">*</span></FormLabel>
+                              <FormControl>
+                                <Input placeholder="5000" type="number" {...field} data-testid="input-income" />
+                              </FormControl>
+                              <FormDescription>Before taxes</FormDescription>
+                              {rentAmount > 0 && field.value && !meetsRequirement && (
+                                <p className="text-sm text-orange-600 dark:text-orange-400 flex items-center gap-1 mt-1">
+                                  <AlertCircle className="h-4 w-4" />
+                                  Income should be at least 3x rent (${requiredIncome.toLocaleString()}/mo recommended)
+                                </p>
+                              )}
+                              {rentAmount > 0 && meetsRequirement && field.value && (
+                                <p className="text-sm text-green-600 dark:text-green-400 flex items-center gap-1 mt-1">
+                                  <CheckCircle className="h-4 w-4" />
+                                  Meets income requirement
+                                </p>
+                              )}
+                              <FormMessage />
+                            </FormItem>
+                          );
+                        }}
                       />
                       <FormField
                         control={form.control}

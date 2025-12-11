@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
 import { Breadcrumb } from "@/components/breadcrumb";
@@ -9,8 +9,21 @@ import { Link } from "wouter";
 import { FileText, Clock, CheckCircle2, AlertCircle, XCircle, Loader2, LogIn } from "lucide-react";
 import { updateMetaTags } from "@/lib/seo";
 import { useAuth } from "@/lib/auth-context";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getAuthToken } from "@/lib/auth-context";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface ApplicationResponse {
   id: string;
@@ -82,6 +95,9 @@ function transformApplication(app: ApplicationResponse): TransformedApplication 
 
 export default function Applications() {
   const { user, isLoading: authLoading } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
 
   useEffect(() => {
     updateMetaTags({
@@ -89,6 +105,32 @@ export default function Applications() {
       description: "View and track your rental applications."
     });
   }, []);
+
+  const withdrawMutation = useMutation({
+    mutationFn: async (applicationId: string) => {
+      return apiRequest('PATCH', `/api/applications/${applicationId}/status`, { 
+        status: 'withdrawn',
+        reason: 'Applicant withdrew application'
+      });
+    },
+    onSuccess: () => {
+      toast({ title: 'Application withdrawn successfully' });
+      queryClient.invalidateQueries({ queryKey: ['/api/applications/user', user?.id] });
+      setWithdrawingId(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Failed to withdraw application',
+        description: error.message,
+        variant: 'destructive',
+      });
+      setWithdrawingId(null);
+    },
+  });
+
+  const canWithdraw = (status: string) => {
+    return ['draft', 'pending', 'under_review', 'pending_verification'].includes(status);
+  };
 
   const { data: applicationsData, isLoading, error } = useQuery<ApiResponse>({
     queryKey: ['/api/applications/user', user?.id],
@@ -275,6 +317,44 @@ export default function Applications() {
                             Continue Application
                           </Button>
                         </Link>
+                      )}
+                      {canWithdraw(app.status) && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="text-orange-600 border-orange-300"
+                              data-testid={`button-withdraw-${app.id}`}
+                            >
+                              <XCircle className="h-4 w-4 mr-1" />
+                              Withdraw
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Withdraw Application</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to withdraw this application? This action cannot be undone.
+                                You may need to submit a new application if you change your mind.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => withdrawMutation.mutate(app.id)}
+                                className="bg-orange-600 hover:bg-orange-700"
+                                disabled={withdrawMutation.isPending}
+                                data-testid={`button-confirm-withdraw-${app.id}`}
+                              >
+                                {withdrawMutation.isPending ? (
+                                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                ) : null}
+                                Confirm Withdrawal
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       )}
                     </div>
                   </CardContent>
