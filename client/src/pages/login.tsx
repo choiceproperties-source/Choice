@@ -135,13 +135,16 @@ export default function Login() {
                     <FormControl>
                       <Input
                         type="password"
-                        placeholder="Enter your password"
+                        placeholder="At least 8 characters, with uppercase and number"
                         disabled={loading || googleLoading}
                         data-testid="input-password"
                         {...field}
                       />
                     </FormControl>
                     <FormMessage />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Password must be at least 8 characters, contain an uppercase letter and a number
+                    </p>
                   </FormItem>
                 )}
               />

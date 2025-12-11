@@ -399,6 +399,8 @@ export type ContactMessage = typeof contactMessages.$inferSelect;
 
 export const signupSchema = z.object({
   email: z.string().email("Invalid email address"),
+  // Password requirements: 8+ characters, at least one uppercase letter, at least one number
+  // These same requirements are displayed as hints on the login form for consistency
   password: z.string()
     .min(8, "Password must be at least 8 characters")
     .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
@@ -412,6 +414,9 @@ export const signupSchema = z.object({
 
 export const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
+  // Note: Login schema only validates that password is not empty.
+  // Password format requirements are enforced at signup and displayed as a UX hint on login form.
+  // The actual password validation happens server-side via Supabase auth.
   password: z.string().min(1, "Password is required"),
 });
 

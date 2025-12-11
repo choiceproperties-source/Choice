@@ -12,8 +12,12 @@ import { useState, useEffect, useMemo } from 'react';
 import { z } from 'zod';
 import { supabase } from '@/lib/supabase';
 
+// Password requirements must match signup requirements: 8+ chars, uppercase, number
 const resetPasswordSchema = z.object({
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  password: z.string()
+    .min(8, 'Password must be at least 8 characters')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[0-9]/, 'Password must contain at least one number'),
   confirmPassword: z.string().min(1, 'Please confirm your password'),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
@@ -160,7 +164,7 @@ export default function ResetPassword() {
         <Card className="max-w-md w-full p-8 shadow-xl border-t-4 border-t-primary">
           <h2 className="text-3xl font-bold text-primary mb-2">Reset Password</h2>
           <p className="text-muted-foreground mb-6">
-            Enter your new password below.
+            Create a strong password. It must be at least 8 characters and include an uppercase letter and a number.
           </p>
 
           <Form {...form}>
@@ -177,7 +181,7 @@ export default function ResetPassword() {
                       <div className="relative">
                         <Input
                           type={showPassword ? 'text' : 'password'}
-                          placeholder="At least 6 characters"
+                          placeholder="At least 8 characters, with uppercase and number"
                           disabled={loading}
                           autoComplete="new-password"
                           data-testid="input-password"
