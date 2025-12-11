@@ -35,23 +35,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: validation.error.errors[0].message });
       }
 
-      const { email, password, fullName } = validation.data;
+      const { email, password, fullName, phone } = validation.data;
 
       const { data, error } = await supabase.auth.admin.createUser({
         email,
         password,
-        user_metadata: { full_name: fullName },
+        phone: phone || undefined,
+        user_metadata: { full_name: fullName, phone: phone || null },
       });
 
       if (error) {
+        if (error.message?.includes("duplicate") || error.message?.includes("already exists")) {
+          return res.status(400).json({ error: "An account with this email already exists. Please sign in instead." });
+        }
         console.error("[AUTH] Signup error:", error.message);
-        return res.status(400).json({ error: "Invalid request" });
+        return res.status(400).json({ error: error.message || "Signup failed. Please try again." });
+      }
+
+      // Store user data in users table
+      if (data.user) {
+        try {
+          await supabase
+            .from('users')
+            .upsert({
+              id: data.user.id,
+              email: email,
+              full_name: fullName,
+              phone: phone || null,
+              role: 'renter'
+            }, { onConflict: 'id' });
+        } catch (profileError) {
+          console.error('Failed to save user profile:', profileError);
+        }
       }
 
       res.json({ success: true, user: data.user });
     } catch (err: any) {
       console.error("[AUTH] Signup exception:", err);
-      res.status(500).json({ error: "Invalid request" });
+      res.status(500).json({ error: err.message || "Signup failed. Please try again." });
     }
   });
 

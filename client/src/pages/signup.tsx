@@ -272,7 +272,7 @@ export default function Signup() {
                       <div className="relative">
                         <Input
                           type={showPassword ? 'text' : 'password'}
-                          placeholder="At least 6 characters"
+                          placeholder="Min 8 chars, uppercase, number"
                           disabled={loading || googleLoading}
                           autoComplete="new-password"
                           data-testid="input-password"
