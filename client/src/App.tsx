@@ -39,6 +39,7 @@ const SellerDashboard = lazy(() => import("@/pages/seller-dashboard"));
 const BuyerDashboard = lazy(() => import("@/pages/buyer-dashboard"));
 const PropertyRequirements = lazy(() => import("@/pages/property-requirements"));
 const AgentDashboard = lazy(() => import("@/pages/agent-dashboard"));
+const ApplicationDetail = lazy(() => import("@/pages/application-detail"));
 
 function LoadingFallback() {
   return (
@@ -67,6 +68,13 @@ function Router() {
         <ReactSuspense fallback={<LoadingFallback />}>
           <ProtectedRoute>
             <Applications />
+          </ProtectedRoute>
+        </ReactSuspense>
+      </Route>
+      <Route path="/applications/:id">
+        <ReactSuspense fallback={<LoadingFallback />}>
+          <ProtectedRoute>
+            <ApplicationDetail />
           </ProtectedRoute>
         </ReactSuspense>
       </Route>

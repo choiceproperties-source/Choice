@@ -6,6 +6,8 @@ import { useAuth } from '@/lib/auth-context';
 import { useInquiries } from '@/hooks/use-inquiries';
 import { useRequirements } from '@/hooks/use-requirements';
 import { useProperties } from '@/hooks/use-properties';
+import { useOwnerApplications } from '@/hooks/use-property-applications';
+import { Link } from 'wouter';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -51,6 +53,10 @@ import {
   Bath,
   ArrowRight,
   Sparkles,
+  ClipboardList,
+  XCircle,
+  Eye,
+  AlertTriangle,
 } from 'lucide-react';
 
 export default function AgentDashboard() {
@@ -87,6 +93,7 @@ export default function AgentDashboard() {
     updateRequirement,
   } = useRequirements();
   const { properties, loading: propsLoading } = useProperties();
+  const { applications: ownerApplications, isLoading: appsLoading } = useOwnerApplications();
 
   // Redirect if not logged in or not an agent
   if (!isLoggedIn || !user) {
@@ -299,6 +306,7 @@ export default function AgentDashboard() {
         <div className="flex gap-2 mb-8 flex-wrap border-b border-border">
           {[
             { id: 'inquiries', label: 'Inquiries', icon: MessageSquare, count: stats.inquiries },
+            { id: 'applications', label: 'Applications', icon: ClipboardList, count: ownerApplications.length },
             { id: 'requirements', label: 'Requirements', icon: FileText, count: stats.requirements },
             { id: 'matching', label: 'Property Matching', icon: Target, count: matchedProperties.filter(m => m.matchCount > 0).length },
             { id: 'leads', label: 'Analytics', icon: TrendingUp, count: null },
@@ -389,6 +397,160 @@ export default function AgentDashboard() {
                   </div>
                 </Card>
               ))
+            )}
+          </div>
+        )}
+
+        {/* Applications */}
+        {activeTab === 'applications' && (
+          <div className="space-y-4 pb-12" data-testid="section-applications">
+            {appsLoading ? (
+              <Card className="p-12 text-center">
+                <Loader2 className="h-12 w-12 text-muted-foreground mx-auto mb-4 animate-spin" />
+                <p className="text-foreground font-semibold">Loading applications...</p>
+              </Card>
+            ) : ownerApplications.length === 0 ? (
+              <Card className="p-12 text-center">
+                <ClipboardList className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-foreground font-semibold">No applications yet</p>
+                <p className="text-muted-foreground text-sm mt-2">Applications for your properties will appear here</p>
+              </Card>
+            ) : (
+              ownerApplications.map((app: any) => {
+                const getAppStatusBadge = (status: string) => {
+                  const variants: Record<string, string> = {
+                    approved: 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200',
+                    approved_pending_lease: 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200',
+                    rejected: 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200',
+                    under_review: 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200',
+                    pending_verification: 'bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200',
+                    pending: 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200',
+                    draft: 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200',
+                    withdrawn: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400',
+                    expired: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400',
+                  };
+                  return variants[status] || variants.draft;
+                };
+
+                const getAppStatusIcon = (status: string) => {
+                  switch (status) {
+                    case 'approved':
+                    case 'approved_pending_lease':
+                      return <CheckCircle className="h-5 w-5 text-green-500" />;
+                    case 'rejected':
+                      return <XCircle className="h-5 w-5 text-red-500" />;
+                    case 'under_review':
+                    case 'pending_verification':
+                      return <Clock className="h-5 w-5 text-blue-500" />;
+                    case 'pending':
+                      return <Clock className="h-5 w-5 text-yellow-500" />;
+                    default:
+                      return <FileText className="h-5 w-5 text-gray-500" />;
+                  }
+                };
+
+                const formatAppStatus = (status: string) => {
+                  return status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                };
+
+                return (
+                  <Card
+                    key={app.id}
+                    className="p-6"
+                    data-testid={`card-application-${app.id}`}
+                  >
+                    <div className="flex justify-between items-start mb-4 gap-4 flex-wrap">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-lg text-foreground">
+                          {app.users?.full_name || 'Unknown Applicant'}
+                        </h3>
+                        <div className="flex flex-col gap-1 mt-2 text-sm text-muted-foreground">
+                          <p className="flex items-center gap-2">
+                            <Mail className="h-4 w-4" />
+                            {app.users?.email || 'No email'}
+                          </p>
+                          {app.users?.phone && (
+                            <p className="flex items-center gap-2">
+                              <Phone className="h-4 w-4" />
+                              {app.users.phone}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {getAppStatusIcon(app.status)}
+                        <Badge className={getAppStatusBadge(app.status)}>
+                          {formatAppStatus(app.status)}
+                        </Badge>
+                      </div>
+                    </div>
+
+                    <div className="bg-muted p-4 rounded mb-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Home className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-semibold text-foreground">
+                          {app.properties?.title || 'Unknown Property'}
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {app.properties?.address}
+                        {app.properties?.city && `, ${app.properties.city}`}
+                        {app.properties?.state && `, ${app.properties.state}`}
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Submitted</p>
+                        <p className="font-semibold text-foreground">
+                          {new Date(app.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      {app.score && (
+                        <div>
+                          <p className="text-xs text-muted-foreground">Score</p>
+                          <p className="font-semibold text-foreground">
+                            {app.score}/100
+                          </p>
+                        </div>
+                      )}
+                      {app.employment?.income && (
+                        <div>
+                          <p className="text-xs text-muted-foreground">Monthly Income</p>
+                          <p className="font-semibold text-foreground">
+                            ${Number(app.employment.income).toLocaleString()}
+                          </p>
+                        </div>
+                      )}
+                      {app.expires_at && (
+                        <div>
+                          <p className="text-xs text-muted-foreground">Expires</p>
+                          <p className="font-semibold text-foreground flex items-center gap-1">
+                            <AlertTriangle className="h-3 w-3 text-orange-500" />
+                            {new Date(app.expires_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2 flex-wrap">
+                      <Link href={`/applications/${app.id}`}>
+                        <Button size="sm" data-testid={`button-view-application-${app.id}`}>
+                          <Eye className="h-4 w-4 mr-2" />
+                          View Details
+                        </Button>
+                      </Link>
+                      {app.property_id && (
+                        <Link href={`/property/${app.property_id}`}>
+                          <Button variant="outline" size="sm" data-testid={`button-view-property-${app.id}`}>
+                            View Property
+                          </Button>
+                        </Link>
+                      )}
+                    </div>
+                  </Card>
+                );
+              })
             )}
           </div>
         )}

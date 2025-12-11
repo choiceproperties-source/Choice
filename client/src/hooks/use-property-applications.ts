@@ -1,140 +1,190 @@
-import { useState, useEffect } from 'react';
-import { useAuth } from '@/lib/auth-context';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuth, getAuthToken } from '@/lib/auth-context';
 import { useToast } from '@/hooks/use-toast';
+import { apiRequest } from '@/lib/queryClient';
 
 export interface PropertyApplication {
   id: string;
-  propertyId: string;
-  userId: string;
+  property_id: string;
+  user_id: string;
   step: number;
-  personalInfo?: Record<string, any>;
-  rentalHistory?: Record<string, any>;
+  personal_info?: Record<string, any>;
+  rental_history?: Record<string, any>;
   employment?: Record<string, any>;
   references?: Record<string, any>;
   disclosures?: Record<string, any>;
-  documents?: string[];
-  status: 'pending' | 'approved' | 'rejected';
-  applicationFee?: number;
-  userEmail?: string;
-  userName?: string;
-  createdAt: string;
-  updatedAt?: string;
+  documents?: Record<string, any>;
+  document_status?: Record<string, any>;
+  status: string;
+  previous_status?: string;
+  status_history?: Array<{
+    status: string;
+    changedAt: string;
+    changedBy: string;
+    reason?: string;
+  }>;
+  score?: number;
+  score_breakdown?: {
+    incomeScore: number;
+    creditScore: number;
+    rentalHistoryScore: number;
+    employmentScore: number;
+    documentsScore: number;
+    totalScore: number;
+    maxScore: number;
+    flags: string[];
+  };
+  rejection_category?: string;
+  rejection_reason?: string;
+  application_fee?: number;
+  expires_at?: string;
+  created_at: string;
+  updated_at?: string;
+  users?: {
+    id: string;
+    full_name: string;
+    email: string;
+    phone?: string;
+  };
+  properties?: {
+    id: string;
+    title: string;
+    address: string;
+    city?: string;
+    state?: string;
+  };
 }
 
-export function usePropertyApplications() {
+interface ApplicationsResponse {
+  success: boolean;
+  data: PropertyApplication[];
+  message: string;
+}
+
+export function usePropertyApplications(propertyId?: string) {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [applications, setApplications] = useState<PropertyApplication[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-  // Fetch applications for owner's properties
-  useEffect(() => {
-    if (!user || user.role !== 'owner') {
-      const localApps = JSON.parse(
-        localStorage.getItem('choiceProperties_ownerApplications') || '[]'
-      );
-      setApplications(localApps);
-      return;
-    }
+  const queryKey = propertyId 
+    ? ['/api/applications/property', propertyId]
+    : ['/api/applications/owner'];
 
-    const fetchApplications = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        // Fetch applications for all owner's properties
-        const response = await fetch(
-          `/api/applications/property/${user.id}`,
-          {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-            },
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch applications');
-        }
-
-        const data = await response.json();
-        // Handle standardized response format
-        const appList = data.data || data.applications || [];
-        setApplications(appList);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Error fetching applications';
-        setError(message);
-        // Fallback to localStorage
-        const localApps = JSON.parse(
-          localStorage.getItem('choiceProperties_ownerApplications') || '[]'
-        );
-        setApplications(localApps);
-      } finally {
-        setLoading(false);
+  const { data: response, isLoading, error, refetch } = useQuery<ApplicationsResponse>({
+    queryKey,
+    queryFn: async () => {
+      const token = await getAuthToken();
+      const url = propertyId 
+        ? `/api/applications/property/${propertyId}`
+        : `/api/applications/owner`;
+      
+      const res = await fetch(url, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        credentials: 'include',
+      });
+      
+      if (!res.ok) {
+        throw new Error('Failed to fetch applications');
       }
-    };
+      
+      return res.json();
+    },
+    enabled: !!user && (user.role === 'owner' || user.role === 'agent' || user.role === 'admin' || !!propertyId),
+  });
 
-    fetchApplications();
-  }, [user]);
+  const applications = response?.success ? response.data : [];
 
-  // Update application status
-  const updateApplicationStatus = async (
-    applicationId: string,
-    status: 'pending' | 'approved' | 'rejected'
-  ) => {
-    if (!user) {
-      const updated = applications.map((a) =>
-        a.id === applicationId ? { ...a, status, updatedAt: new Date().toISOString() } : a
-      );
-      localStorage.setItem('choiceProperties_ownerApplications', JSON.stringify(updated));
-      setApplications(updated);
-      toast({
-        title: 'Success',
-        description: `Application ${status}`,
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({
+      applicationId,
+      status,
+      options,
+    }: {
+      applicationId: string;
+      status: string;
+      options?: {
+        rejectionCategory?: string;
+        rejectionReason?: string;
+        reason?: string;
+      };
+    }) => {
+      return apiRequest('PATCH', `/api/applications/${applicationId}/status`, {
+        status,
+        ...options,
       });
-      return updated.find((a) => a.id === applicationId) || null;
-    }
-
-    try {
-      const response = await fetch(`/api/applications/${applicationId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-        },
-        body: JSON.stringify({ status }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update application');
-      }
-
-      const data = await response.json();
-      const updatedApp = data.data || data;
-      const updated = applications.map((a) =>
-        a.id === applicationId ? updatedApp : a
-      );
-      setApplications(updated);
+    },
+    onSuccess: () => {
+      toast({ title: 'Application status updated' });
+      queryClient.invalidateQueries({ queryKey: ['/api/applications'] });
+      refetch();
+    },
+    onError: (err: any) => {
       toast({
-        title: 'Success',
-        description: `Application marked as ${status}`,
-      });
-      return updatedApp;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error updating application';
-      setError(message);
-      toast({
-        title: 'Error',
-        description: message,
+        title: 'Failed to update status',
+        description: err.message,
         variant: 'destructive',
       });
-      return null;
-    }
-  };
+    },
+  });
+
+  const scoreApplicationMutation = useMutation({
+    mutationFn: async (applicationId: string) => {
+      return apiRequest('POST', `/api/applications/${applicationId}/score`);
+    },
+    onSuccess: () => {
+      toast({ title: 'Application scored successfully' });
+      refetch();
+    },
+    onError: (err: any) => {
+      toast({
+        title: 'Failed to score application',
+        description: err.message,
+        variant: 'destructive',
+      });
+    },
+  });
 
   return {
     applications,
-    loading,
+    isLoading,
     error,
-    updateApplicationStatus,
+    refetch,
+    updateStatus: updateStatusMutation.mutate,
+    isUpdatingStatus: updateStatusMutation.isPending,
+    scoreApplication: scoreApplicationMutation.mutate,
+    isScoringApplication: scoreApplicationMutation.isPending,
+  };
+}
+
+export function useOwnerApplications() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data: response, isLoading, error, refetch } = useQuery<ApplicationsResponse>({
+    queryKey: ['/api/applications/owner'],
+    queryFn: async () => {
+      const token = await getAuthToken();
+      const res = await fetch('/api/applications/owner', {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        credentials: 'include',
+      });
+      
+      if (!res.ok) {
+        throw new Error('Failed to fetch applications');
+      }
+      
+      return res.json();
+    },
+    enabled: !!user && (user.role === 'owner' || user.role === 'agent' || user.role === 'admin'),
+  });
+
+  const applications = response?.success ? response.data : [];
+
+  return {
+    applications,
+    isLoading,
+    error,
+    refetch,
   };
 }

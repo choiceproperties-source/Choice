@@ -335,6 +335,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/applications/owner", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      // Allow owners, agents, and admins to access this endpoint
+      if (req.user!.role !== "owner" && req.user!.role !== "agent" && req.user!.role !== "admin") {
+        return res.status(403).json({ error: "Not authorized - property owners/agents/admins only" });
+      }
+
+      const { data: ownedProperties, error: propError } = await supabase
+        .from("properties")
+        .select("id")
+        .eq("owner_id", req.user!.id);
+
+      if (propError) throw propError;
+
+      if (!ownedProperties || ownedProperties.length === 0) {
+        return res.json(success([], "No applications found"));
+      }
+
+      const propertyIds = ownedProperties.map(p => p.id);
+
+      const { data, error } = await supabase
+        .from("applications")
+        .select("*, users(id, full_name, email, phone), properties(id, title, address, city, state)")
+        .in("property_id", propertyIds)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return res.json(success(data, "Owner applications fetched successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to fetch owner applications"));
+    }
+  });
+
   app.get("/api/applications/property/:propertyId", authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
       const { data: property, error: propertyError } = await supabase

@@ -257,6 +257,11 @@ export default function Applications() {
                       </div>
                     </div>
                     <div className="flex gap-2 mt-4 flex-wrap">
+                      <Link href={`/applications/${app.id}`}>
+                        <Button size="sm" data-testid={`button-view-details-${app.id}`}>
+                          View Details
+                        </Button>
+                      </Link>
                       {app.propertyId && (
                         <Link href={`/property/${app.propertyId}`}>
                           <Button variant="outline" size="sm" data-testid={`button-view-property-${app.id}`}>
@@ -266,7 +271,7 @@ export default function Applications() {
                       )}
                       {app.status === "draft" && (
                         <Link href={`/apply?propertyId=${app.propertyId}&applicationId=${app.id}`}>
-                          <Button size="sm" data-testid={`button-continue-application-${app.id}`}>
+                          <Button size="sm" variant="outline" data-testid={`button-continue-application-${app.id}`}>
                             Continue Application
                           </Button>
                         </Link>
