@@ -407,7 +407,9 @@ export const signupSchema = z.object({
     .regex(/[0-9]/, "Password must contain at least one number"),
   fullName: z.string().min(1, "Full name is required"),
   phone: z.string()
-    .regex(/^\+?1?[-.\s]?(\(?\d{3}\)?[-.\s]?)?\d{3}[-.\s]?\d{4}$/, "Invalid phone number format")
+    // Accepts international phone numbers with optional + prefix, country code, and flexible formatting
+    // Examples: +1 555-123-4567, 555.123.4567, (555) 123-4567, +44 20 7946 0958, +81-90-1234-5678
+    .regex(/^[\+]?[(]?[0-9]{1,4}[)]?[-\s\.]?[(]?[0-9]{1,4}[)]?[-\s\.]?[0-9]{1,9}$/, "Please enter a valid phone number")
     .optional()
     .or(z.literal("")),
 });
