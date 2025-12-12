@@ -192,6 +192,11 @@ export default function Admin() {
   }
 
   // Stats calculations
+  const scoredApplications = applications.filter(a => a.score !== undefined && a.score !== null);
+  const highScoreApplications = scoredApplications.filter(a => (a.score || 0) >= 70);
+  const pendingHighScore = applications.filter(a => a.status === 'pending' && (a.score || 0) >= 70);
+  const underReviewApplications = applications.filter(a => a.status === 'under_review');
+  
   const stats = {
     totalProperties: properties.length,
     activeProperties: properties.filter(p => p.status === 'active').length,
@@ -204,8 +209,13 @@ export default function Admin() {
     avgRating: reviews.length > 0 ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1) : '0',
     totalApplications: applications.length,
     pendingApplications: applications.filter(a => a.status === 'pending').length,
+    underReviewApplications: underReviewApplications.length,
     approvedApplications: applications.filter(a => a.status === 'approved').length,
     rejectedApplications: applications.filter(a => a.status === 'rejected').length,
+    scoredApplications: scoredApplications.length,
+    avgScore: scoredApplications.length > 0 ? Math.round(scoredApplications.reduce((sum, a) => sum + (a.score || 0), 0) / scoredApplications.length) : 0,
+    highScoreCount: highScoreApplications.length,
+    pendingHighScoreCount: pendingHighScore.length,
     totalInquiries: inquiries.length,
     pendingInquiries: inquiries.filter(i => i.status === 'pending').length,
     totalSavedSearches: savedSearches.length,
@@ -606,7 +616,7 @@ export default function Admin() {
                 </Card>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-lg">Users by Role</CardTitle>
@@ -642,7 +652,124 @@ export default function Admin() {
                     </ResponsiveContainer>
                   </CardContent>
                 </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Application Scoring</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-muted-foreground">Scored Applications</span>
+                        <span className="font-bold" data-testid="stat-scored">{stats.scoredApplications}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-muted-foreground">Average Score</span>
+                        <Badge variant={stats.avgScore >= 70 ? 'default' : 'secondary'} data-testid="stat-avg-score">
+                          {stats.avgScore}/100
+                        </Badge>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-muted-foreground">High Score (70+)</span>
+                        <span className="font-bold text-green-600" data-testid="stat-high-score">{stats.highScoreCount}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-muted-foreground">Under Review</span>
+                        <span className="font-bold text-blue-600" data-testid="stat-under-review">{stats.underReviewApplications}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
+
+              {pendingHighScore.length > 0 && (
+                <Card className="border-green-200 dark:border-green-800">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <CheckCircle className="h-5 w-5 text-green-600" />
+                      Quick Actions: High-Scoring Pending Applications
+                    </CardTitle>
+                    <CardDescription>
+                      These applications have a score of 70 or higher and are awaiting review
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                      {pendingHighScore.slice(0, 5).map((app) => (
+                        <div key={app.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg" data-testid={`quick-action-${app.id}`}>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{app.users?.full_name || 'Applicant'}</span>
+                              <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                Score: {app.score}/100
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {app.properties?.title || 'Property'} - Applied {new Date(app.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => { setSelectedApplication(app); setShowApplicationDetails(true); }}
+                              data-testid={`quick-view-${app.id}`}
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              Review
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => handleUpdateApplicationStatus(app.id, 'approved')}
+                              data-testid={`quick-approve-${app.id}`}
+                            >
+                              <Check className="h-4 w-4 mr-1" />
+                              Approve
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Recent Activity</CardTitle>
+                  <CardDescription>Latest applications and inquiries</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3 max-h-[250px] overflow-y-auto">
+                    {[...applications.slice(0, 3).map(a => ({ type: 'application', data: a, date: new Date(a.created_at) })),
+                      ...inquiries.slice(0, 3).map(i => ({ type: 'inquiry', data: i, date: new Date(i.created_at) }))]
+                      .sort((a, b) => b.date.getTime() - a.date.getTime())
+                      .slice(0, 5)
+                      .map((item, idx) => (
+                        <div key={idx} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50">
+                          {item.type === 'application' ? (
+                            <FileText className="h-4 w-4 text-green-600" />
+                          ) : (
+                            <MessageSquare className="h-4 w-4 text-yellow-600" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">
+                              {item.type === 'application' 
+                                ? `New application for ${(item.data as Application).properties?.title || 'property'}`
+                                : `Inquiry from ${(item.data as Inquiry).sender_name}`}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {item.date.toLocaleString()}
+                            </p>
+                          </div>
+                          <Badge variant="secondary" className="text-xs">
+                            {item.type === 'application' ? (item.data as Application).status : (item.data as Inquiry).status}
+                          </Badge>
+                        </div>
+                      ))}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           )}
 
