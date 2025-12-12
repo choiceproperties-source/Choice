@@ -315,12 +315,13 @@ export default function Properties() {
       </div>
 
       {/* Mobile Filters Drawer */}
-      <Drawer open={isMobileFiltersOpen} onOpenChange={setIsMobileFiltersOpen}>
-        <DrawerContent>
-          <DrawerHeader className="border-b">
-            <DrawerTitle>Filters</DrawerTitle>
-          </DrawerHeader>
-          <div className="p-4 space-y-4 pb-8">
+      {isMobileFiltersOpen && (
+        <Drawer open={isMobileFiltersOpen} onOpenChange={setIsMobileFiltersOpen}>
+          <DrawerContent>
+            <DrawerHeader className="border-b">
+              <DrawerTitle>Filters</DrawerTitle>
+            </DrawerHeader>
+            <div className="p-4 space-y-4 pb-8">
             <div>
               <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 block">Price Range</label>
               <div className="flex gap-2 items-center">
@@ -434,26 +435,12 @@ export default function Properties() {
           </div>
         </DrawerContent>
       </Drawer>
+      )}
 
       {/* Split Layout: Map (Right) & List (Left) */}
       <div className="flex-1 flex overflow-hidden relative">
-         {/* Right Side Map (Mobile hidden or stacked) */}
-         <div className="hidden lg:block w-1/2 h-full relative z-0">
-             <MapView 
-                center={[34.0522, -118.2437]} 
-                zoom={12}
-                markers={mapMarkers}
-                className="h-full w-full rounded-none border-none"
-             />
-             {/* Floating pill buttons on map */}
-             <div className="absolute top-4 left-4 z-[400] flex gap-2">
-                 <Button variant="secondary" size="sm" className="shadow-md bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">Draw</Button>
-                 <Button variant="secondary" size="sm" className="shadow-md bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">Satellite</Button>
-             </div>
-         </div>
-
          {/* Left Side List */}
-         <div className="w-full lg:w-1/2 overflow-y-auto p-4 shadow-2xl z-10 bg-white dark:bg-gray-950 border-l dark:border-gray-800">
+         <div className="w-full overflow-y-auto p-4 shadow-2xl z-10 bg-white dark:bg-gray-950 border-l dark:border-gray-800">
              <div className="flex justify-between items-center mb-4 px-2">
                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Real Estate & Homes For Rent</h2>
                  <span className="text-gray-500 dark:text-gray-400 text-sm font-semibold bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded-full" data-testid="text-results-count">{filteredProperties.length} results</span>
