@@ -20,6 +20,9 @@ import {
   insertSavedSearchSchema,
   insertNewsletterSubscriberSchema,
   insertContactMessageSchema,
+  insertAgencySchema,
+  insertTransactionSchema,
+  insertAgentReviewSchema,
 } from "@shared/schema";
 import { authLimiter, signupLimiter, inquiryLimiter, newsletterLimiter } from "./rate-limit";
 import { cache, CACHE_TTL } from "./cache";
@@ -1910,6 +1913,571 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.json(success(data, "Property with owner fetched successfully"));
     } catch (err: any) {
       return res.status(500).json(errorResponse("Failed to fetch property"));
+    }
+  });
+
+  // ===== AGENCIES =====
+  app.get("/api/agencies", async (req, res) => {
+    try {
+      const { data, error } = await supabase
+        .from("agencies")
+        .select("*")
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return res.json(success(data, "Agencies fetched successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to fetch agencies"));
+    }
+  });
+
+  app.get("/api/agencies/:id", async (req, res) => {
+    try {
+      const { data, error } = await supabase
+        .from("agencies")
+        .select(`
+          *,
+          agents:users!users_agency_id_fkey (
+            id, full_name, email, phone, profile_image, bio, 
+            license_number, license_verified, specialties, 
+            years_experience, total_sales, rating, review_count, location
+          )
+        `)
+        .eq("id", req.params.id)
+        .is("deleted_at", null)
+        .single();
+
+      if (error) throw error;
+      return res.json(success(data, "Agency fetched successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to fetch agency"));
+    }
+  });
+
+  app.post("/api/agencies", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const validation = insertAgencySchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json(errorResponse(validation.error.errors[0].message));
+      }
+
+      const agencyData = {
+        ...validation.data,
+        owner_id: req.user?.id,
+      };
+
+      const { data, error } = await supabase
+        .from("agencies")
+        .insert(agencyData)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Update the creator's agency_id
+      if (data && req.user?.id) {
+        await supabase
+          .from("users")
+          .update({ agency_id: data.id })
+          .eq("id", req.user.id);
+      }
+
+      return res.json(success(data, "Agency created successfully"));
+    } catch (err: any) {
+      console.error("[AGENCY] Create error:", err);
+      return res.status(500).json(errorResponse("Failed to create agency"));
+    }
+  });
+
+  app.patch("/api/agencies/:id", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      // Check ownership
+      const { data: agency } = await supabase
+        .from("agencies")
+        .select("owner_id")
+        .eq("id", req.params.id)
+        .single();
+
+      if (!agency || (agency.owner_id !== req.user?.id && req.user?.role !== "admin")) {
+        return res.status(403).json(errorResponse("Not authorized to update this agency"));
+      }
+
+      const { data, error } = await supabase
+        .from("agencies")
+        .update({ ...req.body, updated_at: new Date().toISOString() })
+        .eq("id", req.params.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return res.json(success(data, "Agency updated successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to update agency"));
+    }
+  });
+
+  app.delete("/api/agencies/:id", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data: agency } = await supabase
+        .from("agencies")
+        .select("owner_id")
+        .eq("id", req.params.id)
+        .single();
+
+      if (!agency || (agency.owner_id !== req.user?.id && req.user?.role !== "admin")) {
+        return res.status(403).json(errorResponse("Not authorized to delete this agency"));
+      }
+
+      const { error } = await supabase
+        .from("agencies")
+        .update({ deleted_at: new Date().toISOString() })
+        .eq("id", req.params.id);
+
+      if (error) throw error;
+      return res.json(success(null, "Agency deleted successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to delete agency"));
+    }
+  });
+
+  // Get agency's agents
+  app.get("/api/agencies/:id/agents", async (req, res) => {
+    try {
+      const { data, error } = await supabase
+        .from("users")
+        .select("id, full_name, email, phone, profile_image, bio, license_number, license_verified, specialties, years_experience, total_sales, rating, review_count, location, role")
+        .eq("agency_id", req.params.id)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return res.json(success(data, "Agency agents fetched successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to fetch agency agents"));
+    }
+  });
+
+  // Add agent to agency
+  app.post("/api/agencies/:id/agents", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data: agency } = await supabase
+        .from("agencies")
+        .select("owner_id")
+        .eq("id", req.params.id)
+        .single();
+
+      if (!agency || (agency.owner_id !== req.user?.id && req.user?.role !== "admin")) {
+        return res.status(403).json(errorResponse("Not authorized to add agents to this agency"));
+      }
+
+      const { agentId } = req.body;
+      if (!agentId) {
+        return res.status(400).json(errorResponse("Agent ID is required"));
+      }
+
+      const { data, error } = await supabase
+        .from("users")
+        .update({ agency_id: req.params.id })
+        .eq("id", agentId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return res.json(success(data, "Agent added to agency successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to add agent to agency"));
+    }
+  });
+
+  // Remove agent from agency
+  app.delete("/api/agencies/:id/agents/:agentId", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data: agency } = await supabase
+        .from("agencies")
+        .select("owner_id")
+        .eq("id", req.params.id)
+        .single();
+
+      if (!agency || (agency.owner_id !== req.user?.id && req.user?.role !== "admin")) {
+        return res.status(403).json(errorResponse("Not authorized to remove agents from this agency"));
+      }
+
+      const { error } = await supabase
+        .from("users")
+        .update({ agency_id: null })
+        .eq("id", req.params.agentId)
+        .eq("agency_id", req.params.id);
+
+      if (error) throw error;
+      return res.json(success(null, "Agent removed from agency successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to remove agent from agency"));
+    }
+  });
+
+  // ===== AGENTS (Database-driven) =====
+  app.get("/api/agents", async (req, res) => {
+    try {
+      const { specialty, search, location } = req.query;
+      
+      let query = supabase
+        .from("users")
+        .select(`
+          id, full_name, email, phone, profile_image, bio,
+          license_number, license_state, license_expiry, license_verified,
+          specialties, years_experience, total_sales, rating, review_count, location,
+          agency:agency_id (id, name, logo)
+        `)
+        .eq("role", "agent")
+        .is("deleted_at", null);
+
+      if (location) {
+        query = query.ilike("location", `%${location}%`);
+      }
+
+      if (search) {
+        query = query.or(`full_name.ilike.%${search}%,location.ilike.%${search}%`);
+      }
+
+      const { data, error } = await query.order("rating", { ascending: false, nullsFirst: false });
+
+      if (error) throw error;
+
+      // Filter by specialty if provided (handled client-side since jsonb array filtering is complex)
+      let filteredData = data || [];
+      if (specialty && specialty !== "all") {
+        filteredData = filteredData.filter((agent: any) => 
+          agent.specialties?.includes(specialty)
+        );
+      }
+
+      return res.json(success(filteredData, "Agents fetched successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to fetch agents"));
+    }
+  });
+
+  app.get("/api/agents/:id", async (req, res) => {
+    try {
+      const { data, error } = await supabase
+        .from("users")
+        .select(`
+          id, full_name, email, phone, profile_image, bio,
+          license_number, license_state, license_expiry, license_verified,
+          specialties, years_experience, total_sales, rating, review_count, location,
+          agency:agency_id (id, name, logo, website, phone, email)
+        `)
+        .eq("id", req.params.id)
+        .eq("role", "agent")
+        .single();
+
+      if (error) throw error;
+      return res.json(success(data, "Agent fetched successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to fetch agent"));
+    }
+  });
+
+  // Update agent profile (self)
+  app.patch("/api/agents/:id/profile", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      if (req.user?.id !== req.params.id && req.user?.role !== "admin") {
+        return res.status(403).json(errorResponse("Not authorized to update this profile"));
+      }
+
+      const allowedFields = [
+        "bio", "profile_image", "phone", "location",
+        "license_number", "license_state", "license_expiry",
+        "specialties", "years_experience"
+      ];
+
+      const updateData: any = {};
+      for (const field of allowedFields) {
+        if (req.body[field] !== undefined) {
+          updateData[field] = req.body[field];
+        }
+      }
+      updateData.updated_at = new Date().toISOString();
+
+      const { data, error } = await supabase
+        .from("users")
+        .update(updateData)
+        .eq("id", req.params.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return res.json(success(data, "Agent profile updated successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to update agent profile"));
+    }
+  });
+
+  // Get agent's properties (listings)
+  app.get("/api/agents/:id/properties", async (req, res) => {
+    try {
+      const { data, error } = await supabase
+        .from("properties")
+        .select("*")
+        .eq("listing_agent_id", req.params.id)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return res.json(success(data, "Agent properties fetched successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to fetch agent properties"));
+    }
+  });
+
+  // Get agent's reviews
+  app.get("/api/agents/:id/reviews", async (req, res) => {
+    try {
+      const { data, error } = await supabase
+        .from("agent_reviews")
+        .select(`
+          *,
+          reviewer:reviewer_id (id, full_name, profile_image)
+        `)
+        .eq("agent_id", req.params.id)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return res.json(success(data, "Agent reviews fetched successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to fetch agent reviews"));
+    }
+  });
+
+  // Submit agent review
+  app.post("/api/agents/:id/reviews", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const validation = insertAgentReviewSchema.safeParse({
+        ...req.body,
+        agentId: req.params.id,
+        reviewerId: req.user?.id,
+      });
+
+      if (!validation.success) {
+        return res.status(400).json(errorResponse(validation.error.errors[0].message));
+      }
+
+      const { data, error } = await supabase
+        .from("agent_reviews")
+        .insert({
+          agent_id: req.params.id,
+          reviewer_id: req.user?.id,
+          rating: req.body.rating,
+          title: req.body.title,
+          comment: req.body.comment,
+          would_recommend: req.body.wouldRecommend ?? true,
+          transaction_id: req.body.transactionId,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        if (error.code === "23505") {
+          return res.status(400).json(errorResponse("You have already reviewed this agent"));
+        }
+        throw error;
+      }
+
+      // Update agent's rating
+      const { data: reviews } = await supabase
+        .from("agent_reviews")
+        .select("rating")
+        .eq("agent_id", req.params.id);
+
+      if (reviews && reviews.length > 0) {
+        const avgRating = reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length;
+        await supabase
+          .from("users")
+          .update({ 
+            rating: avgRating.toFixed(2), 
+            review_count: reviews.length 
+          })
+          .eq("id", req.params.id);
+      }
+
+      return res.json(success(data, "Review submitted successfully"));
+    } catch (err: any) {
+      console.error("[AGENT REVIEW] Error:", err);
+      return res.status(500).json(errorResponse("Failed to submit review"));
+    }
+  });
+
+  // ===== TRANSACTIONS =====
+  app.get("/api/transactions", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const userId = req.user?.id;
+      const role = req.user?.role;
+
+      let query = supabase
+        .from("transactions")
+        .select(`
+          *,
+          property:property_id (id, title, address, city, state),
+          agent:agent_id (id, full_name, email),
+          agency:agency_id (id, name),
+          buyer:buyer_id (id, full_name, email)
+        `);
+
+      // Filter based on role
+      if (role === "agent") {
+        query = query.eq("agent_id", userId);
+      } else if (role !== "admin") {
+        // Agency owner or broker sees all agency transactions
+        const { data: userAgency } = await supabase
+          .from("agencies")
+          .select("id")
+          .eq("owner_id", userId)
+          .single();
+
+        if (userAgency) {
+          query = query.eq("agency_id", userAgency.id);
+        } else {
+          query = query.eq("agent_id", userId);
+        }
+      }
+
+      const { data, error } = await query.order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return res.json(success(data, "Transactions fetched successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to fetch transactions"));
+    }
+  });
+
+  app.post("/api/transactions", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const validation = insertTransactionSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json(errorResponse(validation.error.errors[0].message));
+      }
+
+      // Calculate commissions
+      const transactionAmount = parseFloat(req.body.transactionAmount || "0");
+      const commissionRate = parseFloat(req.body.commissionRate || "3");
+      const agentSplit = parseFloat(req.body.agentSplit || "70");
+
+      const commissionAmount = (transactionAmount * commissionRate) / 100;
+      const agentCommission = (commissionAmount * agentSplit) / 100;
+      const agencyCommission = commissionAmount - agentCommission;
+
+      const { data, error } = await supabase
+        .from("transactions")
+        .insert({
+          ...validation.data,
+          commission_amount: commissionAmount,
+          agent_commission: agentCommission,
+          agency_commission: agencyCommission,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Update agent's total sales
+      if (req.body.agentId && req.body.status === "completed") {
+        await supabase.rpc("increment_agent_sales", { agent_id: req.body.agentId });
+      }
+
+      return res.json(success(data, "Transaction created successfully"));
+    } catch (err: any) {
+      console.error("[TRANSACTION] Create error:", err);
+      return res.status(500).json(errorResponse("Failed to create transaction"));
+    }
+  });
+
+  app.patch("/api/transactions/:id/status", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { status } = req.body;
+      const updateData: any = { status, updated_at: new Date().toISOString() };
+
+      if (status === "completed") {
+        updateData.closed_at = new Date().toISOString();
+      }
+
+      const { data, error } = await supabase
+        .from("transactions")
+        .update(updateData)
+        .eq("id", req.params.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Update agent's total sales when completed
+      if (status === "completed" && data.agent_id) {
+        const { data: agent } = await supabase
+          .from("users")
+          .select("total_sales")
+          .eq("id", data.agent_id)
+          .single();
+
+        await supabase
+          .from("users")
+          .update({ total_sales: (agent?.total_sales || 0) + 1 })
+          .eq("id", data.agent_id);
+      }
+
+      return res.json(success(data, "Transaction status updated successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to update transaction status"));
+    }
+  });
+
+  // Agency dashboard stats
+  app.get("/api/agencies/:id/stats", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const agencyId = req.params.id;
+
+      const [agentsResult, transactionsResult, propertiesResult] = await Promise.all([
+        supabase
+          .from("users")
+          .select("id, total_sales, rating")
+          .eq("agency_id", agencyId)
+          .is("deleted_at", null),
+        supabase
+          .from("transactions")
+          .select("*")
+          .eq("agency_id", agencyId),
+        supabase
+          .from("properties")
+          .select("id, status")
+          .eq("agency_id", agencyId)
+          .is("deleted_at", null),
+      ]);
+
+      const agents = agentsResult.data || [];
+      const transactions = transactionsResult.data || [];
+      const properties = propertiesResult.data || [];
+
+      const completedTransactions = transactions.filter(t => t.status === "completed");
+      const totalRevenue = completedTransactions.reduce((acc, t) => acc + parseFloat(t.agency_commission || "0"), 0);
+      const totalCommissions = completedTransactions.reduce((acc, t) => acc + parseFloat(t.commission_amount || "0"), 0);
+
+      const stats = {
+        totalAgents: agents.length,
+        totalProperties: properties.length,
+        activeListings: properties.filter(p => p.status === "active").length,
+        totalTransactions: transactions.length,
+        completedTransactions: completedTransactions.length,
+        pendingTransactions: transactions.filter(t => t.status === "pending").length,
+        totalRevenue,
+        totalCommissions,
+        averageAgentRating: agents.length > 0 
+          ? agents.reduce((acc, a) => acc + parseFloat(a.rating || "0"), 0) / agents.length 
+          : 0,
+        totalSales: agents.reduce((acc, a) => acc + (a.total_sales || 0), 0),
+      };
+
+      return res.json(success(stats, "Agency stats fetched successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to fetch agency stats"));
     }
   });
 

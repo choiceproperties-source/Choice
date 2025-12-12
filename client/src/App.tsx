@@ -41,6 +41,7 @@ const SellerDashboard = lazy(() => import("@/pages/seller-dashboard"));
 const BuyerDashboard = lazy(() => import("@/pages/buyer-dashboard"));
 const PropertyRequirements = lazy(() => import("@/pages/property-requirements"));
 const AgentDashboard = lazy(() => import("@/pages/agent-dashboard"));
+const AgencyDashboard = lazy(() => import("@/pages/agency-dashboard"));
 const ApplicationDetail = lazy(() => import("@/pages/application-detail"));
 
 function LoadingFallback() {
@@ -197,6 +198,13 @@ function Router() {
         <ReactSuspense fallback={<LoadingFallback />}>
           <ProtectedRoute requiredRoles={['agent', 'admin']}>
             <AgentDashboard />
+          </ProtectedRoute>
+        </ReactSuspense>
+      </Route>
+      <Route path="/agency-dashboard">
+        <ReactSuspense fallback={<LoadingFallback />}>
+          <ProtectedRoute requiredRoles={['agent', 'admin', 'property_manager']}>
+            <AgencyDashboard />
           </ProtectedRoute>
         </ReactSuspense>
       </Route>

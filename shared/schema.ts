@@ -3,6 +3,28 @@ import { pgTable, text, uuid, timestamp, integer, decimal, boolean, jsonb, date,
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+export const agencies = pgTable("agencies", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  logo: text("logo"),
+  website: text("website"),
+  email: text("email"),
+  phone: text("phone"),
+  address: text("address"),
+  city: text("city"),
+  state: text("state"),
+  zipCode: text("zip_code"),
+  licenseNumber: text("license_number"),
+  licenseExpiry: date("license_expiry"),
+  commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }),
+  status: text("status").default("active"),
+  ownerId: uuid("owner_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  deletedAt: timestamp("deleted_at"),
+});
+
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   email: text("email").notNull().unique(),
@@ -12,6 +34,17 @@ export const users = pgTable("users", {
   role: text("role").default("user"),
   profileImage: text("profile_image"),
   bio: text("bio"),
+  agencyId: uuid("agency_id").references(() => agencies.id, { onDelete: "set null" }),
+  licenseNumber: text("license_number"),
+  licenseState: text("license_state"),
+  licenseExpiry: date("license_expiry"),
+  licenseVerified: boolean("license_verified").default(false),
+  specialties: jsonb("specialties").$type<string[]>(),
+  yearsExperience: integer("years_experience"),
+  totalSales: integer("total_sales").default(0),
+  rating: decimal("rating", { precision: 3, scale: 2 }),
+  reviewCount: integer("review_count").default(0),
+  location: text("location"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
   deletedAt: timestamp("deleted_at"),
@@ -20,6 +53,8 @@ export const users = pgTable("users", {
 export const properties = pgTable("properties", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   ownerId: uuid("owner_id").references(() => users.id, { onDelete: "cascade" }),
+  listingAgentId: uuid("listing_agent_id").references(() => users.id, { onDelete: "set null" }),
+  agencyId: uuid("agency_id").references(() => agencies.id, { onDelete: "set null" }),
   title: text("title").notNull(),
   description: text("description"),
   address: text("address").notNull(),
@@ -40,6 +75,9 @@ export const properties = pgTable("properties", {
   leaseTerm: text("lease_term"),
   utilitiesIncluded: jsonb("utilities_included"),
   status: text("status").default("active"),
+  listedAt: timestamp("listed_at"),
+  soldAt: timestamp("sold_at"),
+  soldPrice: decimal("sold_price", { precision: 12, scale: 2 }),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
   deletedAt: timestamp("deleted_at"),
@@ -262,6 +300,52 @@ export const contactMessages = pgTable("contact_messages", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const TRANSACTION_TYPES = ["sale", "lease", "referral"] as const;
+export const TRANSACTION_STATUSES = ["pending", "in_progress", "completed", "cancelled"] as const;
+
+export const transactions = pgTable("transactions", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  propertyId: uuid("property_id").references(() => properties.id, { onDelete: "set null" }),
+  agentId: uuid("agent_id").references(() => users.id, { onDelete: "set null" }),
+  agencyId: uuid("agency_id").references(() => agencies.id, { onDelete: "set null" }),
+  buyerId: uuid("buyer_id").references(() => users.id, { onDelete: "set null" }),
+  applicationId: uuid("application_id").references(() => applications.id, { onDelete: "set null" }),
+  transactionType: text("transaction_type").default("lease"),
+  transactionAmount: decimal("transaction_amount", { precision: 12, scale: 2 }),
+  commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }),
+  commissionAmount: decimal("commission_amount", { precision: 12, scale: 2 }),
+  agentSplit: decimal("agent_split", { precision: 5, scale: 2 }),
+  agentCommission: decimal("agent_commission", { precision: 12, scale: 2 }),
+  agencyCommission: decimal("agency_commission", { precision: 12, scale: 2 }),
+  status: text("status").default("pending"),
+  closedAt: timestamp("closed_at"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const agentReviews = pgTable("agent_reviews", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  agentId: uuid("agent_id").references(() => users.id, { onDelete: "cascade" }),
+  reviewerId: uuid("reviewer_id").references(() => users.id, { onDelete: "cascade" }),
+  transactionId: uuid("transaction_id").references(() => transactions.id, { onDelete: "set null" }),
+  rating: integer("rating").notNull(),
+  title: text("title"),
+  comment: text("comment"),
+  wouldRecommend: boolean("would_recommend").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  reviewerAgentUnique: unique().on(table.reviewerId, table.agentId),
+}));
+
+export const insertAgencySchema = createInsertSchema(agencies).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  deletedAt: true,
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
@@ -357,6 +441,22 @@ export const insertContactMessageSchema = createInsertSchema(contactMessages).om
   read: true,
 });
 
+export const insertTransactionSchema = createInsertSchema(transactions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  closedAt: true,
+});
+
+export const insertAgentReviewSchema = createInsertSchema(agentReviews).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertAgency = z.infer<typeof insertAgencySchema>;
+export type Agency = typeof agencies.$inferSelect;
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
@@ -398,6 +498,14 @@ export type NewsletterSubscriber = typeof newsletterSubscribers.$inferSelect;
 
 export type InsertContactMessage = z.infer<typeof insertContactMessageSchema>;
 export type ContactMessage = typeof contactMessages.$inferSelect;
+
+export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
+export type Transaction = typeof transactions.$inferSelect;
+export type TransactionType = typeof TRANSACTION_TYPES[number];
+export type TransactionStatus = typeof TRANSACTION_STATUSES[number];
+
+export type InsertAgentReview = z.infer<typeof insertAgentReviewSchema>;
+export type AgentReview = typeof agentReviews.$inferSelect;
 
 export const signupSchema = z.object({
   email: z.string().email("Invalid email address"),
