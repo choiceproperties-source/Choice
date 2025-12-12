@@ -74,6 +74,24 @@ export function PropertyOverview({ property }: PropertyOverviewProps) {
               >
                 {property.property_type || 'Not specified'}
               </Badge>
+              {property.furnished && (
+                <Badge 
+                  variant="secondary" 
+                  className="bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-100 text-sm"
+                  data-testid="badge-furnished"
+                >
+                  Furnished
+                </Badge>
+              )}
+              {property.pets_allowed && (
+                <Badge 
+                  variant="secondary" 
+                  className="bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-100 text-sm"
+                  data-testid="badge-pets-allowed"
+                >
+                  Pets Allowed
+                </Badge>
+              )}
             </div>
           </div>
         </div>

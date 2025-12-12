@@ -172,6 +172,46 @@ export default function PropertyDetails() {
 
             <Separator />
 
+            {/* Rental Terms Section */}
+            {(property.lease_term || (property.utilities_included && property.utilities_included.length > 0) || property.furnished !== undefined || property.pets_allowed !== undefined) && (
+              <div data-testid="section-rental-terms">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Rental Terms</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {property.lease_term && (
+                    <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
+                      <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Lease Term</h3>
+                      <p className="text-gray-900 dark:text-white">{property.lease_term}</p>
+                    </div>
+                  )}
+                  
+                  {property.utilities_included && property.utilities_included.length > 0 && (
+                    <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
+                      <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Utilities Included</h3>
+                      <ul className="space-y-1">
+                        {property.utilities_included.map((utility, idx) => (
+                          <li key={idx} className="text-gray-900 dark:text-white">• {utility}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {property.furnished !== undefined && (
+                    <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
+                      <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Furnished</h3>
+                      <p className="text-gray-900 dark:text-white">{property.furnished ? 'Yes - Furnished' : 'No - Unfurnished'}</p>
+                    </div>
+                  )}
+
+                  {property.pets_allowed !== undefined && (
+                    <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
+                      <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Pets</h3>
+                      <p className="text-gray-900 dark:text-white">{property.pets_allowed ? 'Allowed' : 'Not Allowed'}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Description Section */}
             <div data-testid="section-overview">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Overview</h2>
