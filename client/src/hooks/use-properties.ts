@@ -21,17 +21,14 @@ interface PropertiesApiResponse {
 
 export function useProperties() {
   const { data, isLoading: loading, error } = useQuery<PropertiesApiResponse>({
-    queryKey: ['/api/properties'],
-    staleTime: 0,
+    queryKey: ['api', 'properties'],
+    staleTime: 60000,
     refetchOnMount: true,
   });
 
-  if (error) {
-  }
-
   const properties = data?.data?.properties || [];
 
-  return { properties, loading };
+  return { properties, loading, error };
 }
 
 export function useAllProperties() {
