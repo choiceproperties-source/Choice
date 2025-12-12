@@ -83,6 +83,9 @@ export async function getApplications(userId?: string) {
       *,
       properties:property_id (
         id, title, address, city, state, price, bedrooms, bathrooms, images, status, property_type
+      ),
+      users:user_id (
+        id, full_name, email
       )
     `);
     if (userId) {

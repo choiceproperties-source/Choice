@@ -70,10 +70,29 @@ interface Inquiry {
   property_id?: string; properties?: { title: string };
 }
 
+interface ScoreBreakdown {
+  incomeScore: number;
+  creditScore: number;
+  rentalHistoryScore: number;
+  employmentScore: number;
+  documentsScore: number;
+  totalScore: number;
+  maxScore: number;
+  factors: {
+    incomeToRentRatio?: number;
+    creditRating?: string;
+    employmentStatus?: string;
+    rentalHistoryYears?: number;
+    documentsProvided?: number;
+  };
+}
+
 interface Application {
   id: string; status: string; created_at: string; user_id?: string;
-  property_id?: string; users?: { full_name: string };
-  properties?: { title: string }; move_in_date?: string; message?: string;
+  property_id?: string; users?: { id: string; full_name: string; email: string };
+  properties?: { title: string; price?: number }; move_in_date?: string; message?: string;
+  score?: number; score_breakdown?: ScoreBreakdown; scored_at?: string;
+  monthly_income?: number; employment_status?: string; credit_score_range?: string;
 }
 
 interface SavedSearch {
