@@ -1056,23 +1056,36 @@ export default function Admin() {
                     <Card key={app.id} className="p-4" data-testid={`card-application-${app.id}`}>
                       <div className="flex justify-between items-center gap-4 flex-wrap">
                         <div className="flex-1">
-                          <p className="font-medium">Application #{app.id.slice(0, 8)}</p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-medium">Application #{app.id.slice(0, 8)}</p>
+                            {app.score !== undefined && app.score !== null && (
+                              <Badge 
+                                variant="outline" 
+                                className={app.score >= 70 ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : app.score >= 50 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'}
+                                data-testid={`score-badge-${app.id}`}
+                              >
+                                Score: {app.score}
+                              </Badge>
+                            )}
+                          </div>
                           <p className="text-sm text-muted-foreground flex items-center gap-1">
                             <Calendar className="h-3 w-3" />
                             {new Date(app.created_at).toLocaleDateString()}
+                            {app.users?.full_name && <span className="ml-2">by {app.users.full_name}</span>}
                           </p>
                           {app.properties?.title && (
                             <p className="text-sm text-muted-foreground mt-1">Property: {app.properties.title}</p>
                           )}
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <Badge
                             variant={app.status === 'approved' ? 'default' : app.status === 'rejected' ? 'destructive' : 'secondary'}
-                            className={app.status === 'pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' : ''}
+                            className={app.status === 'pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' : app.status === 'under_review' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' : ''}
                           >
                             {app.status === 'pending' && <Clock className="h-3 w-3 mr-1" />}
                             {app.status === 'approved' && <CheckCircle className="h-3 w-3 mr-1" />}
                             {app.status === 'rejected' && <XCircle className="h-3 w-3 mr-1" />}
+                            {app.status === 'under_review' && <Eye className="h-3 w-3 mr-1" />}
                             {app.status}
                           </Badge>
                           <Button
@@ -1516,36 +1529,115 @@ export default function Admin() {
 
       {/* Application Details Modal */}
       <Dialog open={showApplicationDetails} onOpenChange={setShowApplicationDetails}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Application Details</DialogTitle>
           </DialogHeader>
           {selectedApplication && (
             <div className="space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Application ID</p>
-                <p className="font-medium font-mono text-sm">{selectedApplication.id}</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Application ID</p>
+                  <p className="font-medium font-mono text-xs">{selectedApplication.id.slice(0, 8)}...</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Status</p>
+                  <Badge
+                    variant={selectedApplication.status === 'approved' ? 'default' : selectedApplication.status === 'rejected' ? 'destructive' : 'secondary'}
+                    className={selectedApplication.status === 'pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' : selectedApplication.status === 'under_review' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' : ''}
+                    data-testid="badge-application-status"
+                  >
+                    {selectedApplication.status}
+                  </Badge>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Status</p>
-                <Badge
-                  variant={selectedApplication.status === 'approved' ? 'default' : selectedApplication.status === 'rejected' ? 'destructive' : 'secondary'}
-                  className={selectedApplication.status === 'pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' : ''}
-                >
-                  {selectedApplication.status}
-                </Badge>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Applicant</p>
+                  <p className="font-medium">{selectedApplication.users?.full_name || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Submitted</p>
+                  <p className="font-medium text-sm">{new Date(selectedApplication.created_at).toLocaleDateString()}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Submitted</p>
-                <p className="font-medium">{new Date(selectedApplication.created_at).toLocaleString()}</p>
-              </div>
+
+              {selectedApplication.properties && (
+                <div>
+                  <p className="text-sm text-muted-foreground">Property</p>
+                  <p className="font-medium">{selectedApplication.properties.title}</p>
+                  {selectedApplication.properties.price && (
+                    <p className="text-sm text-muted-foreground">${selectedApplication.properties.price.toLocaleString()}/mo</p>
+                  )}
+                </div>
+              )}
+
+              {/* Scoring Section */}
+              {selectedApplication.score !== undefined && selectedApplication.score !== null && (
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="font-medium">Application Score</p>
+                    <Badge 
+                      variant={selectedApplication.score >= 70 ? 'default' : selectedApplication.score >= 50 ? 'secondary' : 'destructive'}
+                      className={selectedApplication.score >= 70 ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : ''}
+                      data-testid="badge-application-score"
+                    >
+                      {selectedApplication.score}/100
+                    </Badge>
+                  </div>
+                  
+                  {selectedApplication.score_breakdown && (
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Income (25 pts)</span>
+                        <span className="font-medium">{selectedApplication.score_breakdown.incomeScore || 0}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Credit (25 pts)</span>
+                        <span className="font-medium">{selectedApplication.score_breakdown.creditScore || 0}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Rental History (20 pts)</span>
+                        <span className="font-medium">{selectedApplication.score_breakdown.rentalHistoryScore || 0}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Employment (15 pts)</span>
+                        <span className="font-medium">{selectedApplication.score_breakdown.employmentScore || 0}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Documents (15 pts)</span>
+                        <span className="font-medium">{selectedApplication.score_breakdown.documentsScore || 0}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Score Factors */}
+                  {selectedApplication.score_breakdown?.factors && (
+                    <div className="mt-3 pt-3 border-t space-y-1">
+                      <p className="text-xs font-medium text-muted-foreground mb-2">Key Factors</p>
+                      {selectedApplication.score_breakdown.factors.incomeToRentRatio && (
+                        <p className="text-xs">Income-to-Rent Ratio: {selectedApplication.score_breakdown.factors.incomeToRentRatio.toFixed(1)}x</p>
+                      )}
+                      {selectedApplication.score_breakdown.factors.creditRating && (
+                        <p className="text-xs">Credit: {selectedApplication.score_breakdown.factors.creditRating}</p>
+                      )}
+                      {selectedApplication.score_breakdown.factors.employmentStatus && (
+                        <p className="text-xs">Employment: {selectedApplication.score_breakdown.factors.employmentStatus}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {selectedApplication.message && (
                 <div>
                   <p className="text-sm text-muted-foreground">Message</p>
                   <p className="text-sm">{selectedApplication.message}</p>
                 </div>
               )}
-              {selectedApplication.status === 'pending' && (
+              
+              {(selectedApplication.status === 'pending' || selectedApplication.status === 'under_review') && (
                 <div className="flex gap-2 pt-4">
                   <Button onClick={() => handleUpdateApplicationStatus(selectedApplication.id, 'approved')} className="flex-1" data-testid="button-approve-application">
                     <CheckCircle className="h-4 w-4 mr-2" />
