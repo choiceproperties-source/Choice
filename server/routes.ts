@@ -1285,25 +1285,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (error) throw error;
 
+      // Get admin email from settings, fallback to admin user
+      let adminEmail = null;
+      const { data: adminSetting } = await supabase
+        .from("admin_settings")
+        .select("value")
+        .eq("key", "admin_email")
+        .single();
+      
+      if (adminSetting?.value) {
+        adminEmail = adminSetting.value;
+      } else {
+        // Fallback: get first admin user's email
+        const { data: adminUser } = await supabase
+          .from("users")
+          .select("email")
+          .eq("role", "admin")
+          .limit(1)
+          .single();
+        adminEmail = adminUser?.email;
+      }
+
+      // Get agent/persona name for context
+      let agentName = "Unknown Agent";
       if (validation.data.agentId) {
         const { data: agentData } = await supabase
           .from("users")
-          .select("email")
+          .select("full_name")
           .eq("id", validation.data.agentId)
           .single();
+        agentName = agentData?.full_name || "Unknown Agent";
+      }
 
-        if (agentData?.email) {
-          await sendEmail({
-            to: agentData.email,
-            subject: "New Inquiry Received",
-            html: getAgentInquiryEmailTemplate({
-              senderName: validation.data.senderName,
-              senderEmail: validation.data.senderEmail,
-              senderPhone: validation.data.senderPhone || "",
-              message: validation.data.message || "",
-            }),
-          });
-        }
+      // Always send to admin email (centralized management)
+      if (adminEmail) {
+        await sendEmail({
+          to: adminEmail,
+          subject: `New Inquiry for ${agentName} - Choice Properties`,
+          html: getAgentInquiryEmailTemplate({
+            senderName: validation.data.senderName,
+            senderEmail: validation.data.senderEmail,
+            senderPhone: validation.data.senderPhone || "",
+            message: validation.data.message || "",
+            propertyTitle: agentName ? `(Agent: ${agentName})` : undefined,
+          }),
+        });
       }
 
       return res.json(success(data[0], "Inquiry submitted successfully"));

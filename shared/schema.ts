@@ -45,6 +45,10 @@ export const users = pgTable("users", {
   rating: decimal("rating", { precision: 3, scale: 2 }),
   reviewCount: integer("review_count").default(0),
   location: text("location"),
+  isManagedProfile: boolean("is_managed_profile").default(false),
+  managedBy: uuid("managed_by"),
+  displayEmail: text("display_email"),
+  displayPhone: text("display_phone"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
   deletedAt: timestamp("deleted_at"),
@@ -299,6 +303,23 @@ export const contactMessages = pgTable("contact_messages", {
   read: boolean("read").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+export const adminSettings = pgTable("admin_settings", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  key: text("key").notNull().unique(),
+  value: text("value"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertAdminSettingsSchema = createInsertSchema(adminSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertAdminSettings = z.infer<typeof insertAdminSettingsSchema>;
+export type AdminSettings = typeof adminSettings.$inferSelect;
 
 export const TRANSACTION_TYPES = ["sale", "lease", "referral"] as const;
 export const TRANSACTION_STATUSES = ["pending", "in_progress", "completed", "cancelled"] as const;
