@@ -1,48 +1,7 @@
-import { type User, type InsertUser } from "@shared/schema";
-import { randomUUID } from "crypto";
+// This file is deprecated and should be removed
+// All storage operations are handled directly through Supabase in routes.ts
+// This was an attempt to create an abstraction layer that was never fully implemented
 
 export interface IStorage {
-  getUser(id: string): Promise<User | undefined>;
-  getUserByEmail(email: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  // Deprecated - use Supabase client directly in routes.ts
 }
-
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-
-  constructor() {
-    this.users = new Map();
-  }
-
-  async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
-  }
-
-  async getUserByEmail(email: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.email === email,
-    );
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const now = new Date();
-    const user: User = { 
-      id,
-      email: insertUser.email,
-      passwordHash: insertUser.passwordHash,
-      fullName: insertUser.fullName ?? null,
-      phone: insertUser.phone ?? null,
-      role: insertUser.role ?? null,
-      profileImage: insertUser.profileImage ?? null,
-      bio: insertUser.bio ?? null,
-      createdAt: now,
-      updatedAt: now,
-      deletedAt: null,
-    };
-    this.users.set(id, user);
-    return user;
-  }
-}
-
-export const storage = new MemStorage();

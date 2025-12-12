@@ -312,6 +312,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ===== APPLICATIONS =====
+  // Mock payment processing endpoint
+  app.post("/api/payments/process", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { applicationId, amount, cardToken } = req.body;
+      
+      if (!applicationId || !amount) {
+        return res.status(400).json({ error: "Missing applicationId or amount" });
+      }
+
+      // Simulate payment processing (in real app, would call Stripe/PayPal/etc)
+      const mockPaymentId = `pay_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const mockTransactionId = `txn_${Date.now()}`;
+
+      // In production, verify amount matches application fee
+      // For now, mock success after 100ms delay to simulate processing
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      return res.json(success({
+        paymentId: mockPaymentId,
+        transactionId: mockTransactionId,
+        amount,
+        status: "completed",
+        timestamp: new Date().toISOString(),
+        message: "[MOCK PAYMENT] In production, this would process with real payment provider"
+      }, "Payment processed successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to process payment"));
+    }
+  });
+
   // Endpoint for guest and authenticated users to submit applications
   app.post("/api/applications/guest", optionalAuth, async (req: AuthenticatedRequest, res) => {
     try {
@@ -322,10 +352,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const guestEmail = (req.body as any).guestEmail;
       const guestName = (req.body as any).guestName;
+      const propertyId = validation.data.propertyId;
+
+      // Check for duplicate application (guest or authenticated)
+      if (req.user) {
+        const { data: existing } = await supabase
+          .from("applications")
+          .select("id")
+          .eq("user_id", req.user.id)
+          .eq("property_id", propertyId)
+          .single();
+        
+        if (existing) {
+          return res.status(409).json({ error: "You have already applied for this property" });
+        }
+      }
+
+      let userId = req.user?.id || null;
+
+      // Create guest user if not authenticated
+      if (!userId && guestEmail) {
+        const { data: guestUser, error: guestError } = await supabase
+          .from("users")
+          .insert([{
+            email: guestEmail,
+            full_name: guestName || "Guest User",
+            role: "renter",
+            password_hash: Math.random().toString(36), // Dummy hash for guests
+          }])
+          .select("id")
+          .single();
+
+        if (guestUser?.id) {
+          userId = guestUser.id;
+        }
+      }
 
       const applicationData = {
         ...validation.data,
-        user_id: req.user?.id || null,
+        user_id: userId,
       };
 
       const { data, error } = await supabase
@@ -368,6 +433,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validation = insertApplicationSchema.safeParse(req.body);
       if (!validation.success) {
         return res.status(400).json({ error: validation.error.errors[0].message });
+      }
+
+      const propertyId = validation.data.propertyId;
+
+      // Prevent duplicate applications per property per user
+      const { data: existing, error: checkError } = await supabase
+        .from("applications")
+        .select("id")
+        .eq("user_id", req.user!.id)
+        .eq("property_id", propertyId)
+        .single();
+      
+      if (existing) {
+        return res.status(409).json({ error: "You have already applied for this property. Please check your existing applications." });
       }
 
       const applicationData = {

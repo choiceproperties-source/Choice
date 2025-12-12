@@ -45,6 +45,7 @@ export function calculateApplicationScore(application: {
   rentalHistory?: any;
   documents?: any;
   documentStatus?: any;
+  coApplicants?: any[];
 }): ScoreBreakdown {
   const flags: string[] = [];
   let incomeScore = 0;
@@ -53,9 +54,18 @@ export function calculateApplicationScore(application: {
   let employmentScore = 0;
   let documentsScore = 0;
 
-  // Income score (max 25 points)
+  // Income score (max 25 points) - includes primary applicant + co-applicants
   const employment = application.employment || {};
-  const monthlyIncome = parseFloat(employment.monthlyIncome || employment.income || 0);
+  let monthlyIncome = parseFloat(employment.monthlyIncome || employment.income || 0);
+  
+  // Add co-applicant income
+  if (application.coApplicants && Array.isArray(application.coApplicants)) {
+    const coApplicantIncome = application.coApplicants.reduce((sum: number, co: any) => {
+      const coIncome = parseFloat(co.income || 0);
+      return sum + coIncome;
+    }, 0);
+    monthlyIncome += coApplicantIncome;
+  }
   if (monthlyIncome >= 5000) {
     incomeScore = 25;
   } else if (monthlyIncome >= 4000) {
