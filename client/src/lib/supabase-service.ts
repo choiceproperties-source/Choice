@@ -636,3 +636,131 @@ export async function deleteSavedSearch(searchId: string): Promise<boolean> {
     return false;
   }
 }
+
+// ===================== ADMIN PERSONA MANAGEMENT =====================
+export async function getManagedPersonas() {
+  try {
+    const response = await fetch('/api/admin/personas', {
+      headers: {
+        'Authorization': `Bearer ${(await supabase?.auth.getSession())?.data.session?.access_token}`,
+      },
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Failed to fetch personas');
+    return result.data || [];
+  } catch (err) {
+    console.error('getManagedPersonas error:', err);
+    return [];
+  }
+}
+
+export async function createManagedPersona(personaData: {
+  fullName: string;
+  email: string;
+  displayEmail?: string;
+  displayPhone?: string;
+  role?: string;
+  bio?: string;
+  profileImage?: string;
+  location?: string;
+  specialties?: string[];
+  yearsExperience?: number;
+}) {
+  try {
+    const response = await fetch('/api/admin/personas', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${(await supabase?.auth.getSession())?.data.session?.access_token}`,
+      },
+      body: JSON.stringify(personaData),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Failed to create persona');
+    return result.data;
+  } catch (err: any) {
+    console.error('createManagedPersona error:', err);
+    throw err;
+  }
+}
+
+export async function updateManagedPersona(personaId: string, updates: {
+  fullName?: string;
+  displayEmail?: string;
+  displayPhone?: string;
+  role?: string;
+  bio?: string;
+  profileImage?: string;
+  location?: string;
+  specialties?: string[];
+  yearsExperience?: number;
+}) {
+  try {
+    const response = await fetch(`/api/admin/personas/${personaId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${(await supabase?.auth.getSession())?.data.session?.access_token}`,
+      },
+      body: JSON.stringify(updates),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Failed to update persona');
+    return result.data;
+  } catch (err: any) {
+    console.error('updateManagedPersona error:', err);
+    throw err;
+  }
+}
+
+export async function deleteManagedPersona(personaId: string): Promise<boolean> {
+  try {
+    const response = await fetch(`/api/admin/personas/${personaId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${(await supabase?.auth.getSession())?.data.session?.access_token}`,
+      },
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Failed to delete persona');
+    return true;
+  } catch (err) {
+    console.error('deleteManagedPersona error:', err);
+    return false;
+  }
+}
+
+export async function getAdminSettings() {
+  try {
+    const response = await fetch('/api/admin/settings', {
+      headers: {
+        'Authorization': `Bearer ${(await supabase?.auth.getSession())?.data.session?.access_token}`,
+      },
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Failed to fetch settings');
+    return result.data || {};
+  } catch (err) {
+    console.error('getAdminSettings error:', err);
+    return {};
+  }
+}
+
+export async function saveAdminSetting(key: string, value: string) {
+  try {
+    const response = await fetch('/api/admin/settings', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${(await supabase?.auth.getSession())?.data.session?.access_token}`,
+      },
+      body: JSON.stringify({ key, value }),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Failed to save setting');
+    return result.data;
+  } catch (err: any) {
+    console.error('saveAdminSetting error:', err);
+    throw err;
+  }
+}

@@ -44,8 +44,11 @@ import {
   getProperties, getAllUsers, getAllReviews, getInquiries, getApplications,
   createProperty, updateProperty, deleteProperty, deleteReview, updateUserRole,
   createUser, deleteUser, updateApplication, updateInquiryStatus,
-  getSavedSearches, deleteSavedSearch
+  getSavedSearches, deleteSavedSearch,
+  getManagedPersonas, createManagedPersona, updateManagedPersona, deleteManagedPersona,
+  getAdminSettings, saveAdminSetting
 } from '@/lib/supabase-service';
+import { UserCog, Settings } from 'lucide-react';
 
 interface Property {
   id: string; title: string; address: string; city: string; state: string;
@@ -100,6 +103,13 @@ interface SavedSearch {
   created_at: string; users?: { full_name: string; email: string };
 }
 
+interface Persona {
+  id: string; email: string; full_name: string; role: string; created_at: string;
+  display_email?: string; display_phone?: string; bio?: string; profile_image?: string;
+  location?: string; specialties?: string[]; years_experience?: number;
+  is_managed_profile: boolean; managed_by?: string;
+}
+
 export default function Admin() {
   const { user, logout } = useAuth();
   const { toast } = useToast();
@@ -114,6 +124,8 @@ export default function Admin() {
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
+  const [personas, setPersonas] = useState<Persona[]>([]);
+  const [adminSettings, setAdminSettings] = useState<Record<string, string>>({});
 
   // Modal states
   const [showAddProperty, setShowAddProperty] = useState(false);
@@ -124,6 +136,11 @@ export default function Admin() {
   const [showApplicationDetails, setShowApplicationDetails] = useState(false);
   const [showInquiryDetails, setShowInquiryDetails] = useState(false);
   const [showSearchDetails, setShowSearchDetails] = useState(false);
+  const [showAddPersona, setShowAddPersona] = useState(false);
+  const [showEditPersona, setShowEditPersona] = useState(false);
+  const [selectedPersona, setSelectedPersona] = useState<Persona | null>(null);
+  const [newPersona, setNewPersona] = useState({ fullName: '', email: '', displayEmail: '', displayPhone: '', role: 'agent', bio: '', location: '' });
+  const [editPersonaData, setEditPersonaData] = useState<Partial<Persona>>({});
 
   // Delete confirmation states
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: string; id: string; name: string } | null>(null);
@@ -159,8 +176,9 @@ export default function Admin() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [props, usersData, reviewsData, inqsData, appsData, searchesData] = await Promise.all([
-        getProperties(), getAllUsers(), getAllReviews(), getInquiries(), getApplications(), getSavedSearches()
+      const [props, usersData, reviewsData, inqsData, appsData, searchesData, personasData, settingsData] = await Promise.all([
+        getProperties(), getAllUsers(), getAllReviews(), getInquiries(), getApplications(), getSavedSearches(),
+        getManagedPersonas(), getAdminSettings()
       ]);
       setProperties(props as any[]);
       setUsers(usersData);
@@ -168,6 +186,8 @@ export default function Admin() {
       setInquiries(inqsData || []);
       setApplications(appsData || []);
       setSavedSearches(searchesData || []);
+      setPersonas(personasData || []);
+      setAdminSettings(settingsData || {});
     } catch (error) {
       toast({ title: 'Failed to load data', variant: 'destructive' });
     } finally {
@@ -467,6 +487,8 @@ export default function Admin() {
     { id: 'applications', label: 'Applications', icon: FileText },
     { id: 'inquiries', label: 'Inquiries', icon: MessageSquare },
     { id: 'saved-searches', label: 'Saved Searches', icon: Search },
+    { id: 'personas', label: 'Personas', icon: UserCog },
+    { id: 'settings', label: 'Settings', icon: Settings },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
   ];
 
