@@ -53,9 +53,25 @@ export default function Sell() {
 
   const createPropertyMutation = useMutation({
     mutationFn: async () => {
+      // Build enhanced description with lease and utilities info
+      let enhancedDescription = formData.description;
+      
+      const leaseInfo = [];
+      if (formData.leaseTerm) leaseInfo.push(`Lease Term: ${formData.leaseTerm}`);
+      if (formData.moveInDate) leaseInfo.push(`Move-In Date: ${formData.moveInDate}`);
+      if (formData.utilitiesIncluded.length > 0) {
+        leaseInfo.push(`Utilities Included: ${formData.utilitiesIncluded.join(', ')}`);
+      }
+      
+      if (leaseInfo.length > 0) {
+        enhancedDescription = enhancedDescription 
+          ? `${formData.description}\n\n${leaseInfo.join('\n')}`
+          : leaseInfo.join('\n');
+      }
+
       const response = await apiRequest("POST", "/api/properties", {
         title: `${formData.propertyType} at ${formData.address}`,
-        description: formData.description,
+        description: enhancedDescription,
         address: formData.address,
         city: formData.city,
         state: formData.state,
@@ -68,6 +84,8 @@ export default function Sell() {
         amenities: formData.amenities,
         furnished: formData.furnished,
         petsAllowed: formData.petsAllowed,
+        leaseTerm: formData.leaseTerm,
+        utilitiesIncluded: formData.utilitiesIncluded,
         status: 'active',
       });
       return response.json();

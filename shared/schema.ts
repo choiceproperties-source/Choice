@@ -37,6 +37,8 @@ export const properties = pgTable("properties", {
   longitude: decimal("longitude", { precision: 11, scale: 8 }),
   furnished: boolean("furnished").default(false),
   petsAllowed: boolean("pets_allowed").default(false),
+  leaseTerm: text("lease_term"),
+  utilitiesIncluded: jsonb("utilities_included"),
   status: text("status").default("active"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
