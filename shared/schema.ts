@@ -711,3 +711,143 @@ export const loginSchema = z.object({
 
 export type SignupInput = z.infer<typeof signupSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
+
+// ===================== MODERATION =====================
+
+export const REPORT_TYPES = [
+  "inappropriate_content",
+  "fraudulent_listing",
+  "misleading_information",
+  "duplicate_listing",
+  "spam",
+  "discrimination",
+  "safety_concern",
+  "other"
+] as const;
+
+export const REPORT_STATUSES = ["pending", "under_review", "resolved", "dismissed"] as const;
+
+export const contentReports = pgTable("content_reports", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  reporterId: uuid("reporter_id").references(() => users.id, { onDelete: "set null" }),
+  propertyId: uuid("property_id").references(() => properties.id, { onDelete: "cascade" }),
+  reviewId: uuid("review_id").references(() => reviews.id, { onDelete: "cascade" }),
+  reportType: text("report_type").notNull(),
+  description: text("description"),
+  status: text("status").default("pending"),
+  priority: text("priority").default("normal"),
+  assignedTo: uuid("assigned_to").references(() => users.id, { onDelete: "set null" }),
+  resolution: text("resolution"),
+  resolvedBy: uuid("resolved_by").references(() => users.id, { onDelete: "set null" }),
+  resolvedAt: timestamp("resolved_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const DISPUTE_TYPES = [
+  "application_rejection",
+  "payment_issue",
+  "property_condition",
+  "lease_terms",
+  "security_deposit",
+  "maintenance",
+  "communication",
+  "other"
+] as const;
+
+export const DISPUTE_STATUSES = ["open", "under_investigation", "awaiting_response", "resolved", "escalated", "closed"] as const;
+
+export const disputes = pgTable("disputes", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  initiatorId: uuid("initiator_id").references(() => users.id, { onDelete: "set null" }),
+  respondentId: uuid("respondent_id").references(() => users.id, { onDelete: "set null" }),
+  propertyId: uuid("property_id").references(() => properties.id, { onDelete: "set null" }),
+  applicationId: uuid("application_id").references(() => applications.id, { onDelete: "set null" }),
+  disputeType: text("dispute_type").notNull(),
+  subject: text("subject").notNull(),
+  description: text("description").notNull(),
+  status: text("status").default("open"),
+  priority: text("priority").default("normal"),
+  assignedTo: uuid("assigned_to").references(() => users.id, { onDelete: "set null" }),
+  resolution: text("resolution"),
+  resolvedBy: uuid("resolved_by").references(() => users.id, { onDelete: "set null" }),
+  resolvedAt: timestamp("resolved_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const disputeMessages = pgTable("dispute_messages", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  disputeId: uuid("dispute_id").references(() => disputes.id, { onDelete: "cascade" }),
+  senderId: uuid("sender_id").references(() => users.id, { onDelete: "set null" }),
+  message: text("message").notNull(),
+  isInternal: boolean("is_internal").default(false),
+  attachments: jsonb("attachments").$type<string[]>(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const DOCUMENT_VERIFICATION_STATUSES = ["pending", "verified", "rejected", "expired"] as const;
+
+export const documentVerifications = pgTable("document_verifications", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+  applicationId: uuid("application_id").references(() => applications.id, { onDelete: "cascade" }),
+  fileId: uuid("file_id").references(() => uploadedFiles.id, { onDelete: "cascade" }),
+  documentType: text("document_type").notNull(),
+  status: text("status").default("pending"),
+  verifiedBy: uuid("verified_by").references(() => users.id, { onDelete: "set null" }),
+  verifiedAt: timestamp("verified_at"),
+  rejectionReason: text("rejection_reason"),
+  expiresAt: timestamp("expires_at"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Moderation insert schemas
+export const insertContentReportSchema = createInsertSchema(contentReports).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  resolvedBy: true,
+  resolvedAt: true,
+});
+
+export const insertDisputeSchema = createInsertSchema(disputes).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  resolvedBy: true,
+  resolvedAt: true,
+});
+
+export const insertDisputeMessageSchema = createInsertSchema(disputeMessages).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertDocumentVerificationSchema = createInsertSchema(documentVerifications).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  verifiedBy: true,
+  verifiedAt: true,
+});
+
+// Moderation types
+export type InsertContentReport = z.infer<typeof insertContentReportSchema>;
+export type ContentReport = typeof contentReports.$inferSelect;
+export type ReportType = typeof REPORT_TYPES[number];
+export type ReportStatus = typeof REPORT_STATUSES[number];
+
+export type InsertDispute = z.infer<typeof insertDisputeSchema>;
+export type Dispute = typeof disputes.$inferSelect;
+export type DisputeType = typeof DISPUTE_TYPES[number];
+export type DisputeStatus = typeof DISPUTE_STATUSES[number];
+
+export type InsertDisputeMessage = z.infer<typeof insertDisputeMessageSchema>;
+export type DisputeMessage = typeof disputeMessages.$inferSelect;
+
+export type InsertDocumentVerification = z.infer<typeof insertDocumentVerificationSchema>;
+export type DocumentVerification = typeof documentVerifications.$inferSelect;
+export type DocumentVerificationStatus = typeof DOCUMENT_VERIFICATION_STATUSES[number];
