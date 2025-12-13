@@ -74,25 +74,12 @@ export default function PropertyDetails() {
   const lng = property?.longitude ? parseFloat(String(property.longitude)) : -118.2437;
   const nearbyPlaces = useNearbyPlaces(lat, lng);
 
-  if (!match) {
-    return <NotFound />;
-  }
-
-  if (isLoading || !property) {
-    return (
-      <div className="min-h-screen flex flex-col">
-        <Navbar />
-        <PropertyDetailsSkeleton />
-        <Footer />
-      </div>
-    );
-  }
-
-  // Update SEO tags in useEffect
-  const bedrooms = property.bedrooms || 0;
-  const bathrooms = Math.round(parseDecimal(property.bathrooms));
-  const sqft = property.square_feet || 0;
+  // Calculate property metrics (must be before useEffect)
+  const bedrooms = property?.bedrooms || 0;
+  const bathrooms = property ? Math.round(parseDecimal(property.bathrooms)) : 0;
+  const sqft = property?.square_feet || 0;
   
+  // SEO Effect - must be called unconditionally before any returns
   useEffect(() => {
     if (property) {
       updateMetaTags({
@@ -110,6 +97,20 @@ export default function PropertyDetails() {
       removeStructuredData('property');
     };
   }, [property, bedrooms, bathrooms, sqft]);
+
+  if (!match) {
+    return <NotFound />;
+  }
+
+  if (isLoading || !property) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <PropertyDetailsSkeleton />
+        <Footer />
+      </div>
+    );
+  }
 
   // Build image array
   const allImages = (property.images || []).length > 0 
