@@ -320,6 +320,301 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== PROPERTY MANAGEMENT =====
+  // Update property listing status
+  app.patch("/api/properties/:id/status", authenticateToken, requireOwnership("property"), async (req: AuthenticatedRequest, res) => {
+    try {
+      const { listingStatus, visibility } = req.body;
+      
+      const updateData: any = { updated_at: new Date().toISOString() };
+      
+      if (listingStatus) {
+        updateData.listing_status = listingStatus;
+        // Set listedAt when publishing
+        if (listingStatus === "available") {
+          updateData.listed_at = new Date().toISOString();
+        }
+      }
+      
+      if (visibility) {
+        updateData.visibility = visibility;
+      }
+
+      const { data, error } = await supabase
+        .from("properties")
+        .update(updateData)
+        .eq("id", req.params.id)
+        .select();
+
+      if (error) throw error;
+      
+      cache.invalidate(`property:${req.params.id}`);
+      cache.invalidate("properties:");
+      
+      return res.json(success(data[0], "Property status updated successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to update property status"));
+    }
+  });
+
+  // Update property expiration settings
+  app.patch("/api/properties/:id/expiration", authenticateToken, requireOwnership("property"), async (req: AuthenticatedRequest, res) => {
+    try {
+      const { expirationDays, autoUnpublish } = req.body;
+      
+      const updateData: any = { updated_at: new Date().toISOString() };
+      
+      if (expirationDays !== undefined) {
+        updateData.expiration_days = expirationDays;
+        // Calculate new expiration date from listed_at or now
+        const baseDate = new Date();
+        updateData.expires_at = new Date(baseDate.getTime() + expirationDays * 24 * 60 * 60 * 1000).toISOString();
+      }
+      
+      if (autoUnpublish !== undefined) {
+        updateData.auto_unpublish = autoUnpublish;
+      }
+
+      const { data, error } = await supabase
+        .from("properties")
+        .update(updateData)
+        .eq("id", req.params.id)
+        .select();
+
+      if (error) throw error;
+      
+      cache.invalidate(`property:${req.params.id}`);
+      
+      return res.json(success(data[0], "Expiration settings updated successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to update expiration settings"));
+    }
+  });
+
+  // Track property price history
+  app.patch("/api/properties/:id/price", authenticateToken, requireOwnership("property"), async (req: AuthenticatedRequest, res) => {
+    try {
+      const { price } = req.body;
+      
+      if (!price) {
+        return res.status(400).json(errorResponse("Price is required"));
+      }
+
+      // Get current property to append to price history
+      const { data: currentProperty, error: fetchError } = await supabase
+        .from("properties")
+        .select("price, price_history")
+        .eq("id", req.params.id)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      const priceHistory = currentProperty.price_history || [];
+      priceHistory.push({
+        price: currentProperty.price,
+        changedAt: new Date().toISOString(),
+        changedBy: req.user!.id
+      });
+
+      const { data, error } = await supabase
+        .from("properties")
+        .update({ 
+          price,
+          price_history: priceHistory,
+          updated_at: new Date().toISOString() 
+        })
+        .eq("id", req.params.id)
+        .select();
+
+      if (error) throw error;
+      
+      cache.invalidate(`property:${req.params.id}`);
+      cache.invalidate("properties:");
+      
+      return res.json(success(data[0], "Price updated successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to update price"));
+    }
+  });
+
+  // Get property analytics (views, saves, applications)
+  app.get("/api/properties/:id/analytics", authenticateToken, requireOwnership("property"), async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data: property, error: propertyError } = await supabase
+        .from("properties")
+        .select("view_count, save_count, application_count, listed_at, price_history")
+        .eq("id", req.params.id)
+        .single();
+
+      if (propertyError) throw propertyError;
+
+      // Get application stats
+      const { data: applications, error: appError } = await supabase
+        .from("applications")
+        .select("status, created_at")
+        .eq("property_id", req.params.id);
+
+      if (appError) throw appError;
+
+      const analytics = {
+        views: property.view_count || 0,
+        saves: property.save_count || 0,
+        applicationCount: applications?.length || 0,
+        applicationsByStatus: applications?.reduce((acc: Record<string, number>, app) => {
+          acc[app.status] = (acc[app.status] || 0) + 1;
+          return acc;
+        }, {}),
+        listedAt: property.listed_at,
+        priceHistory: property.price_history || [],
+      };
+
+      return res.json(success(analytics, "Property analytics fetched successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to fetch property analytics"));
+    }
+  });
+
+  // Increment property view count
+  app.post("/api/properties/:id/view", async (req, res) => {
+    try {
+      const { error } = await supabase.rpc('increment_property_views', { property_id: req.params.id });
+      
+      if (error) {
+        // Fallback to manual increment if RPC doesn't exist
+        const { data: property } = await supabase
+          .from("properties")
+          .select("view_count")
+          .eq("id", req.params.id)
+          .single();
+        
+        await supabase
+          .from("properties")
+          .update({ view_count: (property?.view_count || 0) + 1 })
+          .eq("id", req.params.id);
+      }
+
+      return res.json(success(null, "View recorded"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to record view"));
+    }
+  });
+
+  // ===== PROPERTY NOTES =====
+  // Get notes for a property
+  app.get("/api/properties/:id/notes", authenticateToken, requireOwnership("property"), async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data, error } = await supabase
+        .from("property_notes")
+        .select("*, user:users(full_name, email)")
+        .eq("property_id", req.params.id)
+        .order("is_pinned", { ascending: false })
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      return res.json(success(data, "Notes fetched successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to fetch notes"));
+    }
+  });
+
+  // Add a note to a property
+  app.post("/api/properties/:id/notes", authenticateToken, requireOwnership("property"), async (req: AuthenticatedRequest, res) => {
+    try {
+      const { content, noteType = "general", isPinned = false } = req.body;
+      
+      if (!content) {
+        return res.status(400).json(errorResponse("Note content is required"));
+      }
+
+      const { data, error } = await supabase
+        .from("property_notes")
+        .insert({
+          property_id: req.params.id,
+          user_id: req.user!.id,
+          content,
+          note_type: noteType,
+          is_pinned: isPinned
+        })
+        .select("*, user:users(full_name, email)");
+
+      if (error) throw error;
+
+      return res.json(success(data[0], "Note added successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to add note"));
+    }
+  });
+
+  // Update a note
+  app.patch("/api/properties/:propertyId/notes/:noteId", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { content, isPinned } = req.body;
+      
+      // Verify ownership
+      const { data: note, error: noteError } = await supabase
+        .from("property_notes")
+        .select("user_id")
+        .eq("id", req.params.noteId)
+        .single();
+
+      if (noteError || !note) {
+        return res.status(404).json(errorResponse("Note not found"));
+      }
+
+      if (note.user_id !== req.user!.id && req.user!.role !== "admin") {
+        return res.status(403).json(errorResponse("Not authorized to edit this note"));
+      }
+
+      const updateData: any = { updated_at: new Date().toISOString() };
+      if (content !== undefined) updateData.content = content;
+      if (isPinned !== undefined) updateData.is_pinned = isPinned;
+
+      const { data, error } = await supabase
+        .from("property_notes")
+        .update(updateData)
+        .eq("id", req.params.noteId)
+        .select("*, user:users(full_name, email)");
+
+      if (error) throw error;
+
+      return res.json(success(data[0], "Note updated successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to update note"));
+    }
+  });
+
+  // Delete a note
+  app.delete("/api/properties/:propertyId/notes/:noteId", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      // Verify ownership
+      const { data: note, error: noteError } = await supabase
+        .from("property_notes")
+        .select("user_id")
+        .eq("id", req.params.noteId)
+        .single();
+
+      if (noteError || !note) {
+        return res.status(404).json(errorResponse("Note not found"));
+      }
+
+      if (note.user_id !== req.user!.id && req.user!.role !== "admin") {
+        return res.status(403).json(errorResponse("Not authorized to delete this note"));
+      }
+
+      const { error } = await supabase
+        .from("property_notes")
+        .delete()
+        .eq("id", req.params.noteId);
+
+      if (error) throw error;
+
+      return res.json(success(null, "Note deleted successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to delete note"));
+    }
+  });
+
   // ===== APPLICATIONS =====
   // Mock payment processing endpoint
   app.post("/api/payments/process", authenticateToken, async (req: AuthenticatedRequest, res) => {

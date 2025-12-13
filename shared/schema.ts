@@ -60,6 +60,22 @@ export const users = pgTable("users", {
   deletedAt: timestamp("deleted_at"),
 });
 
+// Property listing statuses
+export const PROPERTY_LISTING_STATUSES = [
+  "draft",
+  "available", 
+  "rented",
+  "under_maintenance",
+  "coming_soon",
+  "unpublished"
+] as const;
+
+export const PROPERTY_VISIBILITY = [
+  "public",
+  "private",
+  "featured"
+] as const;
+
 export const properties = pgTable("properties", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   ownerId: uuid("owner_id").references(() => users.id, { onDelete: "cascade" }),
@@ -85,12 +101,38 @@ export const properties = pgTable("properties", {
   leaseTerm: text("lease_term"),
   utilitiesIncluded: jsonb("utilities_included"),
   status: text("status").default("active"),
+  // New property management fields
+  listingStatus: text("listing_status").default("draft"),
+  visibility: text("visibility").default("public"),
+  expiresAt: timestamp("expires_at"),
+  autoUnpublish: boolean("auto_unpublish").default(true),
+  expirationDays: integer("expiration_days").default(90),
+  priceHistory: jsonb("price_history").$type<Array<{
+    price: string;
+    changedAt: string;
+    changedBy?: string;
+  }>>(),
+  viewCount: integer("view_count").default(0),
+  saveCount: integer("save_count").default(0),
+  applicationCount: integer("application_count").default(0),
   listedAt: timestamp("listed_at"),
   soldAt: timestamp("sold_at"),
   soldPrice: decimal("sold_price", { precision: 12, scale: 2 }),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
   deletedAt: timestamp("deleted_at"),
+});
+
+// Property internal notes for landlords/agents
+export const propertyNotes = pgTable("property_notes", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  propertyId: uuid("property_id").references(() => properties.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+  content: text("content").notNull(),
+  noteType: text("note_type").default("general"),
+  isPinned: boolean("is_pinned").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Application status workflow: draft -> pending -> under_review -> approved/rejected/expired
@@ -540,6 +582,12 @@ export const insertPropertySchema = createInsertSchema(properties).omit({
   deletedAt: true,
 });
 
+export const insertPropertyNoteSchema = createInsertSchema(propertyNotes).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertApplicationSchema = createInsertSchema(applications).omit({
   id: true,
   createdAt: true,
@@ -674,6 +722,11 @@ export type User = typeof users.$inferSelect;
 
 export type InsertProperty = z.infer<typeof insertPropertySchema>;
 export type Property = typeof properties.$inferSelect;
+export type PropertyListingStatus = typeof PROPERTY_LISTING_STATUSES[number];
+export type PropertyVisibility = typeof PROPERTY_VISIBILITY[number];
+
+export type InsertPropertyNote = z.infer<typeof insertPropertyNoteSchema>;
+export type PropertyNote = typeof propertyNotes.$inferSelect;
 
 export type InsertApplication = z.infer<typeof insertApplicationSchema>;
 export type Application = typeof applications.$inferSelect;
