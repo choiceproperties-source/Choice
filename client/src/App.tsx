@@ -38,6 +38,7 @@ const TenantProfile = lazy(() => import("@/pages/tenant-profile"));
 const LandlordDashboard = lazy(() => import("@/pages/landlord-dashboard"));
 const LandlordProperties = lazy(() => import("@/pages/landlord-properties"));
 const LandlordApplications = lazy(() => import("@/pages/landlord-applications"));
+const ApplicationReview = lazy(() => import("@/pages/application-review"));
 const LandlordProfile = lazy(() => import("@/pages/landlord-profile"));
 const AgentDashboard = lazy(() => import("@/pages/agent-dashboard-new"));
 const AgentProperties = lazy(() => import("@/pages/agent-properties"));
@@ -181,6 +182,13 @@ function Router() {
         <ReactSuspense fallback={<LoadingFallback />}>
           <ProtectedRoute requiredRoles={['landlord', 'admin']}>
             <LandlordApplications />
+          </ProtectedRoute>
+        </ReactSuspense>
+      </Route>
+      <Route path="/application-review/:id">
+        <ReactSuspense fallback={<LoadingFallback />}>
+          <ProtectedRoute requiredRoles={['landlord', 'agent', 'admin']}>
+            <ApplicationReview />
           </ProtectedRoute>
         </ReactSuspense>
       </Route>

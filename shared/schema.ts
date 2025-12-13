@@ -152,8 +152,9 @@ export const propertyNotes = pgTable("property_notes", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Application status workflow: draft -> pending_payment -> payment_verified -> submitted -> under_review -> info_requested -> approved/rejected/withdrawn
-// Valid transitions: draft->pending_payment, pending_payment->payment_verified, payment_verified->submitted, submitted->under_review, under_review->info_requested/approved/rejected, info_requested->under_review/approved/rejected
+// Application status workflow: draft -> pending_payment -> payment_verified -> submitted -> under_review -> conditional_approval/info_requested -> approved/rejected/withdrawn
+// Valid transitions: draft->pending_payment, pending_payment->payment_verified, payment_verified->submitted, submitted->under_review, 
+// under_review->info_requested/conditional_approval/approved/rejected, conditional_approval->approved/rejected/withdrawn, info_requested->under_review/approved/rejected
 export const APPLICATION_STATUSES = [
   "draft",
   "pending_payment",
@@ -161,9 +162,20 @@ export const APPLICATION_STATUSES = [
   "submitted",
   "under_review",
   "info_requested",
+  "conditional_approval",
   "approved",
   "rejected",
   "withdrawn"
+] as const;
+
+// Lease preparation statuses for post-approval workflow
+export const LEASE_STATUSES = [
+  "not_started",
+  "preparing",
+  "ready_for_signature",
+  "pending_signature",
+  "signed",
+  "active"
 ] as const;
 
 // Payment verification methods for manual verification
@@ -267,6 +279,38 @@ export const applications = pgTable("applications", {
   infoRequestedAt: timestamp("info_requested_at"),
   infoRequestedBy: uuid("info_requested_by").references(() => users.id),
   infoRequestedDueDate: timestamp("info_requested_due_date"),
+  // Conditional approval tracking
+  conditionalApprovalReason: text("conditional_approval_reason"),
+  conditionalApprovalAt: timestamp("conditional_approval_at"),
+  conditionalApprovalBy: uuid("conditional_approval_by").references(() => users.id),
+  conditionalApprovalDueDate: timestamp("conditional_approval_due_date"),
+  conditionalRequirements: jsonb("conditional_requirements").$type<Array<{
+    id: string;
+    type: 'document' | 'information' | 'verification';
+    description: string;
+    required: boolean;
+    satisfied: boolean;
+    satisfiedAt?: string;
+    satisfiedBy?: string;
+    notes?: string;
+  }>>(),
+  conditionalDocumentsRequired: jsonb("conditional_documents_required").$type<string[]>(),
+  conditionalDocumentsUploaded: jsonb("conditional_documents_uploaded").$type<Record<string, {
+    fileId: string;
+    fileName: string;
+    uploadedAt: string;
+    verified: boolean;
+    verifiedAt?: string;
+    verifiedBy?: string;
+  }>>(),
+  // Lease preparation tracking
+  leaseStatus: text("lease_status").default("not_started"),
+  leaseDocumentId: uuid("lease_document_id"),
+  leaseTemplateId: uuid("lease_template_id"),
+  leaseGeneratedAt: timestamp("lease_generated_at"),
+  leaseSignedAt: timestamp("lease_signed_at"),
+  moveInDate: timestamp("move_in_date"),
+  moveInScheduledAt: timestamp("move_in_scheduled_at"),
   // Custom answers to property-specific questions
   customAnswers: jsonb("custom_answers").$type<Record<string, string>>(),
   // Conversation link for messaging

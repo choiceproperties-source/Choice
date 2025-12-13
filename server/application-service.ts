@@ -2,12 +2,15 @@ import { supabase } from "./supabase";
 import { APPLICATION_STATUSES, REJECTION_CATEGORIES, type ApplicationStatus, type RejectionCategory } from "@shared/schema";
 import { sendEmail } from "./email";
 
-// Valid status transitions: draft → submitted → under_review → info_requested → approved/rejected/withdrawn
+// Valid status transitions: draft → submitted → under_review → conditional_approval/info_requested → approved/rejected/withdrawn
 const STATUS_TRANSITIONS: Record<ApplicationStatus, ApplicationStatus[]> = {
-  draft: ["submitted", "withdrawn"],
+  draft: ["submitted", "pending_payment", "withdrawn"],
+  pending_payment: ["payment_verified", "withdrawn"],
+  payment_verified: ["submitted", "withdrawn"],
   submitted: ["under_review", "withdrawn"],
-  under_review: ["info_requested", "approved", "rejected", "withdrawn"],
-  info_requested: ["under_review", "approved", "rejected", "withdrawn"],
+  under_review: ["info_requested", "conditional_approval", "approved", "rejected", "withdrawn"],
+  info_requested: ["under_review", "conditional_approval", "approved", "rejected", "withdrawn"],
+  conditional_approval: ["approved", "rejected", "withdrawn"],
   approved: [],
   rejected: [],
   withdrawn: [],
@@ -202,6 +205,15 @@ export async function updateApplicationStatus(
       appealable: boolean;
     };
     reason?: string;
+    conditionalRequirements?: Array<{
+      id: string;
+      type: 'document' | 'information' | 'verification';
+      description: string;
+      required: boolean;
+      satisfied: boolean;
+    }>;
+    conditionalDocuments?: string[];
+    dueDate?: string;
   }
 ): Promise<{ success: boolean; error?: string; data?: any }> {
   try {
@@ -264,6 +276,22 @@ export async function updateApplicationStatus(
       updateData.info_requested_at = new Date().toISOString();
       updateData.info_requested_by = userId;
       updateData.info_requested_reason = options?.reason;
+    }
+
+    // Handle conditional approval
+    if (newStatus === "conditional_approval") {
+      updateData.conditional_approval_at = new Date().toISOString();
+      updateData.conditional_approval_by = userId;
+      updateData.conditional_approval_reason = options?.reason;
+      if (options?.conditionalRequirements) {
+        updateData.conditional_requirements = options.conditionalRequirements;
+      }
+      if (options?.conditionalDocuments) {
+        updateData.conditional_documents_required = options.conditionalDocuments;
+      }
+      if (options?.dueDate) {
+        updateData.conditional_approval_due_date = options.dueDate;
+      }
     }
 
     // Update the application
@@ -357,6 +385,17 @@ function getStatusChangeEmailContent(
 
   const statusMessages: Record<ApplicationStatus, string> = {
     draft: "",
+    pending_payment: `
+      <h2>Payment Required</h2>
+      <p>Dear ${applicantName},</p>
+      <p>Your application for <strong>${propertyTitle}</strong> is ready. Please complete the application fee payment to proceed.</p>
+      <p>Once payment is verified, your application will be submitted for review.</p>
+    `,
+    payment_verified: `
+      <h2>Payment Verified</h2>
+      <p>Dear ${applicantName},</p>
+      <p>Your application fee for <strong>${propertyTitle}</strong> has been verified. Your application is now ready to be submitted for review.</p>
+    `,
     submitted: `
       <h2>Application Submitted</h2>
       <p>Dear ${applicantName},</p>
@@ -374,6 +413,13 @@ function getStatusChangeEmailContent(
       <p>Dear ${applicantName},</p>
       <p>The property owner has requested additional information for your application to <strong>${propertyTitle}</strong>.</p>
       <p>Please log in to your account and provide the requested information as soon as possible.</p>
+    `,
+    conditional_approval: `
+      <h2>Conditional Approval</h2>
+      <p>Dear ${applicantName},</p>
+      <p>Good news! Your application for <strong>${propertyTitle}</strong> has been conditionally approved.</p>
+      <p>To complete the approval process, please review the requirements listed in your dashboard and provide the requested documents or information.</p>
+      <p>Once all conditions are satisfied, your application will be fully approved.</p>
     `,
     approved: `
       <h2>Congratulations! Application Approved</h2>

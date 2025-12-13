@@ -1224,10 +1224,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           break;
           
         case 'approve':
-          if (!['submitted', 'under_review', 'info_requested'].includes(application.status)) {
+          if (!['submitted', 'under_review', 'info_requested', 'conditional_approval'].includes(application.status)) {
             return res.status(400).json(errorResponse("Application cannot be approved in its current state"));
           }
           newStatus = 'approved';
+          updateData.lease_status = 'preparing';
           break;
           
         case 'reject':
@@ -1246,15 +1247,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (!conditionalRequirements) {
             return res.status(400).json(errorResponse("Conditional requirements are required"));
           }
-          if (!['submitted', 'under_review'].includes(application.status)) {
+          if (!['submitted', 'under_review', 'info_requested'].includes(application.status)) {
             return res.status(400).json(errorResponse("Application cannot be conditionally approved in its current state"));
           }
-          newStatus = 'info_requested';
-          updateData.info_requested_reason = conditionalRequirements;
-          updateData.info_requested_at = new Date().toISOString();
-          updateData.info_requested_by = req.user!.id;
+          newStatus = 'conditional_approval';
+          updateData.conditional_approval_reason = typeof conditionalRequirements === 'string' 
+            ? conditionalRequirements 
+            : JSON.stringify(conditionalRequirements);
+          updateData.conditional_approval_at = new Date().toISOString();
+          updateData.conditional_approval_by = req.user!.id;
+          if (Array.isArray(conditionalRequirements)) {
+            updateData.conditional_requirements = conditionalRequirements.map((req: any, index: number) => ({
+              id: `req-${Date.now()}-${index}`,
+              type: req.type || 'information',
+              description: req.description || req,
+              required: req.required !== false,
+              satisfied: false,
+            }));
+          }
           if (dueDate) {
-            updateData.info_requested_due_date = dueDate;
+            updateData.conditional_approval_due_date = dueDate;
           }
           break;
           

@@ -31,6 +31,10 @@ import {
   CreditCard,
   AlertCircle,
   RefreshCw,
+  AlertTriangle,
+  MessageSquare,
+  Upload,
+  CalendarClock,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { PaymentForm } from '@/components/payment-form';
@@ -58,10 +62,20 @@ interface PaymentAttempt {
   errorMessage?: string;
 }
 
+interface ConditionalRequirement {
+  id: string;
+  type: 'document' | 'information' | 'verification';
+  description: string;
+  required: boolean;
+  satisfied: boolean;
+  satisfiedAt?: string;
+  notes?: string;
+}
+
 interface ApplicationData {
   id: string;
   property_id?: string;
-  status: 'pending' | 'approved' | 'rejected' | 'submitted' | 'under_review' | 'info_requested' | 'withdrawn';
+  status: 'pending' | 'approved' | 'rejected' | 'submitted' | 'under_review' | 'info_requested' | 'conditional_approval' | 'withdrawn';
   property?: PropertyData;
   created_at?: string;
   updated_at?: string;
@@ -69,6 +83,11 @@ interface ApplicationData {
   payment_status?: 'pending' | 'paid' | 'failed';
   payment_attempts?: PaymentAttempt[];
   payment_paid_at?: string;
+  conditional_requirements?: ConditionalRequirement[];
+  conditional_approval_reason?: string;
+  conditional_approval_due_date?: string;
+  info_requested_reason?: string;
+  lease_status?: string;
   [key: string]: any;
 }
 
@@ -146,8 +165,14 @@ export default function RenterDashboard() {
     switch (status) {
       case 'approved':
         return <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />;
+      case 'conditional_approval':
+        return <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />;
       case 'pending':
-        return <Clock className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />;
+      case 'submitted':
+      case 'under_review':
+        return <Clock className="h-5 w-5 text-blue-600 dark:text-blue-400" />;
+      case 'info_requested':
+        return <MessageSquare className="h-5 w-5 text-amber-600 dark:text-amber-400" />;
       case 'rejected':
         return <X className="h-5 w-5 text-red-600 dark:text-red-400" />;
       default:
@@ -157,7 +182,11 @@ export default function RenterDashboard() {
 
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
-      pending: 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 border border-yellow-300 dark:border-yellow-700',
+      pending: 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 border border-blue-300 dark:border-blue-700',
+      submitted: 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 border border-blue-300 dark:border-blue-700',
+      under_review: 'bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 border border-indigo-300 dark:border-indigo-700',
+      info_requested: 'bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700',
+      conditional_approval: 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 border border-yellow-300 dark:border-yellow-700',
       approved: 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 border border-green-300 dark:border-green-700',
       rejected: 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 border border-red-300 dark:border-red-700',
     };
@@ -167,10 +196,14 @@ export default function RenterDashboard() {
   const getStatusLabel = (status: string) => {
     const labels: Record<string, string> = {
       pending: 'Pending Review',
+      submitted: 'Submitted',
+      under_review: 'Under Review',
+      info_requested: 'Info Requested',
+      conditional_approval: 'Conditionally Approved',
       approved: 'Approved',
       rejected: 'Rejected',
     };
-    return labels[status] || status;
+    return labels[status] || status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   };
 
   // Stats
@@ -452,6 +485,107 @@ export default function RenterDashboard() {
                                 </div>
                               ))}
                             </div>
+                          </div>
+                        )}
+
+                        {/* Conditional Approval Requirements */}
+                        {app.status === 'conditional_approval' && (
+                          <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg" data-testid={`conditional-requirements-${app.id}`}>
+                            <div className="flex items-center gap-2 mb-3">
+                              <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
+                              <h4 className="font-semibold text-yellow-800 dark:text-yellow-200">Conditionally Approved</h4>
+                            </div>
+                            {app.conditional_approval_reason && (
+                              <p className="text-sm text-yellow-700 dark:text-yellow-300 mb-3">{app.conditional_approval_reason}</p>
+                            )}
+                            {app.conditional_approval_due_date && (
+                              <div className="flex items-center gap-2 mb-3 text-sm text-yellow-700 dark:text-yellow-300">
+                                <CalendarClock className="h-4 w-4" />
+                                <span>Due by: {new Date(app.conditional_approval_due_date).toLocaleDateString()}</span>
+                              </div>
+                            )}
+                            {Array.isArray(app.conditional_requirements) && app.conditional_requirements.length > 0 && (
+                              <div className="space-y-2">
+                                <p className="text-xs font-medium text-yellow-700 dark:text-yellow-300 uppercase tracking-wide">Requirements to Complete:</p>
+                                {app.conditional_requirements.map((req) => (
+                                  <div key={req.id} className="flex items-start gap-2 p-2 bg-white dark:bg-gray-800 rounded border border-yellow-200 dark:border-yellow-700">
+                                    {req.satisfied ? (
+                                      <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                                    ) : (
+                                      <Clock className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                                    )}
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <Badge variant="outline" className="text-xs">
+                                          {req.type}
+                                        </Badge>
+                                        {req.required && !req.satisfied && (
+                                          <Badge variant="outline" className="text-xs text-red-600 border-red-300">
+                                            Required
+                                          </Badge>
+                                        )}
+                                        {req.satisfied && (
+                                          <Badge className="text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 border border-green-300 dark:border-green-700">
+                                            Complete
+                                          </Badge>
+                                        )}
+                                      </div>
+                                      <p className="text-sm mt-1">{req.description}</p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Info Requested Display */}
+                        {app.status === 'info_requested' && (
+                          <div className="mt-4 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg" data-testid={`info-requested-${app.id}`}>
+                            <div className="flex items-center gap-2 mb-2">
+                              <MessageSquare className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                              <h4 className="font-semibold text-amber-800 dark:text-amber-200">Additional Information Requested</h4>
+                            </div>
+                            {app.info_requested_reason && (
+                              <p className="text-sm text-amber-700 dark:text-amber-300">{app.info_requested_reason}</p>
+                            )}
+                            <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
+                              Please contact the landlord or respond to their message to provide the requested information.
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Approved - Next Steps */}
+                        {app.status === 'approved' && (
+                          <div className="mt-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg" data-testid={`approved-steps-${app.id}`}>
+                            <div className="flex items-center gap-2 mb-3">
+                              <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+                              <h4 className="font-semibold text-green-800 dark:text-green-200">Congratulations! Application Approved</h4>
+                            </div>
+                            <p className="text-sm text-green-700 dark:text-green-300 mb-3">
+                              Your application has been approved. Here are the next steps:
+                            </p>
+                            <div className="space-y-2 text-sm">
+                              <div className="flex items-center gap-2">
+                                <div className="w-5 h-5 rounded-full bg-green-100 dark:bg-green-800 flex items-center justify-center text-xs font-medium text-green-700 dark:text-green-300">1</div>
+                                <span className="text-green-700 dark:text-green-300">Wait for lease agreement</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className="w-5 h-5 rounded-full bg-green-100 dark:bg-green-800 flex items-center justify-center text-xs font-medium text-green-700 dark:text-green-300">2</div>
+                                <span className="text-green-700 dark:text-green-300">Sign the lease document</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className="w-5 h-5 rounded-full bg-green-100 dark:bg-green-800 flex items-center justify-center text-xs font-medium text-green-700 dark:text-green-300">3</div>
+                                <span className="text-green-700 dark:text-green-300">Schedule move-in date</span>
+                              </div>
+                            </div>
+                            {app.lease_status && (
+                              <div className="mt-3 pt-3 border-t border-green-200 dark:border-green-700">
+                                <p className="text-xs font-medium text-green-700 dark:text-green-300">
+                                  Lease Status: <Badge variant="outline" className="ml-1 text-green-600 border-green-400">{app.lease_status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</Badge>
+                                </p>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>

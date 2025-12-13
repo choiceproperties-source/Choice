@@ -18,6 +18,9 @@ import {
   User,
   Calendar,
   DollarSign,
+  AlertTriangle,
+  Eye,
+  MessageSquare,
 } from 'lucide-react';
 import { updateMetaTags } from '@/lib/seo';
 
@@ -46,16 +49,22 @@ export default function LandlordApplications() {
     const groups: Record<string, any[]> = {
       pending: [],
       under_review: [],
+      info_requested: [],
+      conditional_approval: [],
       approved: [],
       rejected: [],
       other: [],
     };
 
     applications.forEach((app: any) => {
-      if (app.status === 'pending') {
+      if (app.status === 'pending' || app.status === 'submitted' || app.status === 'payment_verified') {
         groups.pending.push(app);
       } else if (app.status === 'under_review') {
         groups.under_review.push(app);
+      } else if (app.status === 'info_requested') {
+        groups.info_requested.push(app);
+      } else if (app.status === 'conditional_approval') {
+        groups.conditional_approval.push(app);
       } else if (app.status === 'approved') {
         groups.approved.push(app);
       } else if (app.status === 'rejected') {
@@ -71,7 +80,10 @@ export default function LandlordApplications() {
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
       pending: 'bg-yellow-50 dark:bg-yellow-950 text-yellow-800 dark:text-yellow-200',
-      under_review: 'bg-blue-50 dark:bg-blue-950 text-blue-800 dark:text-blue-200',
+      submitted: 'bg-blue-50 dark:bg-blue-950 text-blue-800 dark:text-blue-200',
+      under_review: 'bg-indigo-50 dark:bg-indigo-950 text-indigo-800 dark:text-indigo-200',
+      info_requested: 'bg-amber-50 dark:bg-amber-950 text-amber-800 dark:text-amber-200',
+      conditional_approval: 'bg-orange-50 dark:bg-orange-950 text-orange-800 dark:text-orange-200',
       approved: 'bg-green-50 dark:bg-green-950 text-green-800 dark:text-green-200',
       rejected: 'bg-red-50 dark:bg-red-950 text-red-800 dark:text-red-200',
     };
@@ -84,8 +96,13 @@ export default function LandlordApplications() {
         return <CheckCircle className="h-4 w-4 text-green-600" />;
       case 'rejected':
         return <XCircle className="h-4 w-4 text-red-600" />;
+      case 'conditional_approval':
+        return <AlertTriangle className="h-4 w-4 text-orange-600" />;
+      case 'info_requested':
+        return <MessageSquare className="h-4 w-4 text-amber-600" />;
       case 'pending':
       case 'under_review':
+      case 'submitted':
         return <Clock className="h-4 w-4 text-yellow-600" />;
       default:
         return <FileText className="h-4 w-4" />;
@@ -164,8 +181,17 @@ export default function LandlordApplications() {
           <Calendar className="h-3 w-3" />
           {new Date(app.created_at).toLocaleDateString()}
         </span>
-        {app.status === 'pending' && (
-          <div className="flex gap-2">
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => navigate(`/application-review/${app.id}`)}
+            data-testid={`button-view-${app.id}`}
+          >
+            <Eye className="h-3 w-3 mr-1" />
+            View Details
+          </Button>
+          {(app.status === 'pending' || app.status === 'submitted' || app.status === 'payment_verified') && (
             <Button
               size="sm"
               onClick={() =>
@@ -177,10 +203,10 @@ export default function LandlordApplications() {
               disabled={isUpdatingStatus}
               data-testid={`button-review-${app.id}`}
             >
-              {isUpdatingStatus ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Review'}
+              {isUpdatingStatus ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Start Review'}
             </Button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </Card>
   );
@@ -244,11 +270,41 @@ export default function LandlordApplications() {
             {groupedApplications.under_review.length > 0 && (
               <div data-testid="section-under-review">
                 <h2 className="text-2xl font-bold text-foreground mb-4 flex items-center gap-2">
-                  <FileText className="h-6 w-6 text-blue-600" />
+                  <FileText className="h-6 w-6 text-indigo-600" />
                   Under Review ({groupedApplications.under_review.length})
                 </h2>
                 <div className="space-y-4">
                   {groupedApplications.under_review.map((app) => (
+                    <ApplicationCard key={app.id} app={app} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Info Requested */}
+            {groupedApplications.info_requested.length > 0 && (
+              <div data-testid="section-info-requested">
+                <h2 className="text-2xl font-bold text-foreground mb-4 flex items-center gap-2">
+                  <MessageSquare className="h-6 w-6 text-amber-600" />
+                  Awaiting Information ({groupedApplications.info_requested.length})
+                </h2>
+                <div className="space-y-4">
+                  {groupedApplications.info_requested.map((app) => (
+                    <ApplicationCard key={app.id} app={app} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Conditional Approval */}
+            {groupedApplications.conditional_approval.length > 0 && (
+              <div data-testid="section-conditional-approval">
+                <h2 className="text-2xl font-bold text-foreground mb-4 flex items-center gap-2">
+                  <AlertTriangle className="h-6 w-6 text-orange-600" />
+                  Conditional Approval ({groupedApplications.conditional_approval.length})
+                </h2>
+                <div className="space-y-4">
+                  {groupedApplications.conditional_approval.map((app) => (
                     <ApplicationCard key={app.id} app={app} />
                   ))}
                 </div>
