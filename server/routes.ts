@@ -2963,6 +2963,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (appError) throw appError;
 
+      // Create security deposit payment record
+      // Get the lease draft to retrieve security deposit amount and rent
+      const { data: leaseDraft } = await supabase
+        .from("lease_drafts")
+        .select("security_deposit, lease_start_date, rent_amount")
+        .eq("application_id", req.params.applicationId)
+        .eq("status", "sent")
+        .order("version", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (leaseDraft?.security_deposit) {
+        // Get application details for tenant and property info
+        const { data: appInfo } = await supabase
+          .from("applications")
+          .select("user_id, property_id, properties(owner_id)")
+          .eq("id", req.params.applicationId)
+          .limit(1)
+          .maybeSingle();
+
+        if (appInfo) {
+          // Check if a lease record exists, create one if not
+          const { data: existingLease } = await supabase
+            .from("leases")
+            .select("id")
+            .eq("application_id", req.params.applicationId)
+            .limit(1)
+            .maybeSingle();
+
+          let leaseId = existingLease?.id;
+          let hasExistingDeposit = false;
+
+          // Check for existing security deposit if lease exists
+          if (leaseId) {
+            const { data: existingDeposit } = await supabase
+              .from("payments")
+              .select("id")
+              .eq("lease_id", leaseId)
+              .eq("type", "security_deposit")
+              .limit(1)
+              .maybeSingle();
+            hasExistingDeposit = !!existingDeposit;
+          }
+
+          if (!leaseId) {
+            // Create lease record - use rent_amount for monthly_rent, fallback to security_deposit
+            const monthlyRent = leaseDraft.rent_amount || leaseDraft.security_deposit;
+            const { data: newLease, error: leaseError } = await supabase
+              .from("leases")
+              .insert({
+                application_id: req.params.applicationId,
+                property_id: appInfo.property_id,
+                tenant_id: appInfo.user_id,
+                landlord_id: (appInfo.properties as any)?.owner_id,
+                monthly_rent: monthlyRent,
+                security_deposit_amount: leaseDraft.security_deposit,
+                rent_due_day: 1,
+                lease_start_date: leaseDraft.lease_start_date || new Date().toISOString(),
+                lease_end_date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+                status: "active"
+              })
+              .select("id")
+              .single();
+
+            if (!leaseError && newLease) {
+              leaseId = newLease.id;
+            }
+          }
+
+          // Create payment only if we have a lease and no existing deposit
+          if (leaseId && !hasExistingDeposit) {
+            const dueDate = new Date();
+            dueDate.setDate(dueDate.getDate() + 7);
+
+            await supabase
+              .from("payments")
+              .insert({
+                lease_id: leaseId,
+                tenant_id: appInfo.user_id,
+                amount: leaseDraft.security_deposit,
+                type: "security_deposit",
+                status: "pending",
+                due_date: dueDate.toISOString()
+              });
+          }
+        }
+      }
+
       // Create notification for landlord (check for duplicates)
       const { data: appData } = await supabase
         .from("applications")
@@ -5485,6 +5573,231 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.json(success(stats, "Agency stats fetched successfully"));
     } catch (err: any) {
       return res.status(500).json(errorResponse("Failed to fetch agency stats"));
+    }
+  });
+
+  // ===== PAYMENT ENDPOINTS =====
+  
+  // Get payments for an application (tenant sees their payments, landlord sees all)
+  app.get("/api/applications/:applicationId/payments", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const applicationId = req.params.applicationId;
+      
+      // Get application to verify access
+      const { data: application } = await supabase
+        .from("applications")
+        .select("user_id, properties(owner_id)")
+        .eq("id", applicationId)
+        .single();
+
+      if (!application) {
+        return res.status(404).json({ error: "Application not found" });
+      }
+
+      const isTenant = application.user_id === req.user!.id;
+      const isLandlord = application.properties?.owner_id === req.user!.id;
+      const isAdmin = req.user!.role === "admin";
+
+      if (!isTenant && !isLandlord && !isAdmin) {
+        return res.status(403).json({ error: "Not authorized to view payments" });
+      }
+
+      // Get lease for this application
+      const { data: lease } = await supabase
+        .from("leases")
+        .select("id")
+        .eq("application_id", applicationId)
+        .single();
+
+      if (!lease) {
+        return res.json(success([], "No lease found for this application"));
+      }
+
+      // Get payments for the lease
+      const { data: payments, error } = await supabase
+        .from("payments")
+        .select("*, verified_by_user:users!payments_verified_by_fkey(full_name)")
+        .eq("lease_id", lease.id)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      return res.json(success(payments || [], "Payments retrieved successfully"));
+    } catch (err: any) {
+      console.error("[PAYMENTS] Get error:", err);
+      return res.status(500).json(errorResponse("Failed to retrieve payments"));
+    }
+  });
+
+  // Get security deposit status for dashboard display
+  app.get("/api/applications/:applicationId/security-deposit", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const applicationId = req.params.applicationId;
+      
+      // Get application to verify access
+      const { data: application } = await supabase
+        .from("applications")
+        .select("user_id, lease_status, properties(owner_id)")
+        .eq("id", applicationId)
+        .limit(1)
+        .maybeSingle();
+
+      if (!application) {
+        return res.status(404).json({ error: "Application not found" });
+      }
+
+      const isTenant = application.user_id === req.user!.id;
+      const isLandlord = (application.properties as any)?.owner_id === req.user!.id;
+      const isAdmin = req.user!.role === "admin";
+
+      if (!isTenant && !isLandlord && !isAdmin) {
+        return res.status(403).json({ error: "Not authorized to view deposit status" });
+      }
+
+      // Get lease for this application
+      const { data: lease } = await supabase
+        .from("leases")
+        .select("id, security_deposit_amount")
+        .eq("application_id", applicationId)
+        .limit(1)
+        .maybeSingle();
+
+      if (!lease) {
+        return res.json(success({
+          required: false,
+          leaseStatus: application.lease_status,
+          message: "No lease found - deposit not required yet"
+        }, "Deposit status retrieved"));
+      }
+
+      // Get security deposit payment
+      const { data: payment } = await supabase
+        .from("payments")
+        .select("id, amount, status, due_date, paid_at, verified_at, verified_by")
+        .eq("lease_id", lease.id)
+        .eq("type", "security_deposit")
+        .limit(1)
+        .maybeSingle();
+
+      return res.json(success({
+        required: true,
+        leaseStatus: application.lease_status,
+        securityDepositAmount: lease.security_deposit_amount,
+        payment: payment || null,
+        message: payment ? `Security deposit is ${payment.status}` : "Security deposit payment not found"
+      }, "Deposit status retrieved"));
+    } catch (err: any) {
+      console.error("[PAYMENTS] Security deposit status error:", err);
+      return res.status(500).json(errorResponse("Failed to retrieve deposit status"));
+    }
+  });
+
+  // Verify a payment (landlord/admin only)
+  app.post("/api/payments/:paymentId/verify", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const paymentId = req.params.paymentId;
+
+      // Get payment with lease info
+      const { data: payment } = await supabase
+        .from("payments")
+        .select("*, leases(landlord_id, application_id)")
+        .eq("id", paymentId)
+        .single();
+
+      if (!payment) {
+        return res.status(404).json({ error: "Payment not found" });
+      }
+
+      const isLandlord = payment.leases?.landlord_id === req.user!.id;
+      const isAdmin = req.user!.role === "admin";
+
+      if (!isLandlord && !isAdmin) {
+        return res.status(403).json({ error: "Only landlord or admin can verify payments" });
+      }
+
+      if (payment.status === "verified") {
+        return res.status(400).json({ error: "Payment already verified" });
+      }
+
+      // Update payment status to verified
+      const { error } = await supabase
+        .from("payments")
+        .update({
+          status: "verified",
+          verified_by: req.user!.id,
+          verified_at: new Date().toISOString(),
+          paid_at: payment.paid_at || new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", paymentId);
+
+      if (error) throw error;
+
+      // Log audit event
+      await logAuditEvent({
+        userId: req.user!.id,
+        action: "payment_verify_manual",
+        resourceType: "payment",
+        resourceId: paymentId,
+        previousData: { status: payment.status },
+        newData: { status: "verified" },
+        ipAddress: req.ip,
+        userAgent: req.get("User-Agent")
+      });
+
+      return res.json(success({ status: "verified" }, "Payment verified successfully"));
+    } catch (err: any) {
+      console.error("[PAYMENTS] Verify error:", err);
+      return res.status(500).json(errorResponse("Failed to verify payment"));
+    }
+  });
+
+  // Mark payment as paid (tenant action)
+  app.post("/api/payments/:paymentId/mark-paid", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const paymentId = req.params.paymentId;
+      const { referenceId, notes } = req.body;
+
+      // Get payment
+      const { data: payment } = await supabase
+        .from("payments")
+        .select("*, leases(tenant_id)")
+        .eq("id", paymentId)
+        .single();
+
+      if (!payment) {
+        return res.status(404).json({ error: "Payment not found" });
+      }
+
+      const isTenant = payment.leases?.tenant_id === req.user!.id;
+      const isAdmin = req.user!.role === "admin";
+
+      if (!isTenant && !isAdmin) {
+        return res.status(403).json({ error: "Only tenant can mark their own payment as paid" });
+      }
+
+      if (payment.status === "verified" || payment.status === "paid") {
+        return res.status(400).json({ error: "Payment already processed" });
+      }
+
+      // Update payment status to paid (awaiting verification)
+      const { error } = await supabase
+        .from("payments")
+        .update({
+          status: "paid",
+          paid_at: new Date().toISOString(),
+          reference_id: referenceId || null,
+          notes: notes || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", paymentId);
+
+      if (error) throw error;
+
+      return res.json(success({ status: "paid" }, "Payment marked as paid - awaiting verification"));
+    } catch (err: any) {
+      console.error("[PAYMENTS] Mark paid error:", err);
+      return res.status(500).json(errorResponse("Failed to mark payment as paid"));
     }
   });
 
