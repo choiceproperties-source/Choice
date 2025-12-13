@@ -2630,7 +2630,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Only tenant, landlord/agent (property owner), or admin can view
       const isTenant = application.user_id === req.user!.id;
-      const isPropertyOwner = application.properties?.owner_id === req.user!.id;
+      const isPropertyOwner = (application as any).properties?.[0]?.owner_id === req.user!.id;
       const isAdmin = req.user!.role === "admin";
 
       if (!isTenant && !isPropertyOwner && !isAdmin) {
@@ -2679,7 +2679,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Application not found" });
       }
 
-      const isPropertyOwner = application.properties?.owner_id === req.user!.id;
+      const isPropertyOwner = (application.properties as any)?.[0]?.owner_id === req.user!.id;
       const isAdmin = req.user!.role === "admin";
 
       if (!isPropertyOwner && !isAdmin) {
@@ -3097,7 +3097,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .from("application_notifications")
             .insert([{
               application_id: req.params.applicationId,
-              user_id: appData.properties.owner_id,
+              user_id: (appData.properties as any)?.[0]?.owner_id,
               notification_type: "lease_accepted",
               channel: "email",
               subject: "Lease has been accepted",
@@ -3246,7 +3246,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .from("application_notifications")
             .insert([{
               application_id: req.params.applicationId,
-              user_id: appData.properties.owner_id,
+              user_id: (appData.properties as any)?.[0]?.owner_id,
               notification_type: "lease_signed_tenant",
               channel: "email",
               subject: "Tenant has signed the lease",
@@ -3377,7 +3377,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Application not found" });
       }
 
-      const isPropertyOwner = application.properties?.owner_id === req.user!.id;
+      const isPropertyOwner = (application.properties as any)?.[0]?.owner_id === req.user!.id;
       const isAdmin = req.user!.role === "admin";
 
       if (!isPropertyOwner && !isAdmin) {
@@ -3583,7 +3583,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .from("application_notifications")
             .insert([{
               application_id: req.params.applicationId,
-              user_id: appData.properties.owner_id,
+              user_id: (appData.properties as any)?.[0]?.owner_id,
               notification_type: "lease_declined",
               channel: "email",
               subject: "Lease has been declined",
@@ -5952,8 +5952,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Authorization: tenant or landlord
-      const isTenant = payment.leases?.applications?.tenant_id === req.user!.id;
-      const isLandlord = payment.leases?.applications?.properties?.owner_id === req.user!.id;
+      const isTenant = (payment as any).leases?.[0]?.applications?.[0]?.tenant_id === req.user!.id;
+      const isLandlord = (payment as any).leases?.[0]?.applications?.[0]?.properties?.[0]?.owner_id === req.user!.id;
       const isAdmin = req.user!.role === "admin";
 
       if (!isTenant && !isLandlord && !isAdmin) {
@@ -5961,6 +5961,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Format receipt data
+      const paymentAny = payment as any;
       const receipt = {
         receiptNumber: `RCP-${payment.id.substring(0, 8).toUpperCase()}`,
         paymentId: payment.id,
@@ -5972,14 +5973,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: payment.status,
         referenceId: payment.reference_id,
         property: {
-          title: payment.leases?.applications?.properties?.title,
-          address: payment.leases?.applications?.properties?.address
+          title: paymentAny.leases?.[0]?.applications?.[0]?.properties?.[0]?.title,
+          address: paymentAny.leases?.[0]?.applications?.[0]?.properties?.[0]?.address
         },
         tenant: {
-          name: payment.leases?.applications?.users?.full_name,
-          email: payment.leases?.applications?.users?.email
+          name: paymentAny.leases?.[0]?.applications?.[0]?.users?.[0]?.full_name,
+          email: paymentAny.leases?.[0]?.applications?.[0]?.users?.[0]?.email
         },
-        verifiedBy: payment.verified_by_user?.full_name || 'Pending verification',
+        verifiedBy: paymentAny.verified_by_user?.full_name || 'Pending verification',
         createdAt: payment.created_at
       };
 
@@ -6163,10 +6164,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         action: "create",
         resourceType: "payment",
         resourceId: leaseId,
-        previousData: null,
+        previousData: {} as Record<string, any>,
         newData: { count: inserted?.length || 0, type: "rent" },
-        ipAddress: req.ip,
-        userAgent: req.get("User-Agent")
+        req
       });
 
       return res.json(success({
@@ -6351,9 +6351,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         req.user!.id,
         req.params.id,
         "status_change",
-        application.status,
-        "under_review",
-        { action: "Manager reviewed application" },
+        { status: application.status },
+        { status: "under_review" },
         req
       );
 
@@ -6410,9 +6409,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         req.user!.id,
         req.params.id,
         "status_change",
-        application.status,
-        "approved",
-        { action: "Manager approved application" },
+        { status: application.status },
+        { status: "approved" },
         req
       );
 
@@ -6477,9 +6475,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         req.user!.id,
         req.params.id,
         "status_change",
-        application.status,
-        "rejected",
-        { action: "Manager rejected application", rejectionCategory, rejectionReason },
+        { status: application.status },
+        { status: "rejected" },
         req
       );
 
@@ -6534,9 +6531,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await logLeaseAction(
         req.user!.id,
-        req.params.leaseId,
+        lease.application_id,
         "lease_sent",
-        { action: "Manager sent lease", sentBy: req.user!.id },
+        undefined,
+        undefined,
+        `Manager sent lease to tenant`,
         req
       );
 
@@ -6648,9 +6647,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Generate token with 15 minute expiry
       const expirySeconds = 15 * 60; // 15 minutes
-      const token = imagekit.getAuthenticationParameters({
-        expire: Math.floor(Date.now() / 1000) + expirySeconds
-      });
+      const token = imagekit.getAuthenticationParameters(
+        Math.floor(Date.now() / 1000) + expirySeconds
+      );
 
       return res.json(success({
         token: token.token,
@@ -6727,13 +6726,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Validate file size if metadata contains fileSize
       if (metadata?.fileSize) {
-        const sizeValidation = validateFileSize(metadata.fileSize);
+        const sizeValidation = validateFileSize((metadata as any)?.[0]?.fileSize);
         if (!sizeValidation.valid) {
           await logSecurityEvent(
             req.user!.id,
             "upload_size_exceeded",
             false,
-            { reason: "File size exceeds limit", fileSize: metadata.fileSize, propertyId },
+            { reason: "File size exceeds limit", fileSize: (metadata as any)?.[0]?.fileSize, propertyId },
             req
           );
           return res.status(400).json({ error: sizeValidation.reason });
@@ -7156,10 +7155,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         action: "image_replace",
         photoId: req.params.photoId,
         propertyId: photo.property_id,
-        metadata: { newPhotoId: newPhoto?.id, oldPhotoId: req.params.photoId, url }
+        metadata: { oldPhotoId: req.params.photoId, url }
       });
 
-      await logSecurityEvent(req.user!.id, "photo_replaced", true, { oldPhotoId: req.params.photoId, newPhotoId: newPhoto.id }, req);
+      await logSecurityEvent(req.user!.id, "photo_replaced", true, { oldPhotoId: req.params.photoId, newPhotoId: newPhoto?.id }, req);
       return res.json(success(newPhoto, "Photo replaced"));
     } catch (err: any) {
       console.error("[IMAGES] Replace error:", err);

@@ -1560,7 +1560,7 @@ export const PHOTO_CATEGORIES = [
 export type PhotoCategory = typeof PHOTO_CATEGORIES[number];
 
 // Photos table - stores image metadata from ImageKit uploads
-export const photos = pgTable("photos", {
+export const photos: any = pgTable("photos", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   imageKitFileId: text("imagekit_file_id").notNull(),
   url: text("url").notNull(),
