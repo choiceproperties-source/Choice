@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { 
   Eye, 
   Heart, 
@@ -21,7 +22,8 @@ import {
   Pin,
   Trash2,
   Plus,
-  TrendingUp
+  TrendingUp,
+  Calendar
 } from "lucide-react";
 import { format } from "date-fns";
 import type { Property, PropertyNote } from "@shared/schema";
@@ -58,6 +60,9 @@ const VISIBILITY_OPTIONS = [
 export function PropertyManagement({ property, onUpdate }: PropertyManagementProps) {
   const [newNote, setNewNote] = useState("");
   const [noteType, setNoteType] = useState("general");
+  const [scheduledDate, setScheduledDate] = useState<string>(
+    property.scheduledPublishAt ? format(new Date(property.scheduledPublishAt), "yyyy-MM-dd") : ""
+  );
 
   const { data: analytics } = useQuery<{ success: boolean; data: PropertyAnalytics }>({
     queryKey: ["/api/properties", property.id, "analytics"],
@@ -123,6 +128,18 @@ export function PropertyManagement({ property, onUpdate }: PropertyManagementPro
     },
     onSuccess: () => {
       refetchNotes();
+    },
+  });
+
+  const scheduledPublishMutation = useMutation({
+    mutationFn: async (date: string | null) => {
+      return apiRequest("PATCH", `/api/properties/${property.id}/scheduled-publish`, {
+        scheduledPublishAt: date ? new Date(date).toISOString() : null
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/properties", property.id] });
+      onUpdate?.();
     },
   });
 
@@ -359,6 +376,61 @@ export function PropertyManagement({ property, onUpdate }: PropertyManagementPro
               <p className="text-xs text-muted-foreground">
                 Price changes are tracked in history for your records
               </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                Scheduled Publishing
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Publish Date (Optional)</Label>
+                <p className="text-sm text-muted-foreground">
+                  Set a future date to automatically publish this listing
+                </p>
+                <Input
+                  type="date"
+                  value={scheduledDate}
+                  onChange={(e) => setScheduledDate(e.target.value)}
+                  min={format(new Date(), "yyyy-MM-dd")}
+                  data-testid="input-scheduled-publish-date"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => scheduledPublishMutation.mutate(scheduledDate || null)}
+                  disabled={scheduledPublishMutation.isPending}
+                  data-testid="button-set-scheduled-publish"
+                >
+                  {scheduledPublishMutation.isPending ? "Setting..." : "Set Schedule"}
+                </Button>
+                {scheduledDate && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setScheduledDate("");
+                      scheduledPublishMutation.mutate(null);
+                    }}
+                    data-testid="button-clear-scheduled-publish"
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
+              {property.scheduledPublishAt && (
+                <div className="p-3 bg-muted rounded-md">
+                  <p className="text-sm">
+                    <span className="text-muted-foreground">Scheduled to publish:</span>{" "}
+                    <span className="font-medium">
+                      {format(new Date(property.scheduledPublishAt), "MMMM d, yyyy")}
+                    </span>
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
