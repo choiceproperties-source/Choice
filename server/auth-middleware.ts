@@ -29,6 +29,18 @@ export const APPLICATION_REVIEW_ROLES = ["admin", "owner", "agent", "landlord", 
 export const SENSITIVE_DATA_ROLES = ["admin", "owner", "agent", "landlord", "property_manager"];
 export const ADMIN_ONLY_ROLES = ["admin"];
 
+// Property Manager Permission Groups
+export const PROPERTY_MANAGER_PERMISSIONS = {
+  view_properties: "view_properties",
+  manage_applications: "manage_applications",
+  manage_leases: "manage_leases",
+  manage_payments: "manage_payments",
+  manage_maintenance: "manage_maintenance",
+  messaging_access: "messaging_access",
+} as const;
+
+export type PermissionGroup = typeof PROPERTY_MANAGER_PERMISSIONS[keyof typeof PROPERTY_MANAGER_PERMISSIONS];
+
 export function hasHigherOrEqualRole(userRole: string, requiredRole: string): boolean {
   const userLevel = ROLE_HIERARCHY[userRole] || 0;
   const requiredLevel = ROLE_HIERARCHY[requiredRole] || 0;
@@ -324,4 +336,55 @@ export function require2FAVerified() {
 
     next();
   };
+}
+
+export async function isPropertyManagerForProperty(
+  propertyManagerId: string,
+  propertyId: string
+): Promise<boolean> {
+  try {
+    const { data } = await supabase
+      .from("property_manager_assignments")
+      .select("id")
+      .eq("property_manager_id", propertyManagerId)
+      .eq("property_id", propertyId)
+      .is("revoked_at", null)
+      .single();
+
+    return !!data;
+  } catch (error) {
+    console.error("[AUTH] Failed to check property manager assignment:", error);
+    return false;
+  }
+}
+
+export async function canAccessProperty(
+  userId: string,
+  userRole: string,
+  propertyId: string
+): Promise<boolean> {
+  // Admins can access all properties
+  if (userRole === "admin") return true;
+
+  // Get property owner
+  const { data: property } = await supabase
+    .from("properties")
+    .select("owner_id")
+    .eq("id", propertyId)
+    .single();
+
+  if (!property) return false;
+
+  // Owner can access their own property
+  if (property.owner_id === userId) return true;
+
+  // Property managers need explicit assignment
+  if (userRole === "property_manager") {
+    return await isPropertyManagerForProperty(userId, propertyId);
+  }
+
+  // Agents can view all properties
+  if (userRole === "agent") return true;
+
+  return false;
 }

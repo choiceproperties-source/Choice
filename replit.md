@@ -118,6 +118,23 @@ project/
 - **Payment Deletion Prevention:** Payments cannot be deleted for financial accountability
 - **Audit Log Endpoint:** `GET /api/payments/audit-logs` for viewing payment history
 
+### Property Manager Role Foundation (NEW)
+- **New Role:** `property_manager` with 60 level hierarchy (same as landlord)
+- **Permission Groups:**
+  - `view_properties` - View assigned properties
+  - `manage_applications` - Manage tenant applications
+  - `manage_leases` - Handle lease documents and signatures
+  - `manage_payments` - Process and verify payments
+  - `manage_maintenance` - Track maintenance issues (future)
+  - `messaging_access` - Communication with tenants/landlords
+- **Scoped Access:**
+  - Property managers can ONLY access properties explicitly assigned to them via `property_manager_assignments` table
+  - Assignments include granular permission control per property
+  - Revoked assignments are tracked with `revokedAt` timestamp
+- **Authorization Functions:**
+  - `isPropertyManagerForProperty()` - Check if manager is assigned to property
+  - `canAccessProperty()` - Unified access control across all roles
+
 ## Environment Variables
 
 Required environment variables (see `.env.example`):

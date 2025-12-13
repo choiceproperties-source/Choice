@@ -1489,3 +1489,40 @@ export const PAYMENT_AUDIT_ACTIONS = [
 ] as const;
 
 export type PaymentAuditAction = typeof PAYMENT_AUDIT_ACTIONS[number];
+
+// Property Manager Permission Groups
+export const PROPERTY_MANAGER_PERMISSIONS = {
+  view_properties: "view_properties",
+  manage_applications: "manage_applications",
+  manage_leases: "manage_leases",
+  manage_payments: "manage_payments",
+  manage_maintenance: "manage_maintenance",
+  messaging_access: "messaging_access",
+} as const;
+
+export type PermissionGroup = typeof PROPERTY_MANAGER_PERMISSIONS[keyof typeof PROPERTY_MANAGER_PERMISSIONS];
+
+// Property Manager Assignments - Tracks which properties each manager is assigned to
+export const propertyManagerAssignments = pgTable("property_manager_assignments", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  propertyId: uuid("property_id").references(() => properties.id, { onDelete: "cascade" }).notNull(),
+  propertyManagerId: uuid("property_manager_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  assignedBy: uuid("assigned_by").references(() => users.id, { onDelete: "set null" }),
+  permissions: jsonb("permissions").$type<PermissionGroup[]>().default(sql`'["view_properties", "manage_applications", "manage_leases", "manage_payments", "manage_maintenance", "messaging_access"]'::jsonb`),
+  assignedAt: timestamp("assigned_at").defaultNow(),
+  revokedAt: timestamp("revoked_at"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertPropertyManagerAssignmentSchema = createInsertSchema(propertyManagerAssignments).omit({
+  id: true,
+  assignedAt: true,
+  createdAt: true,
+  updatedAt: true,
+  revokedAt: true,
+});
+
+export type InsertPropertyManagerAssignment = z.infer<typeof insertPropertyManagerAssignmentSchema>;
+export type PropertyManagerAssignment = typeof propertyManagerAssignments.$inferSelect;
