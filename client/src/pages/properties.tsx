@@ -436,7 +436,6 @@ export default function Properties() {
           </div>
         </DrawerContent>
       </Drawer>
-      )}
 
       {/* Full-Width Grid Layout */}
       <div className="flex-1 overflow-y-auto bg-white dark:bg-gray-950">
