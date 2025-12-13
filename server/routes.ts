@@ -5821,6 +5821,160 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get receipt details for a payment (for download/print)
+  app.get("/api/payments/:paymentId/receipt", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const paymentId = req.params.paymentId;
+
+      // Get payment with full details
+      const { data: payment } = await supabase
+        .from("payments")
+        .select(`
+          id,
+          type,
+          amount,
+          due_date,
+          paid_at,
+          verified_at,
+          reference_id,
+          status,
+          created_at,
+          leases(
+            id,
+            application_id,
+            monthly_rent,
+            security_deposit_amount,
+            applications(
+              id,
+              property_id,
+              tenant_id,
+              properties(title, address),
+              users(full_name, email)
+            )
+          ),
+          verified_by_user:users!payments_verified_by_fkey(full_name, email)
+        `)
+        .eq("id", paymentId)
+        .single();
+
+      if (!payment) {
+        return res.status(404).json({ error: "Payment not found" });
+      }
+
+      // Authorization: tenant or landlord
+      const isTenant = payment.leases?.applications?.tenant_id === req.user!.id;
+      const isLandlord = payment.leases?.applications?.properties?.owner_id === req.user!.id;
+      const isAdmin = req.user!.role === "admin";
+
+      if (!isTenant && !isLandlord && !isAdmin) {
+        return res.status(403).json({ error: "Not authorized to view this receipt" });
+      }
+
+      // Format receipt data
+      const receipt = {
+        receiptNumber: `RCP-${payment.id.substring(0, 8).toUpperCase()}`,
+        paymentId: payment.id,
+        type: payment.type === 'rent' ? 'Monthly Rent' : 'Security Deposit',
+        amount: parseFloat(payment.amount.toString()),
+        dueDate: payment.due_date,
+        paidDate: payment.paid_at || payment.verified_at,
+        verificationDate: payment.verified_at,
+        status: payment.status,
+        referenceId: payment.reference_id,
+        property: {
+          title: payment.leases?.applications?.properties?.title,
+          address: payment.leases?.applications?.properties?.address
+        },
+        tenant: {
+          name: payment.leases?.applications?.users?.full_name,
+          email: payment.leases?.applications?.users?.email
+        },
+        verifiedBy: payment.verified_by_user?.full_name || 'Pending verification',
+        createdAt: payment.created_at
+      };
+
+      return res.json(success(receipt, "Receipt retrieved successfully"));
+    } catch (err: any) {
+      console.error("[PAYMENTS] Receipt error:", err);
+      return res.status(500).json(errorResponse("Failed to retrieve receipt"));
+    }
+  });
+
+  // Get lease payment history for landlord
+  app.get("/api/leases/:leaseId/payment-history", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const leaseId = req.params.leaseId;
+
+      // Get lease with authorization check
+      const { data: lease } = await supabase
+        .from("leases")
+        .select("id, landlord_id, tenant_id, monthly_rent, security_deposit_amount, applications(property_id, properties(title, address))")
+        .eq("id", leaseId)
+        .single();
+
+      if (!lease) {
+        return res.status(404).json({ error: "Lease not found" });
+      }
+
+      const isLandlord = lease.landlord_id === req.user!.id;
+      const isTenant = lease.tenant_id === req.user!.id;
+      const isAdmin = req.user!.role === "admin";
+
+      if (!isLandlord && !isTenant && !isAdmin) {
+        return res.status(403).json({ error: "Not authorized to view payment history" });
+      }
+
+      // Get all payments for this lease
+      const { data: payments, error } = await supabase
+        .from("payments")
+        .select("*, verified_by_user:users!payments_verified_by_fkey(full_name)")
+        .eq("lease_id", leaseId)
+        .order("due_date", { ascending: false });
+
+      if (error) throw error;
+
+      // Mark overdue payments
+      const now = new Date();
+      const enrichedPayments = (payments || []).map((p: any) => {
+        const dueDate = new Date(p.due_date);
+        const isOverdue = p.status === 'pending' && dueDate < now;
+        return {
+          ...p,
+          status: isOverdue ? 'overdue' : p.status
+        };
+      });
+
+      // Calculate summary
+      const summary = {
+        totalPayments: enrichedPayments.length,
+        verified: enrichedPayments.filter((p: any) => p.status === 'verified').length,
+        paid: enrichedPayments.filter((p: any) => p.status === 'paid').length,
+        pending: enrichedPayments.filter((p: any) => p.status === 'pending').length,
+        overdue: enrichedPayments.filter((p: any) => p.status === 'overdue').length,
+        totalVerifiedAmount: enrichedPayments
+          .filter((p: any) => p.status === 'verified')
+          .reduce((sum: number, p: any) => sum + parseFloat(p.amount.toString()), 0),
+        totalOutstandingAmount: enrichedPayments
+          .filter((p: any) => ['pending', 'overdue'].includes(p.status))
+          .reduce((sum: number, p: any) => sum + parseFloat(p.amount.toString()), 0)
+      };
+
+      return res.json(success({
+        lease: {
+          id: lease.id,
+          property: lease.applications?.properties,
+          monthlyRent: lease.monthly_rent,
+          securityDepositAmount: lease.security_deposit_amount
+        },
+        payments: enrichedPayments,
+        summary
+      }, "Payment history retrieved successfully"));
+    } catch (err: any) {
+      console.error("[PAYMENTS] History error:", err);
+      return res.status(500).json(errorResponse("Failed to retrieve payment history"));
+    }
+  });
+
   // Generate monthly rent payment records for a lease
   app.post("/api/leases/:leaseId/generate-rent-payments", authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
