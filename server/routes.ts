@@ -874,6 +874,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Record payment attempt for an application
+  app.post("/api/applications/:id/payment-attempt", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { referenceId, status, amount, errorMessage } = req.body;
+      
+      if (!referenceId || !status || !amount) {
+        return res.status(400).json({ error: "Missing required fields: referenceId, status, amount" });
+      }
+
+      // Verify application exists and user has access
+      const { data: application, error: appError } = await supabase
+        .from("applications")
+        .select("id, user_id, payment_attempts, payment_status")
+        .eq("id", req.params.id)
+        .single();
+
+      if (appError || !application) {
+        return res.status(404).json({ error: "Application not found" });
+      }
+
+      // Verify user owns this application or is admin
+      if (application.user_id !== req.user!.id && req.user!.role !== "admin") {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      // Create new payment attempt record
+      const newAttempt = {
+        referenceId,
+        timestamp: new Date().toISOString(),
+        status,
+        amount,
+        errorMessage: errorMessage || null,
+      };
+
+      // Append to existing attempts or create new array
+      const existingAttempts = application.payment_attempts || [];
+      const updatedAttempts = [...existingAttempts, newAttempt];
+
+      // Determine new payment status based on attempt status
+      let newPaymentStatus = application.payment_status;
+      if (status === 'success') {
+        newPaymentStatus = 'paid';
+      } else if (status === 'failed' && application.payment_status !== 'paid') {
+        newPaymentStatus = 'failed';
+      }
+
+      // Update application with new payment attempt
+      const updateData: any = {
+        payment_attempts: updatedAttempts,
+        payment_status: newPaymentStatus,
+        updated_at: new Date().toISOString(),
+      };
+
+      // Set payment_paid_at if successful
+      if (status === 'success') {
+        updateData.payment_paid_at = new Date().toISOString();
+      }
+
+      const { data, error } = await supabase
+        .from("applications")
+        .update(updateData)
+        .eq("id", req.params.id)
+        .select();
+
+      if (error) throw error;
+
+      return res.json(success(data[0], "Payment attempt recorded"));
+    } catch (err: any) {
+      console.error("[PAYMENT] Record attempt error:", err);
+      return res.status(500).json(errorResponse("Failed to record payment attempt"));
+    }
+  });
+
   // Endpoint for guest and authenticated users to submit applications
   app.post("/api/applications/guest", optionalAuth, async (req: AuthenticatedRequest, res) => {
     try {

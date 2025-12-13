@@ -17,6 +17,7 @@ import {
   Mail,
   User,
   Calendar,
+  DollarSign,
 } from 'lucide-react';
 import { updateMetaTags } from '@/lib/seo';
 
@@ -88,6 +89,33 @@ export default function LandlordApplications() {
         return <Clock className="h-4 w-4 text-yellow-600" />;
       default:
         return <FileText className="h-4 w-4" />;
+    }
+  };
+
+  const getPaymentStatusBadge = (paymentStatus: string | null | undefined) => {
+    switch (paymentStatus) {
+      case 'paid':
+        return (
+          <Badge className="bg-green-50 dark:bg-green-950 text-green-800 dark:text-green-200" data-testid="badge-payment-paid">
+            <DollarSign className="h-3 w-3 mr-1" />
+            Fee Paid
+          </Badge>
+        );
+      case 'failed':
+        return (
+          <Badge className="bg-red-50 dark:bg-red-950 text-red-800 dark:text-red-200" data-testid="badge-payment-failed">
+            <DollarSign className="h-3 w-3 mr-1" />
+            Payment Failed
+          </Badge>
+        );
+      case 'pending':
+      default:
+        return (
+          <Badge className="bg-orange-50 dark:bg-orange-950 text-orange-800 dark:text-orange-200" data-testid="badge-payment-pending">
+            <DollarSign className="h-3 w-3 mr-1" />
+            Awaiting Fee
+          </Badge>
+        );
     }
   };
 

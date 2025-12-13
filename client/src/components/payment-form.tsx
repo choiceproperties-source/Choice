@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { CreditCard, Lock, Shield, AlertCircle, CheckCircle2, Loader2, RefreshCw, Phone, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { apiRequest } from "@/lib/queryClient";
 
 interface PaymentFormProps {
   amount: number;
@@ -183,6 +184,23 @@ export function PaymentForm({ amount, onSuccess, onError, onContactSupport, appl
       errorMessage: randomError
     };
     setPaymentAttempts(prev => [...prev, attempt]);
+    
+    // Save payment attempt to database if applicationId is provided
+    if (applicationId) {
+      try {
+        await apiRequest(`/api/applications/${applicationId}/payment-attempt`, {
+          method: 'POST',
+          body: JSON.stringify({
+            referenceId,
+            status: 'failed',
+            amount,
+            errorMessage: randomError
+          }),
+        });
+      } catch (apiError) {
+        console.error('Failed to save payment attempt to database:', apiError);
+      }
+    }
     
     setError(randomError);
     setIsProcessing(false);
