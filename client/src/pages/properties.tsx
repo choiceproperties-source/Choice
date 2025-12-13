@@ -317,8 +317,7 @@ export default function Properties() {
       </div>
 
       {/* Mobile Filters Drawer */}
-      {isMobileFiltersOpen && (
-        <Drawer open={isMobileFiltersOpen} onOpenChange={setIsMobileFiltersOpen}>
+      <Drawer open={isMobileFiltersOpen} onOpenChange={setIsMobileFiltersOpen}>
           <DrawerContent>
             <DrawerHeader className="border-b">
               <DrawerTitle>Filters</DrawerTitle>
