@@ -2,17 +2,15 @@ import { supabase } from "./supabase";
 import { APPLICATION_STATUSES, REJECTION_CATEGORIES, type ApplicationStatus, type RejectionCategory } from "@shared/schema";
 import { sendEmail } from "./email";
 
-// Valid status transitions
+// Valid status transitions: draft → submitted → under_review → info_requested → approved/rejected/withdrawn
 const STATUS_TRANSITIONS: Record<ApplicationStatus, ApplicationStatus[]> = {
-  draft: ["pending", "withdrawn"],
-  pending: ["under_review", "withdrawn", "expired"],
-  under_review: ["pending_verification", "approved", "rejected", "withdrawn"],
-  pending_verification: ["approved", "rejected", "under_review", "withdrawn"],
-  approved: ["approved_pending_lease"],
-  approved_pending_lease: [],
+  draft: ["submitted", "withdrawn"],
+  submitted: ["under_review", "withdrawn"],
+  under_review: ["info_requested", "approved", "rejected", "withdrawn"],
+  info_requested: ["under_review", "approved", "rejected", "withdrawn"],
+  approved: [],
   rejected: [],
   withdrawn: [],
-  expired: [],
 };
 
 export function isValidStatusTransition(
@@ -256,14 +254,16 @@ export async function updateApplicationStatus(
     }
 
     // Handle approval
-    if (newStatus === "approved" || newStatus === "approved_pending_lease") {
+    if (newStatus === "approved") {
       updateData.reviewed_by = userId;
       updateData.reviewed_at = new Date().toISOString();
     }
 
-    // Handle expiration
-    if (newStatus === "expired") {
-      updateData.expired_at = new Date().toISOString();
+    // Handle info requested
+    if (newStatus === "info_requested") {
+      updateData.info_requested_at = new Date().toISOString();
+      updateData.info_requested_by = userId;
+      updateData.info_requested_reason = options?.reason;
     }
 
     // Update the application
@@ -357,7 +357,7 @@ function getStatusChangeEmailContent(
 
   const statusMessages: Record<ApplicationStatus, string> = {
     draft: "",
-    pending: `
+    submitted: `
       <h2>Application Submitted</h2>
       <p>Dear ${applicantName},</p>
       <p>Your application for <strong>${propertyTitle}</strong> has been successfully submitted and is now pending review.</p>
@@ -369,23 +369,17 @@ function getStatusChangeEmailContent(
       <p>Great news! Your application for <strong>${propertyTitle}</strong> is now being reviewed by the property owner.</p>
       <p>We will keep you updated on any changes to your application status.</p>
     `,
-    pending_verification: `
-      <h2>Verification Required</h2>
+    info_requested: `
+      <h2>Additional Information Requested</h2>
       <p>Dear ${applicantName},</p>
-      <p>Your application for <strong>${propertyTitle}</strong> requires additional verification.</p>
-      <p>Please ensure all your documents are up to date and accurate. You may be contacted for additional information.</p>
+      <p>The property owner has requested additional information for your application to <strong>${propertyTitle}</strong>.</p>
+      <p>Please log in to your account and provide the requested information as soon as possible.</p>
     `,
     approved: `
       <h2>Congratulations! Application Approved</h2>
       <p>Dear ${applicantName},</p>
       <p>We are pleased to inform you that your application for <strong>${propertyTitle}</strong> has been approved!</p>
       <p>The property owner will be in touch with you shortly regarding the next steps for your lease agreement.</p>
-    `,
-    approved_pending_lease: `
-      <h2>Approved - Lease Pending</h2>
-      <p>Dear ${applicantName},</p>
-      <p>Your application for <strong>${propertyTitle}</strong> has been approved and is pending lease signing.</p>
-      <p>Please check your email for the lease agreement and follow the instructions to complete the process.</p>
     `,
     rejected: `
       <h2>Application Status Update</h2>
@@ -400,12 +394,6 @@ function getStatusChangeEmailContent(
       <p>Dear ${applicantName},</p>
       <p>Your application for <strong>${propertyTitle}</strong> has been withdrawn as requested.</p>
       <p>If you wish to apply again in the future, please submit a new application.</p>
-    `,
-    expired: `
-      <h2>Application Expired</h2>
-      <p>Dear ${applicantName},</p>
-      <p>Your application for <strong>${propertyTitle}</strong> has expired due to inactivity.</p>
-      <p>If you are still interested in this property, please submit a new application.</p>
     `,
   };
 
@@ -430,37 +418,36 @@ function getStatusChangeEmailContent(
   `;
 }
 
-// Check and expire old applications
-export async function expireOldApplications(daysOld: number = 30): Promise<number> {
+// Check and withdraw old draft applications due to inactivity
+export async function withdrawOldDraftApplications(daysOld: number = 30): Promise<number> {
   try {
     const expirationDate = new Date();
     expirationDate.setDate(expirationDate.getDate() - daysOld);
 
-    const { data: expiredApps, error } = await supabase
+    const { data: oldDrafts, error } = await supabase
       .from("applications")
       .select("id, user_id")
-      .eq("status", "pending")
-      .lt("created_at", expirationDate.toISOString())
-      .is("expired_at", null);
+      .eq("status", "draft")
+      .lt("created_at", expirationDate.toISOString());
 
-    if (error || !expiredApps) {
-      console.error("Error fetching expired applications:", error);
+    if (error || !oldDrafts) {
+      console.error("Error fetching old draft applications:", error);
       return 0;
     }
 
-    let expiredCount = 0;
-    for (const app of expiredApps) {
-      const result = await updateApplicationStatus(app.id, "expired", "system", {
-        reason: "Application expired due to inactivity",
+    let withdrawnCount = 0;
+    for (const app of oldDrafts) {
+      const result = await updateApplicationStatus(app.id, "withdrawn", "system", {
+        reason: "Application withdrawn due to inactivity",
       });
       if (result.success) {
-        expiredCount++;
+        withdrawnCount++;
       }
     }
 
-    return expiredCount;
+    return withdrawnCount;
   } catch (err) {
-    console.error("Error expiring applications:", err);
+    console.error("Error withdrawing old applications:", err);
     return 0;
   }
 }

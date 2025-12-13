@@ -125,6 +125,20 @@ export const properties = pgTable("properties", {
   deletedAt: timestamp("deleted_at"),
 });
 
+// Property custom questions for applications (defined by landlord/agent)
+export const propertyQuestions = pgTable("property_questions", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  propertyId: uuid("property_id").references(() => properties.id, { onDelete: "cascade" }),
+  question: text("question").notNull(),
+  questionType: text("question_type").default("text"), // text, textarea, select, checkbox, radio
+  options: jsonb("options").$type<string[]>(), // For select/radio/checkbox types
+  required: boolean("required").default(false),
+  displayOrder: integer("display_order").default(0),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Property internal notes for landlords/agents
 export const propertyNotes = pgTable("property_notes", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -137,18 +151,16 @@ export const propertyNotes = pgTable("property_notes", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Application status workflow: draft -> pending -> under_review -> approved/rejected/expired
-// Valid transitions: draft->pending, pending->under_review, under_review->approved/rejected, pending->expired
+// Application status workflow: draft -> submitted -> under_review -> info_requested -> approved/rejected/withdrawn
+// Valid transitions: draft->submitted, submitted->under_review, under_review->info_requested/approved/rejected, info_requested->under_review/approved/rejected
 export const APPLICATION_STATUSES = [
   "draft",
-  "pending", 
+  "submitted",
   "under_review",
-  "pending_verification",
+  "info_requested",
   "approved",
-  "approved_pending_lease",
   "rejected",
-  "withdrawn",
-  "expired"
+  "withdrawn"
 ] as const;
 
 export const REJECTION_CATEGORIES = [
@@ -218,6 +230,17 @@ export const applications = pgTable("applications", {
   expiredAt: timestamp("expired_at"),
   // Application fee
   applicationFee: decimal("application_fee", { precision: 8, scale: 2 }),
+  // Info request tracking
+  infoRequestedReason: text("info_requested_reason"),
+  infoRequestedAt: timestamp("info_requested_at"),
+  infoRequestedBy: uuid("info_requested_by").references(() => users.id),
+  infoRequestedDueDate: timestamp("info_requested_due_date"),
+  // Custom answers to property-specific questions
+  customAnswers: jsonb("custom_answers").$type<Record<string, string>>(),
+  // Conversation link for messaging
+  conversationId: uuid("conversation_id"),
+  // Last step saved for auto-save tracking
+  lastSavedStep: integer("last_saved_step").default(0),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
   deletedAt: timestamp("deleted_at"),
@@ -590,6 +613,12 @@ export const insertPropertyNoteSchema = createInsertSchema(propertyNotes).omit({
   updatedAt: true,
 });
 
+export const insertPropertyQuestionSchema = createInsertSchema(propertyQuestions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertApplicationSchema = createInsertSchema(applications).omit({
   id: true,
   createdAt: true,
@@ -729,6 +758,9 @@ export type PropertyVisibility = typeof PROPERTY_VISIBILITY[number];
 
 export type InsertPropertyNote = z.infer<typeof insertPropertyNoteSchema>;
 export type PropertyNote = typeof propertyNotes.$inferSelect;
+
+export type InsertPropertyQuestion = z.infer<typeof insertPropertyQuestionSchema>;
+export type PropertyQuestion = typeof propertyQuestions.$inferSelect;
 
 export type InsertApplication = z.infer<typeof insertApplicationSchema>;
 export type Application = typeof applications.$inferSelect;
