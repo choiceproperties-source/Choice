@@ -5,18 +5,28 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { CreditCard, Lock, Shield, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { CreditCard, Lock, Shield, AlertCircle, CheckCircle2, Loader2, RefreshCw, Phone, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface PaymentFormProps {
   amount: number;
   onSuccess?: () => void;
   onError?: (error: string) => void;
+  onContactSupport?: () => void;
   applicationId?: string;
   propertyAddress?: string;
 }
 
 type CardType = 'visa' | 'mastercard' | 'amex' | 'discover' | 'unknown';
+
+interface PaymentAttempt {
+  referenceId: string;
+  timestamp: string;
+  status: 'failed' | 'pending' | 'success';
+  amount: number;
+  errorMessage?: string;
+}
 
 const cardPatterns: Record<CardType, RegExp> = {
   visa: /^4/,
@@ -65,17 +75,21 @@ const errorMessages = [
   "Transaction failed: Unable to authorize payment. Please try again or use a different card."
 ];
 
-export function PaymentForm({ amount, onSuccess, onError, applicationId, propertyAddress }: PaymentFormProps) {
+export function PaymentForm({ amount, onSuccess, onError, onContactSupport, applicationId, propertyAddress }: PaymentFormProps) {
   const [cardNumber, setCardNumber] = useState('');
   const [cardName, setCardName] = useState('');
   const [expiry, setExpiry] = useState('');
   const [cvv, setCvv] = useState('');
+  const [zipCode, setZipCode] = useState('');
   const [saveCard, setSaveCard] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStep, setProcessingStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [cardType, setCardType] = useState<CardType>('unknown');
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [paymentAttempts, setPaymentAttempts] = useState<PaymentAttempt[]>([]);
+  const [showSupportDialog, setShowSupportDialog] = useState(false);
+  const [lastReferenceId, setLastReferenceId] = useState<string | null>(null);
 
   useEffect(() => {
     setCardType(getCardType(cardNumber));
@@ -114,6 +128,10 @@ export function PaymentForm({ amount, onSuccess, onError, applicationId, propert
     if (cvv.length !== cvvLength) {
       errors.cvv = `Please enter a valid ${cvvLength}-digit security code`;
     }
+
+    if (zipCode.length < 5) {
+      errors.zipCode = 'Please enter a valid ZIP code';
+    }
     
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
@@ -127,6 +145,10 @@ export function PaymentForm({ amount, onSuccess, onError, applicationId, propert
     "Verifying payment..."
   ];
 
+  const generateReferenceId = () => {
+    return `PAY-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -138,6 +160,9 @@ export function PaymentForm({ amount, onSuccess, onError, applicationId, propert
     setIsProcessing(true);
     setProcessingStep(0);
     
+    const referenceId = generateReferenceId();
+    setLastReferenceId(referenceId);
+    
     // Simulate realistic payment processing with delays
     for (let i = 0; i < processingSteps.length; i++) {
       setProcessingStep(i);
@@ -148,11 +173,44 @@ export function PaymentForm({ amount, onSuccess, onError, applicationId, propert
     await new Promise(resolve => setTimeout(resolve, 500));
     
     const randomError = errorMessages[Math.floor(Math.random() * errorMessages.length)];
+    
+    // Record payment attempt
+    const attempt: PaymentAttempt = {
+      referenceId,
+      timestamp: new Date().toISOString(),
+      status: 'failed',
+      amount,
+      errorMessage: randomError
+    };
+    setPaymentAttempts(prev => [...prev, attempt]);
+    
     setError(randomError);
     setIsProcessing(false);
     
     if (onError) {
       onError(randomError);
+    }
+  };
+
+  const handleRetry = () => {
+    setError(null);
+    handleSubmit(new Event('submit') as any);
+  };
+
+  const handleTryNewCard = () => {
+    setError(null);
+    setCardNumber('');
+    setCardName('');
+    setExpiry('');
+    setCvv('');
+    setZipCode('');
+    setValidationErrors({});
+  };
+
+  const handleContactSupport = () => {
+    setShowSupportDialog(true);
+    if (onContactSupport) {
+      onContactSupport();
     }
   };
 
@@ -202,204 +260,337 @@ export function PaymentForm({ amount, onSuccess, onError, applicationId, propert
   };
 
   return (
-    <Card className="w-full max-w-lg mx-auto">
-      <CardHeader className="space-y-1">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-xl">Secure Payment</CardTitle>
-          <div className="flex items-center gap-1 text-green-600">
-            <Lock className="h-4 w-4" />
-            <span className="text-xs font-medium">SSL Encrypted</span>
+    <>
+      <Card className="w-full max-w-lg mx-auto">
+        <CardHeader className="space-y-1">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-xl">Secure Payment</CardTitle>
+            <div className="flex items-center gap-1 text-green-600">
+              <Lock className="h-4 w-4" />
+              <span className="text-xs font-medium">SSL Encrypted</span>
+            </div>
           </div>
-        </div>
-        <CardDescription>
-          {propertyAddress 
-            ? `Application fee for ${propertyAddress}`
-            : 'Complete your secure payment'
-          }
-        </CardDescription>
-      </CardHeader>
-      
-      <form onSubmit={handleSubmit}>
-        <CardContent className="space-y-4">
-          {/* Amount Display */}
-          <div className="bg-muted/50 rounded-lg p-4 flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Application Fee</span>
-            <span className="text-2xl font-bold">${amount.toFixed(2)}</span>
-          </div>
-          
-          {/* Card Number */}
-          <div className="space-y-2">
-            <Label htmlFor="cardNumber">Card Number</Label>
-            <div className="relative">
+          <CardDescription>
+            {propertyAddress 
+              ? `Application fee for ${propertyAddress}`
+              : 'Complete your secure payment'
+            }
+          </CardDescription>
+        </CardHeader>
+        
+        <form onSubmit={handleSubmit}>
+          <CardContent className="space-y-4">
+            {/* Amount Display */}
+            <div className="bg-muted/50 rounded-lg p-4 flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Application Fee</span>
+              <span className="text-2xl font-bold">${amount.toFixed(2)}</span>
+            </div>
+            
+            {/* Card Number */}
+            <div className="space-y-2">
+              <Label htmlFor="cardNumber">Card Number</Label>
+              <div className="relative">
+                <Input
+                  id="cardNumber"
+                  data-testid="input-card-number"
+                  placeholder="1234 5678 9012 3456"
+                  value={cardNumber}
+                  onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
+                  maxLength={19}
+                  className={cn(
+                    "pr-16",
+                    validationErrors.cardNumber && "border-red-500"
+                  )}
+                  disabled={isProcessing}
+                />
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <CardTypeIcon />
+                </div>
+              </div>
+              {validationErrors.cardNumber && (
+                <p className="text-xs text-red-500">{validationErrors.cardNumber}</p>
+              )}
+            </div>
+            
+            {/* Card Name */}
+            <div className="space-y-2">
+              <Label htmlFor="cardName">Name on Card</Label>
               <Input
-                id="cardNumber"
-                data-testid="input-card-number"
-                placeholder="1234 5678 9012 3456"
-                value={cardNumber}
-                onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
-                maxLength={19}
-                className={cn(
-                  "pr-16",
-                  validationErrors.cardNumber && "border-red-500"
-                )}
+                id="cardName"
+                data-testid="input-card-name"
+                placeholder="JOHN DOE"
+                value={cardName}
+                onChange={(e) => setCardName(e.target.value.toUpperCase())}
+                className={validationErrors.cardName ? "border-red-500" : ""}
                 disabled={isProcessing}
               />
-              <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                <CardTypeIcon />
+              {validationErrors.cardName && (
+                <p className="text-xs text-red-500">{validationErrors.cardName}</p>
+              )}
+            </div>
+            
+            {/* Expiry, CVV, and ZIP */}
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="expiry">Expiry Date</Label>
+                <Input
+                  id="expiry"
+                  data-testid="input-expiry"
+                  placeholder="MM/YY"
+                  value={expiry}
+                  onChange={(e) => setExpiry(formatExpiry(e.target.value))}
+                  maxLength={5}
+                  className={validationErrors.expiry ? "border-red-500" : ""}
+                  disabled={isProcessing}
+                />
+                {validationErrors.expiry && (
+                  <p className="text-xs text-red-500">{validationErrors.expiry}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="cvv">CVV</Label>
+                <Input
+                  id="cvv"
+                  data-testid="input-cvv"
+                  placeholder={cardType === 'amex' ? '1234' : '123'}
+                  value={cvv}
+                  onChange={(e) => setCvv(e.target.value.replace(/\D/g, '').slice(0, cardType === 'amex' ? 4 : 3))}
+                  maxLength={cardType === 'amex' ? 4 : 3}
+                  type="password"
+                  className={validationErrors.cvv ? "border-red-500" : ""}
+                  disabled={isProcessing}
+                />
+                {validationErrors.cvv && (
+                  <p className="text-xs text-red-500">{validationErrors.cvv}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="zipCode">ZIP Code</Label>
+                <Input
+                  id="zipCode"
+                  data-testid="input-zip-code"
+                  placeholder="12345"
+                  value={zipCode}
+                  onChange={(e) => setZipCode(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                  maxLength={5}
+                  className={validationErrors.zipCode ? "border-red-500" : ""}
+                  disabled={isProcessing}
+                />
+                {validationErrors.zipCode && (
+                  <p className="text-xs text-red-500">{validationErrors.zipCode}</p>
+                )}
               </div>
             </div>
-            {validationErrors.cardNumber && (
-              <p className="text-xs text-red-500">{validationErrors.cardNumber}</p>
-            )}
-          </div>
-          
-          {/* Card Name */}
-          <div className="space-y-2">
-            <Label htmlFor="cardName">Name on Card</Label>
-            <Input
-              id="cardName"
-              data-testid="input-card-name"
-              placeholder="JOHN DOE"
-              value={cardName}
-              onChange={(e) => setCardName(e.target.value.toUpperCase())}
-              className={validationErrors.cardName ? "border-red-500" : ""}
-              disabled={isProcessing}
-            />
-            {validationErrors.cardName && (
-              <p className="text-xs text-red-500">{validationErrors.cardName}</p>
-            )}
-          </div>
-          
-          {/* Expiry and CVV */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="expiry">Expiry Date</Label>
-              <Input
-                id="expiry"
-                data-testid="input-expiry"
-                placeholder="MM/YY"
-                value={expiry}
-                onChange={(e) => setExpiry(formatExpiry(e.target.value))}
-                maxLength={5}
-                className={validationErrors.expiry ? "border-red-500" : ""}
+            
+            {/* Save Card */}
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="saveCard"
+                data-testid="checkbox-save-card"
+                checked={saveCard}
+                onCheckedChange={(checked) => setSaveCard(checked as boolean)}
                 disabled={isProcessing}
               />
-              {validationErrors.expiry && (
-                <p className="text-xs text-red-500">{validationErrors.expiry}</p>
+              <Label htmlFor="saveCard" className="text-sm text-muted-foreground cursor-pointer">
+                Save this card for future transactions
+              </Label>
+            </div>
+            
+            {/* Processing Status */}
+            {isProcessing && (
+              <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <div className="flex items-center gap-3">
+                  <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                      {processingSteps[processingStep]}
+                    </p>
+                    <div className="mt-2 h-1.5 bg-blue-200 dark:bg-blue-800 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-blue-600 transition-all duration-500"
+                        style={{ width: `${((processingStep + 1) / processingSteps.length) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Error Message with Action Buttons */}
+            {error && (
+              <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                <div className="flex gap-3">
+                  <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-red-900 dark:text-red-100">
+                      Payment couldn't be completed right now
+                    </p>
+                    <p className="text-sm text-red-700 dark:text-red-300 mt-1">
+                      No charges were made. Please try again later.
+                    </p>
+                    <div className="mt-2 p-2 bg-red-100 dark:bg-red-900 rounded text-xs">
+                      <p className="text-red-800 dark:text-red-200">
+                        <span className="font-medium">Reference ID:</span> {lastReferenceId}
+                      </p>
+                      <p className="text-red-800 dark:text-red-200">
+                        <span className="font-medium">Timestamp:</span> {new Date().toLocaleString()}
+                      </p>
+                      <p className="text-red-800 dark:text-red-200">
+                        <span className="font-medium">Amount:</span> ${amount.toFixed(2)}
+                      </p>
+                      <p className="text-red-800 dark:text-red-200">
+                        <span className="font-medium">Status:</span> Failed
+                      </p>
+                    </div>
+                    
+                    {/* Action Buttons */}
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleRetry}
+                        data-testid="button-retry-payment"
+                        className="flex items-center gap-1"
+                      >
+                        <RefreshCw className="h-3 w-3" />
+                        Retry Payment
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleTryNewCard}
+                        data-testid="button-try-new-card"
+                        className="flex items-center gap-1"
+                      >
+                        <CreditCard className="h-3 w-3" />
+                        Try New Card
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleContactSupport}
+                        data-testid="button-contact-support"
+                        className="flex items-center gap-1"
+                      >
+                        <Phone className="h-3 w-3" />
+                        Contact Support
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Payment Attempts History */}
+            {paymentAttempts.length > 0 && !error && (
+              <div className="bg-muted/30 rounded-lg p-3">
+                <p className="text-xs font-medium text-muted-foreground mb-2">
+                  Previous Attempts ({paymentAttempts.length})
+                </p>
+                <div className="space-y-1 max-h-24 overflow-y-auto">
+                  {paymentAttempts.slice(-3).map((attempt, idx) => (
+                    <div key={idx} className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">{attempt.referenceId}</span>
+                      <Badge variant="destructive" className="text-xs">Failed</Badge>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {/* Security Info */}
+            <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2">
+              <Shield className="h-4 w-4" />
+              <span>Your payment is secured with 256-bit SSL encryption. We never store your full card details.</span>
+            </div>
+          </CardContent>
+          
+          <CardFooter className="flex flex-col gap-3">
+            <Button
+              type="submit"
+              data-testid="button-submit-payment"
+              className="w-full"
+              size="lg"
+              disabled={isProcessing}
+            >
+              {isProcessing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <Lock className="mr-2 h-4 w-4" />
+                  Pay ${amount.toFixed(2)}
+                </>
               )}
+            </Button>
+            
+            <div className="flex items-center justify-center gap-2 w-full">
+              <span className="text-xs text-muted-foreground">Accepted Cards:</span>
+              <div className="flex gap-1">
+                <Badge variant="outline" className="text-xs px-1.5">Visa</Badge>
+                <Badge variant="outline" className="text-xs px-1.5">Mastercard</Badge>
+                <Badge variant="outline" className="text-xs px-1.5">Amex</Badge>
+                <Badge variant="outline" className="text-xs px-1.5">Discover</Badge>
+              </div>
+            </div>
+          </CardFooter>
+        </form>
+      </Card>
+
+      {/* Support Dialog */}
+      <Dialog open={showSupportDialog} onOpenChange={setShowSupportDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <HelpCircle className="h-5 w-5 text-primary" />
+              Contact Support
+            </DialogTitle>
+            <DialogDescription>
+              We're here to help with your payment issues.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+              <p className="text-sm font-medium">Payment Reference</p>
+              <p className="text-sm text-muted-foreground font-mono">{lastReferenceId || 'N/A'}</p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="cvv">CVV</Label>
-              <Input
-                id="cvv"
-                data-testid="input-cvv"
-                placeholder={cardType === 'amex' ? '1234' : '123'}
-                value={cvv}
-                onChange={(e) => setCvv(e.target.value.replace(/\D/g, '').slice(0, cardType === 'amex' ? 4 : 3))}
-                maxLength={cardType === 'amex' ? 4 : 3}
-                type="password"
-                className={validationErrors.cvv ? "border-red-500" : ""}
-                disabled={isProcessing}
-              />
-              {validationErrors.cvv && (
-                <p className="text-xs text-red-500">{validationErrors.cvv}</p>
-              )}
-            </div>
-          </div>
-          
-          {/* Save Card */}
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="saveCard"
-              data-testid="checkbox-save-card"
-              checked={saveCard}
-              onCheckedChange={(checked) => setSaveCard(checked as boolean)}
-              disabled={isProcessing}
-            />
-            <Label htmlFor="saveCard" className="text-sm text-muted-foreground cursor-pointer">
-              Save this card for future transactions
-            </Label>
-          </div>
-          
-          {/* Processing Status */}
-          {isProcessing && (
-            <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-              <div className="flex items-center gap-3">
-                <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                    {processingSteps[processingStep]}
-                  </p>
-                  <div className="mt-2 h-1.5 bg-blue-200 dark:bg-blue-800 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-blue-600 transition-all duration-500"
-                      style={{ width: `${((processingStep + 1) / processingSteps.length) * 100}%` }}
-                    />
+              <p className="text-sm font-medium">Support Options</p>
+              <div className="grid gap-2">
+                <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
+                  <Phone className="h-5 w-5 text-primary" />
+                  <div>
+                    <p className="text-sm font-medium">Call Us</p>
+                    <p className="text-xs text-muted-foreground">1-800-CHOICE (246-4233)</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
+                  <svg className="h-5 w-5 text-primary" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+                  </svg>
+                  <div>
+                    <p className="text-sm font-medium">Email Support</p>
+                    <p className="text-xs text-muted-foreground">support@choiceproperties.com</p>
                   </div>
                 </div>
               </div>
             </div>
-          )}
-          
-          {/* Error Message */}
-          {error && (
-            <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg p-4">
-              <div className="flex gap-3">
-                <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium text-red-900 dark:text-red-100">
-                    Payment Failed
-                  </p>
-                  <p className="text-sm text-red-700 dark:text-red-300 mt-1">
-                    {error}
-                  </p>
-                  <p className="text-xs text-red-600 dark:text-red-400 mt-2">
-                    Error Code: {Math.random().toString(36).substring(2, 8).toUpperCase()}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-          
-          {/* Security Info */}
-          <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2">
-            <Shield className="h-4 w-4" />
-            <span>Your payment is secured with 256-bit SSL encryption. We never store your full card details.</span>
+            <p className="text-xs text-muted-foreground">
+              Please have your payment reference ID ready when contacting support.
+            </p>
           </div>
-        </CardContent>
-        
-        <CardFooter className="flex flex-col gap-3">
-          <Button
-            type="submit"
-            data-testid="button-submit-payment"
-            className="w-full"
-            size="lg"
-            disabled={isProcessing}
-          >
-            {isProcessing ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Processing...
-              </>
-            ) : (
-              <>
-                <Lock className="mr-2 h-4 w-4" />
-                Pay ${amount.toFixed(2)}
-              </>
-            )}
-          </Button>
-          
-          <div className="flex items-center justify-center gap-2 w-full">
-            <span className="text-xs text-muted-foreground">Accepted Cards:</span>
-            <div className="flex gap-1">
-              <Badge variant="outline" className="text-xs px-1.5">Visa</Badge>
-              <Badge variant="outline" className="text-xs px-1.5">Mastercard</Badge>
-              <Badge variant="outline" className="text-xs px-1.5">Amex</Badge>
-              <Badge variant="outline" className="text-xs px-1.5">Discover</Badge>
-            </div>
-          </div>
-        </CardFooter>
-      </form>
-    </Card>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowSupportDialog(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
