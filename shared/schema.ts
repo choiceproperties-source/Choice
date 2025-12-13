@@ -545,6 +545,13 @@ export const LEASE_ACTIONS = [
   "move_in_scheduled"
 ] as const;
 
+export const IMAGE_AUDIT_ACTIONS = [
+  "image_upload",
+  "image_delete",
+  "image_replace",
+  "image_reorder"
+] as const;
+
 export const AUDIT_ACTIONS = [
   "create", "update", "delete", "view", "login", "logout", 
   "2fa_enable", "2fa_disable", "2fa_verify", "password_change",
@@ -552,8 +559,22 @@ export const AUDIT_ACTIONS = [
   "application_review", "application_approve", "application_reject",
   "payment_verify_manual", "payment_attempt", "application_info_request",
   "application_conditional_approve",
-  ...LEASE_ACTIONS
+  ...LEASE_ACTIONS,
+  ...IMAGE_AUDIT_ACTIONS
 ] as const;
+
+// Image audit logs for tracking all image operations
+export const imageAuditLogs = pgTable("image_audit_logs", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  actorId: uuid("actor_id").references(() => users.id, { onDelete: "set null" }),
+  actorRole: text("actor_role").notNull(),
+  action: text("action").notNull(), // upload, delete, replace, reorder
+  photoId: uuid("photo_id"),
+  propertyId: uuid("property_id"),
+  metadata: jsonb("metadata").$type<Record<string, any>>(),
+  timestamp: timestamp("timestamp").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
 
 // Payment verification audit trail
 export const paymentVerifications = pgTable("payment_verifications", {

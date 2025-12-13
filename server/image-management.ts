@@ -1,4 +1,5 @@
 import imagekit from "./imagekit";
+import { logImageAudit, type ImageAuditLog } from "./image-audit";
 
 /**
  * Delete file from ImageKit using fileId
@@ -26,7 +27,8 @@ export interface PhotoOrderUpdate {
 export async function reorderPhotos(
   supabase: any,
   propertyId: string,
-  orders: PhotoOrderUpdate[]
+  orders: PhotoOrderUpdate[],
+  auditLog?: ImageAuditLog
 ): Promise<void> {
   // Update each photo's order index
   for (const { photoId, orderIndex } of orders) {
@@ -35,6 +37,11 @@ export async function reorderPhotos(
       .update({ order_index: orderIndex })
       .eq("id", photoId)
       .eq("property_id", propertyId);
+  }
+
+  // Log audit event
+  if (auditLog) {
+    await logImageAudit(supabase, auditLog);
   }
 }
 
@@ -45,7 +52,8 @@ export async function reorderPhotos(
 export async function archivePhoto(
   supabase: any,
   photoId: string,
-  imageKitFileId: string
+  imageKitFileId: string,
+  auditLog?: ImageAuditLog
 ): Promise<void> {
   // Delete from ImageKit
   await deleteImageKitFile(imageKitFileId);
@@ -58,6 +66,11 @@ export async function archivePhoto(
       archived_at: new Date().toISOString(),
     })
     .eq("id", photoId);
+
+  // Log audit event
+  if (auditLog) {
+    await logImageAudit(supabase, auditLog);
+  }
 }
 
 /**
@@ -71,7 +84,8 @@ export async function replacePhoto(
     imageKitFileId: string;
     url: string;
     thumbnailUrl?: string;
-  }
+  },
+  auditLog?: ImageAuditLog
 ): Promise<any> {
   // Get old photo to preserve properties
   const { data: oldPhoto } = await supabase
@@ -109,6 +123,11 @@ export async function replacePhoto(
       replaced_with_id: newPhoto.id,
     })
     .eq("id", oldPhotoId);
+
+  // Log audit event
+  if (auditLog) {
+    await logImageAudit(supabase, auditLog);
+  }
 
   return newPhoto;
 }

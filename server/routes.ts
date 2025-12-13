@@ -18,6 +18,7 @@ import {
 } from "./notification-service";
 import { generateSignedImageURL, canAccessPrivateImage } from "./image-transform";
 import { archivePhoto, replacePhoto, reorderPhotos } from "./image-management";
+import { logImageAudit } from "./image-audit";
 import {
   signupSchema,
   loginSchema,
@@ -6771,6 +6772,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         req
       );
 
+      // Log to image audit logs
+      await logImageAudit(supabase, {
+        actorId: req.user!.id,
+        actorRole: req.user!.role,
+        action: "image_upload",
+        photoId: data[0].id,
+        propertyId: propertyId || undefined,
+        metadata: { category, url }
+      });
+
       return res.json(success(data[0], "Photo metadata saved successfully"));
     } catch (err: any) {
       console.error("[PHOTOS] Save metadata error:", err);
@@ -6994,6 +7005,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error) throw error;
 
       await logSecurityEvent(req.user!.id, "photo_reordered", true, { photoId: req.params.photoId }, req);
+      
+      // Log to image audit logs
+      await logImageAudit(supabase, {
+        actorId: req.user!.id,
+        actorRole: req.user!.role,
+        action: "image_reorder",
+        photoId: req.params.photoId,
+        propertyId: photo.property_id,
+        metadata: { orderIndex }
+      });
+      
       return res.json(success(data[0], "Photo reordered"));
     } catch (err: any) {
       console.error("[IMAGES] Reorder error:", err);
@@ -7032,14 +7054,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json(errorResponse("Unauthorized"));
       }
 
-      // Archive photo and delete from ImageKit
-      await archivePhoto(supabase, req.params.photoId, photo.imagekit_file_id);
+      // Archive photo and delete from ImageKit with audit logging
+      await archivePhoto(supabase, req.params.photoId, photo.imagekit_file_id, {
+        actorId: req.user!.id,
+        actorRole: req.user!.role,
+        action: "image_delete",
+        photoId: req.params.photoId,
+        propertyId: photo.property_id,
+        metadata: { imageKitFileId: photo.imagekit_file_id }
+      });
 
       await logSecurityEvent(req.user!.id, "photo_archived", true, { photoId: req.params.photoId }, req);
       return res.json(success(null, "Photo archived"));
     } catch (err: any) {
       console.error("[IMAGES] Delete error:", err);
       return res.status(500).json(errorResponse("Failed to delete photo"));
+    }
+  });
+
+  // Get image audit logs (admin only)
+  app.get("/api/admin/image-audit-logs", authenticateToken, requireRole("admin"), async (req: AuthenticatedRequest, res) => {
+    try {
+      const { propertyId, action, limit = 100, offset = 0 } = req.query;
+
+      let query = supabase
+        .from("image_audit_logs")
+        .select("id, actor_id, actor_role, action, photo_id, property_id, metadata, timestamp, users:actor_id(id, full_name, email, role)", { count: "exact" })
+        .order("timestamp", { ascending: false });
+
+      if (propertyId) {
+        query = query.eq("property_id", propertyId);
+      }
+
+      if (action) {
+        query = query.eq("action", action);
+      }
+
+      const { data, error, count } = await query.range(Number(offset), Number(offset) + Number(limit) - 1);
+
+      if (error) throw error;
+
+      return res.json(success({
+        logs: data,
+        pagination: {
+          offset: Number(offset),
+          limit: Number(limit),
+          total: count || 0
+        }
+      }, "Image audit logs retrieved"));
+    } catch (err: any) {
+      console.error("[ADMIN] Image audit logs error:", err);
+      return res.status(500).json(errorResponse("Failed to retrieve image audit logs"));
     }
   });
 
@@ -7080,11 +7145,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json(errorResponse("Unauthorized"));
       }
 
-      // Replace photo
+      // Replace photo with audit logging
       const newPhoto = await replacePhoto(supabase, req.params.photoId, {
         imageKitFileId,
         url,
         thumbnailUrl,
+      }, {
+        actorId: req.user!.id,
+        actorRole: req.user!.role,
+        action: "image_replace",
+        photoId: req.params.photoId,
+        propertyId: photo.property_id,
+        metadata: { newPhotoId: newPhoto?.id, oldPhotoId: req.params.photoId, url }
       });
 
       await logSecurityEvent(req.user!.id, "photo_replaced", true, { oldPhotoId: req.params.photoId, newPhotoId: newPhoto.id }, req);
