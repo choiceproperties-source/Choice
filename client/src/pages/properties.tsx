@@ -23,8 +23,8 @@ export default function Properties() {
 
   useEffect(() => {
     updateMetaTags({
-      title: "Browse Rental Properties - Choice Properties",
-      description: "Search and browse available rental properties. Filter by price, bedrooms, and property type.",
+      title: "Rental Properties for Rent - Search Apartments & Homes | Choice Properties",
+      description: "Search 500+ available rental properties in Troy, MI. Filter by price, bedrooms, bathrooms, and property type. Find and apply for your perfect rental home instantly.",
       image: "https://choiceproperties.com/og-image.png",
       url: "https://choiceproperties.com/properties"
     });

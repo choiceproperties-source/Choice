@@ -9,19 +9,23 @@ import { useProperties } from "@/hooks/use-properties";
 import type { Property } from "@/lib/types";
 import { ArrowRight, CheckCircle2, Users, Home as HomeIcon, MapPin, ShieldCheck, Key, TrendingUp } from "lucide-react";
 import heroBg from "@assets/generated_images/modern_luxury_home_exterior_with_blue_sky.png";
-import { updateMetaTags, getOrganizationStructuredData, addStructuredData } from "@/lib/seo";
+import { updateMetaTags, getOrganizationStructuredData, addStructuredData, setCanonicalUrl, getBreadcrumbStructuredData } from "@/lib/seo";
 
 export default function Home() {
   const { properties = [], loading } = useProperties();
 
   useEffect(() => {
     updateMetaTags({
-      title: "Choice Properties - Find Your Perfect Rental Home",
-      description: "Your trusted rental housing partner. Browse properties, apply online, and find your perfect home in Troy, MI.",
+      title: "Choice Properties - Find Your Perfect Rental Home | Troy, MI Real Estate",
+      description: "Your trusted rental housing partner in Troy, MI. Browse 500+ rental properties, apply online, and find your perfect home. Free property search with instant notifications.",
       image: "https://choiceproperties.com/og-image.png",
       url: "https://choiceproperties.com"
     });
+    setCanonicalUrl("https://choiceproperties.com");
     addStructuredData(getOrganizationStructuredData(), 'organization');
+    addStructuredData(getBreadcrumbStructuredData([
+      { name: 'Home', url: 'https://choiceproperties.com' }
+    ]), 'breadcrumb');
   }, []);
 
   // Show first 3 properties as featured (from backend data)
@@ -37,6 +41,8 @@ export default function Home() {
         <div 
           className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat transform scale-105"
           style={{ backgroundImage: `url(${heroBg})` }}
+          role="img"
+          aria-label="Modern luxury home exterior with blue sky background"
         >
           <div className="absolute inset-0 bg-gradient-to-b from-primary/70 via-primary/50 to-background/90 backdrop-blur-[1px]" />
         </div>

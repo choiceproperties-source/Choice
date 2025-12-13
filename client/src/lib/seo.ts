@@ -158,3 +158,24 @@ export function getSearchActionStructuredData() {
     }
   };
 }
+
+export function setCanonicalUrl(url: string) {
+  let link = document.querySelector('link[rel="canonical"]');
+  if (!link) {
+    link = document.createElement('link');
+    link.setAttribute('rel', 'canonical');
+    document.head.appendChild(link);
+  }
+  link.setAttribute('href', url);
+}
+
+export function updateDynamicMeta(key: string, content: string, isProperty: boolean = false) {
+  const attribute = isProperty ? 'property' : 'name';
+  let tag = document.querySelector(`meta[${attribute}="${key}"]`);
+  if (!tag) {
+    tag = document.createElement('meta');
+    tag.setAttribute(attribute, key);
+    document.head.appendChild(tag);
+  }
+  tag.setAttribute('content', content);
+}

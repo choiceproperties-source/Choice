@@ -6,6 +6,9 @@ interface LazyImageProps extends ImgHTMLAttributes<HTMLImageElement> {
   alt: string;
   fallback?: string;
   aspectRatio?: "square" | "video" | "auto";
+  srcSet?: string;
+  sizes?: string;
+  fetchPriority?: "high" | "low" | "auto";
 }
 
 export function LazyImage({
@@ -14,15 +17,19 @@ export function LazyImage({
   fallback = "/placeholder.svg",
   aspectRatio = "auto",
   className,
+  srcSet,
+  sizes,
+  fetchPriority = "auto",
   ...props
 }: LazyImageProps) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isInView, setIsInView] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const divRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
-    if (!imgRef.current) return;
+    if (!divRef.current) return;
 
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -37,7 +44,7 @@ export function LazyImage({
       }
     );
 
-    observer.observe(imgRef.current);
+    observer.observe(divRef.current);
 
     return () => observer.disconnect();
   }, []);
@@ -50,7 +57,7 @@ export function LazyImage({
 
   return (
     <div
-      ref={imgRef}
+      ref={divRef}
       className={cn(
         "relative overflow-hidden bg-muted",
         aspectClasses[aspectRatio],
@@ -59,10 +66,14 @@ export function LazyImage({
     >
       {isInView && (
         <img
+          ref={imgRef}
           src={hasError ? fallback : src}
           alt={alt}
           loading="lazy"
           decoding="async"
+          fetchPriority={fetchPriority}
+          srcSet={srcSet}
+          sizes={sizes}
           onLoad={() => setIsLoaded(true)}
           onError={() => setHasError(true)}
           className={cn(
