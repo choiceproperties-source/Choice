@@ -4,10 +4,11 @@ import { Footer } from "@/components/layout/footer";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { PropertyCard } from "@/components/property-card";
+import { PropertySearch } from "@/components/property-search";
 import { Testimonials } from "@/components/testimonials";
 import { useProperties } from "@/hooks/use-properties";
 import type { Property } from "@/lib/types";
-import { ArrowRight, CheckCircle2, Home as HomeIcon, MapPin, ShieldCheck } from "lucide-react";
+import { ArrowRight, CheckCircle2, Home as HomeIcon, MapPin, ShieldCheck, Search as SearchIcon, FileText, CheckSquare, Home as HomeCheckIcon } from "lucide-react";
 import heroBg from "@assets/generated_images/modern_luxury_home_exterior_with_blue_sky.png";
 import { updateMetaTags, getOrganizationStructuredData, addStructuredData, setCanonicalUrl, getBreadcrumbStructuredData } from "@/lib/seo";
 
@@ -47,8 +48,8 @@ export default function Home() {
           <div className="absolute inset-0 bg-gradient-to-b from-primary/70 via-primary/50 to-background/90 backdrop-blur-[1px]" />
         </div>
 
-        <div className="container relative z-10 px-4 text-center text-white space-y-8 max-w-4xl">
-          <div data-aos="fade-down">
+        <div className="container relative z-10 px-4 text-white space-y-8 max-w-5xl py-12">
+          <div data-aos="fade-down" className="text-center">
             <h1 className="font-heading text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-4 leading-tight">
               Find the home that <span className="text-secondary">fits your life</span>
             </h1>
@@ -61,17 +62,42 @@ export default function Home() {
             At Choice Properties, we are dedicated to solving one of life’s most important needs—finding a place you can truly call home.
           </p>
           
-          <div className="flex flex-col sm:flex-row gap-4 justify-center pt-6" data-aos="fade-up" data-aos-delay="400">
-            <Link href="/properties">
-              <Button size="lg" className="bg-secondary hover:bg-secondary/90 text-primary-foreground font-bold text-lg px-10 h-14 shadow-xl hover:scale-105 transition-transform">
-                Explore Rentals
-              </Button>
-            </Link>
-            <Link href="/contact">
-              <Button size="lg" variant="outline" className="border-2 border-white text-white hover:bg-white hover:text-primary font-bold text-lg px-10 h-14 bg-transparent hover:scale-105 transition-transform">
-                Get Started
-              </Button>
-            </Link>
+          <PropertySearch />
+        </div>
+      </section>
+
+      {/* How It Works Section */}
+      <section className="py-24 bg-white dark:bg-slate-900">
+        <div className="container mx-auto px-4">
+          <div className="text-center max-w-3xl mx-auto mb-16" data-aos="fade-up">
+            <h2 className="font-heading text-3xl md:text-5xl font-bold text-primary mb-6">How It Works</h2>
+            <p className="text-muted-foreground text-lg">Simple steps to find your perfect rental home</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+            {[
+              { step: 1, icon: SearchIcon, title: "Search Properties", desc: "Filter by location, price, bedrooms and more" },
+              { step: 2, icon: FileText, title: "Submit Application", desc: "Apply online with all required documents" },
+              { step: 3, icon: CheckSquare, title: "Get Approved", desc: "We verify your info and landlord approves" },
+              { step: 4, icon: HomeCheckIcon, title: "Move In", desc: "Sign lease, get keys, move into your home" }
+            ].map((item, idx) => {
+              const Icon = item.icon;
+              return (
+                <div key={idx} className="relative">
+                  <div className="text-center">
+                    <div className="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-full bg-secondary text-primary-foreground">
+                      <Icon className="h-8 w-8" />
+                    </div>
+                    <h3 className="font-heading text-2xl font-bold text-primary mb-3">
+                      Step {item.step}: {item.title}
+                    </h3>
+                    <p className="text-muted-foreground">{item.desc}</p>
+                  </div>
+                  {idx < 3 && (
+                    <div className="hidden md:block absolute top-8 -right-4 text-secondary">→</div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
