@@ -43,6 +43,7 @@ const AgentDashboard = lazy(() => import("@/pages/agent-dashboard-new"));
 const AgentProperties = lazy(() => import("@/pages/agent-properties"));
 const AgentApplications = lazy(() => import("@/pages/agent-applications"));
 const AgentProfile = lazy(() => import("@/pages/agent-profile"));
+const Messages = lazy(() => import("@/pages/messages"));
 
 function LoadingFallback() {
   return (
@@ -215,6 +216,13 @@ function Router() {
         <ReactSuspense fallback={<LoadingFallback />}>
           <ProtectedRoute requiredRoles={['agent', 'admin']}>
             <AgentProfile />
+          </ProtectedRoute>
+        </ReactSuspense>
+      </Route>
+      <Route path="/messages">
+        <ReactSuspense fallback={<LoadingFallback />}>
+          <ProtectedRoute>
+            <Messages />
           </ProtectedRoute>
         </ReactSuspense>
       </Route>

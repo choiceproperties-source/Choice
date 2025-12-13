@@ -1,9 +1,10 @@
 import { useState, useCallback } from "react";
 import { Link, useLocation } from "wouter";
-import { Menu, LogOut, User as UserIcon, X } from "lucide-react";
+import { Menu, LogOut, User as UserIcon, X, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 import { FavoritesDropdown } from "@/components/favorites-dropdown";
+import { NotificationBell } from "@/components/notification-bell";
 import { useAuth } from "@/lib/auth-context";
 
 export function Navbar() {
@@ -82,6 +83,12 @@ export function Navbar() {
           <FavoritesDropdown />
           {isLoggedIn ? (
             <div className="flex items-center gap-2">
+              <Link href="/messages">
+                <Button variant="ghost" size="icon" aria-label="Messages" data-testid="button-messages-desktop">
+                  <MessageSquare className="h-5 w-5" />
+                </Button>
+              </Link>
+              <NotificationBell />
               <span className="text-sm text-muted-foreground" data-testid="text-user-name">{user?.full_name || user?.email}</span>
               <Button 
                 variant="ghost" 
