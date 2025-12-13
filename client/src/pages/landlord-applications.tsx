@@ -147,13 +147,16 @@ export default function LandlordApplications() {
             {app.users?.email}
           </p>
         </div>
-        <Badge className={getStatusColor(app.status)}>
-          <span className="flex items-center gap-1">
-            {getStatusIcon(app.status)}
-            {app.status.replace('_', ' ').charAt(0).toUpperCase() +
-              app.status.replace('_', ' ').slice(1)}
-          </span>
-        </Badge>
+        <div className="flex flex-col gap-2 items-end">
+          <Badge className={getStatusColor(app.status)}>
+            <span className="flex items-center gap-1">
+              {getStatusIcon(app.status)}
+              {app.status.replace('_', ' ').charAt(0).toUpperCase() +
+                app.status.replace('_', ' ').slice(1)}
+            </span>
+          </Badge>
+          {getPaymentStatusBadge(app.payment_status)}
+        </div>
       </div>
 
       <div className="flex items-center justify-between pt-3 border-t text-xs text-muted-foreground">
