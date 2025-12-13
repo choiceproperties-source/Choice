@@ -4,26 +4,38 @@ import { Footer } from "@/components/layout/footer";
 import { PropertyCard } from "@/components/property-card";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import propertiesData from "@/data/properties.json";
+import { useProperties } from "@/hooks/use-properties";
 import type { Property } from "@/lib/types";
 import { Heart, Share2, DollarSign, Bed, Bath, Maximize } from "lucide-react";
+import { updateMetaTags } from "@/lib/seo";
 
 export default function Buy() {
+  const { properties: allProperties = [], loading } = useProperties();
   const [filteredProperties, setFilteredProperties] = useState<Property[]>([]);
   const [priceRange, setPriceRange] = useState([0, 1000000]);
   const [bedrooms, setBedrooms] = useState(0);
 
   useEffect(() => {
-    const properties = (propertiesData as Property[]).filter(p => p.listing_type === 'buy');
+    updateMetaTags({
+      title: "Buy a Home - Choice Properties",
+      description: "Browse homes for sale. Find your dream home with Choice Properties - your trusted real estate partner.",
+      image: "https://choiceproperties.com/og-image.png",
+      url: "https://choiceproperties.com/buy"
+    });
+  }, []);
+
+  useEffect(() => {
+    const properties = allProperties.filter((p: Property) => p.property_type === 'house' || p.property_type === 'condo');
     
-    const filtered = properties.filter(p => 
-      p.price >= priceRange[0] && 
-      p.price <= priceRange[1] &&
-      (bedrooms === 0 || p.bedrooms >= bedrooms)
-    );
+    const filtered = properties.filter((p: Property) => {
+      const price = p.price ? (typeof p.price === 'string' ? parseFloat(p.price) : p.price) : 0;
+      return price >= priceRange[0] && 
+        price <= priceRange[1] &&
+        (bedrooms === 0 || (p.bedrooms || 0) >= bedrooms);
+    });
     
     setFilteredProperties(filtered);
-  }, [priceRange, bedrooms]);
+  }, [allProperties, priceRange, bedrooms]);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">

@@ -21,7 +21,8 @@ import { ReviewsSection } from "@/components/reviews-section";
 import NotFound from "@/pages/not-found";
 import { PropertyCard } from "@/components/property-card";
 import { AgentContactDialog } from "@/components/agent-contact-dialog";
-import { updateMetaTags, getPropertyStructuredData, addStructuredData } from "@/lib/seo";
+import { useEffect } from "react";
+import { updateMetaTags, getPropertyStructuredData, addStructuredData, removeStructuredData } from "@/lib/seo";
 import { Breadcrumb } from "@/components/breadcrumb";
 import { trackEvent } from "@/lib/pwa";
 import { PropertyDetailsSkeleton } from "@/components/property-details-skeleton";
@@ -87,17 +88,28 @@ export default function PropertyDetails() {
     );
   }
 
-  // Update SEO tags
+  // Update SEO tags in useEffect
   const bedrooms = property.bedrooms || 0;
   const bathrooms = Math.round(parseDecimal(property.bathrooms));
   const sqft = property.square_feet || 0;
   
-  updateMetaTags({
-    title: `${property.title} - ${bedrooms}bd, ${bathrooms}ba in ${property.city}`,
-    description: `${property.title} - ${formatPrice(property.price)}/month. ${bedrooms} bedrooms, ${bathrooms} bathrooms, ${sqft} sqft. Apply online at Choice Properties.`,
-    type: "property"
-  });
-  addStructuredData(getPropertyStructuredData(property));
+  useEffect(() => {
+    if (property) {
+      updateMetaTags({
+        title: `${property.title} - ${bedrooms}bd, ${bathrooms}ba in ${property.city}`,
+        description: `${property.title} - ${formatPrice(property.price)}/month. ${bedrooms} bedrooms, ${bathrooms} bathrooms, ${sqft} sqft. Apply online at Choice Properties.`,
+        image: "https://choiceproperties.com/og-image.png",
+        url: `https://choiceproperties.com/property/${property.id}`,
+        type: "property"
+      });
+      addStructuredData(getPropertyStructuredData(property), 'property');
+    }
+    
+    // Cleanup property-specific structured data on unmount
+    return () => {
+      removeStructuredData('property');
+    };
+  }, [property, bedrooms, bathrooms, sqft]);
 
   // Build image array
   const allImages = (property.images || []).length > 0 

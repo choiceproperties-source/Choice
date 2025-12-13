@@ -30,7 +30,9 @@ export default function Contact() {
   useEffect(() => {
     updateMetaTags({
       title: "Contact Us - Choice Properties",
-      description: "Get in touch with Choice Properties. Fill out our contact form and we'll be in touch soon."
+      description: "Get in touch with Choice Properties. Fill out our contact form and we'll be in touch soon.",
+      image: "https://choiceproperties.com/og-image.png",
+      url: "https://choiceproperties.com/contact"
     });
   }, []);
 

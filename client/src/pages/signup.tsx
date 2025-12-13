@@ -13,7 +13,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { signupSchema } from '@shared/schema';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { updateMetaTags } from "@/lib/seo";
 import { z } from 'zod';
 import type { UserRole } from '@/lib/types';
 
@@ -50,6 +51,15 @@ const getPasswordStrength = (password: string) => {
 };
 
 export default function Signup() {
+  useEffect(() => {
+    updateMetaTags({
+      title: "Sign Up - Choice Properties",
+      description: "Create your Choice Properties account. Browse rentals, apply for properties, and find your perfect home.",
+      image: "https://choiceproperties.com/og-image.png",
+      url: "https://choiceproperties.com/signup"
+    });
+  }, []);
+
   const { signup, loginWithGoogle } = useAuth();
   const [, setLocation] = useLocation();
   const [loading, setLoading] = useState(false);

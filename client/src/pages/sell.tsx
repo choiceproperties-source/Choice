@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { CheckCircle2, Home, DollarSign, FileText, AlertCircle } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { updateMetaTags } from "@/lib/seo";
 
 const AMENITIES = [
   { id: 'parking', label: 'Parking' },
@@ -27,6 +28,15 @@ const AMENITIES = [
 const LEASE_TERMS = ['3 months', '6 months', '12 months', 'Flexible'];
 
 export default function Sell() {
+  useEffect(() => {
+    updateMetaTags({
+      title: "List Your Property - Choice Properties",
+      description: "List your property for rent or sale with Choice Properties. Reach qualified tenants and buyers in minutes.",
+      image: "https://choiceproperties.com/og-image.png",
+      url: "https://choiceproperties.com/sell"
+    });
+  }, []);
+
   const { toast } = useToast();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({

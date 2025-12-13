@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Navbar } from '@/components/layout/navbar';
 import { Footer } from '@/components/layout/footer';
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Mail, Phone, MapPin, Star, Shield, Loader2, Building2, Users } from 'lucide-react';
 import { AgentContactDialog } from '@/components/agent-contact-dialog';
+import { updateMetaTags } from "@/lib/seo";
 
 interface Agent {
   id: string;
@@ -34,6 +35,15 @@ interface Agent {
 }
 
 export default function Agents() {
+  useEffect(() => {
+    updateMetaTags({
+      title: "Find an Agent - Choice Properties",
+      description: "Browse trusted real estate agents in your area. Find experienced professionals to help you buy, sell, or rent property.",
+      image: "https://choiceproperties.com/og-image.png",
+      url: "https://choiceproperties.com/agents"
+    });
+  }, []);
+
   const [search, setSearch] = useState('');
   const [specialty, setSpecialty] = useState('all');
 

@@ -12,9 +12,18 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { loginSchema, type LoginInput } from '@shared/schema';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { updateMetaTags } from "@/lib/seo";
 
 export default function Login() {
+  useEffect(() => {
+    updateMetaTags({
+      title: "Login - Choice Properties",
+      description: "Sign in to your Choice Properties account to manage your properties, applications, and saved listings.",
+      image: "https://choiceproperties.com/og-image.png",
+      url: "https://choiceproperties.com/login"
+    });
+  }, []);
   const { login, loginWithGoogle } = useAuth();
   const [, setLocation] = useLocation();
   const [loading, setLoading] = useState(false);

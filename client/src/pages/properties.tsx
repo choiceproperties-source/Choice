@@ -24,7 +24,9 @@ export default function Properties() {
   useEffect(() => {
     updateMetaTags({
       title: "Browse Rental Properties - Choice Properties",
-      description: "Search and browse available rental properties. Filter by price, bedrooms, and property type."
+      description: "Search and browse available rental properties. Filter by price, bedrooms, and property type.",
+      image: "https://choiceproperties.com/og-image.png",
+      url: "https://choiceproperties.com/properties"
     });
   }, []);
   const [sortBy, setSortBy] = useState("featured");

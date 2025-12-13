@@ -52,15 +52,26 @@ function updateMetaTag(name: string, content: string) {
   tag.setAttribute('content', content);
 }
 
-// Structured Data (JSON-LD)
-export function addStructuredData(data: any) {
-  let script = document.querySelector('script[type="application/ld+json"]');
+// Structured Data (JSON-LD) with support for multiple scripts
+export function addStructuredData(data: any, key: string = 'default') {
+  const scriptId = `ld-json-${key}`;
+  let script = document.querySelector(`script#${scriptId}`);
   if (!script) {
     script = document.createElement('script');
     script.setAttribute('type', 'application/ld+json');
+    script.setAttribute('id', scriptId);
     document.head.appendChild(script);
   }
   script.textContent = JSON.stringify(data);
+}
+
+// Remove structured data by key
+export function removeStructuredData(key: string) {
+  const scriptId = `ld-json-${key}`;
+  const script = document.querySelector(`script#${scriptId}`);
+  if (script) {
+    script.remove();
+  }
 }
 
 export function getPropertyStructuredData(property: any) {

@@ -21,7 +21,7 @@ export default function Home() {
       image: "https://choiceproperties.com/og-image.png",
       url: "https://choiceproperties.com"
     });
-    addStructuredData(getOrganizationStructuredData());
+    addStructuredData(getOrganizationStructuredData(), 'organization');
   }, []);
 
   // Show first 3 properties as featured (from backend data)

@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Navbar } from '@/components/layout/navbar';
 import { Footer } from '@/components/layout/footer';
 import { Card } from '@/components/ui/card';
 import { ChevronDown } from 'lucide-react';
+import { updateMetaTags } from "@/lib/seo";
 
 const FAQ_ITEMS = [
   {
@@ -123,6 +124,15 @@ function FAQAccordion({ item }: { item: FAQItem }) {
 }
 
 export default function FAQ() {
+  useEffect(() => {
+    updateMetaTags({
+      title: "FAQ - Choice Properties",
+      description: "Find answers to frequently asked questions about renting, buying, selling, and listing properties with Choice Properties.",
+      image: "https://choiceproperties.com/og-image.png",
+      url: "https://choiceproperties.com/faq"
+    });
+  }, []);
+
   const [activeCategory, setActiveCategory] = useState(0);
 
   return (

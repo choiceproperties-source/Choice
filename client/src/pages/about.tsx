@@ -1,8 +1,20 @@
+import { useEffect } from "react";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
 import { Award, Users, Shield, Home, Heart, CheckCircle } from "lucide-react";
+import { updateMetaTags, getOrganizationStructuredData, addStructuredData } from "@/lib/seo";
 
 export default function About() {
+  useEffect(() => {
+    updateMetaTags({
+      title: "About Us - Choice Properties",
+      description: "Learn about Choice Properties, your trusted rental housing partner. We connect qualified renters with the right landlords across the USA.",
+      image: "https://choiceproperties.com/og-image.png",
+      url: "https://choiceproperties.com/about"
+    });
+    addStructuredData(getOrganizationStructuredData(), 'organization');
+  }, []);
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
