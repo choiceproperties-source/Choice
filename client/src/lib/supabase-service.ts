@@ -764,3 +764,289 @@ export async function saveAdminSetting(key: string, value: string) {
     throw err;
   }
 }
+
+// ===================== MODERATION =====================
+
+export async function getContentReports() {
+  if (!supabase) return [];
+  try {
+    const { data, error } = await supabase
+      .from('content_reports')
+      .select(`
+        *,
+        reporter:reporter_id(id, full_name, email),
+        property:property_id(id, title, address),
+        review:review_id(id, comment, rating),
+        assigned:assigned_to(id, full_name)
+      `)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    console.error('getContentReports error:', err);
+    return [];
+  }
+}
+
+export async function createContentReport(report: {
+  propertyId?: string;
+  reviewId?: string;
+  reportType: string;
+  description?: string;
+}) {
+  if (!supabase) return null;
+  try {
+    const { data: session } = await supabase.auth.getSession();
+    const { data, error } = await supabase
+      .from('content_reports')
+      .insert([{
+        reporter_id: session?.session?.user?.id,
+        property_id: report.propertyId,
+        review_id: report.reviewId,
+        report_type: report.reportType,
+        description: report.description,
+      }])
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('createContentReport error:', err);
+    return null;
+  }
+}
+
+export async function updateContentReport(id: string, updates: {
+  status?: string;
+  priority?: string;
+  assignedTo?: string;
+  resolution?: string;
+}) {
+  if (!supabase) return null;
+  try {
+    const updateData: Record<string, any> = {};
+    if (updates.status) updateData.status = updates.status;
+    if (updates.priority) updateData.priority = updates.priority;
+    if (updates.assignedTo) updateData.assigned_to = updates.assignedTo;
+    if (updates.resolution) {
+      updateData.resolution = updates.resolution;
+      updateData.resolved_at = new Date().toISOString();
+      const { data: session } = await supabase.auth.getSession();
+      updateData.resolved_by = session?.session?.user?.id;
+    }
+    updateData.updated_at = new Date().toISOString();
+
+    const { data, error } = await supabase
+      .from('content_reports')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('updateContentReport error:', err);
+    return null;
+  }
+}
+
+export async function getDisputes() {
+  if (!supabase) return [];
+  try {
+    const { data, error } = await supabase
+      .from('disputes')
+      .select(`
+        *,
+        initiator:initiator_id(id, full_name, email),
+        respondent:respondent_id(id, full_name, email),
+        property:property_id(id, title),
+        application:application_id(id, status),
+        assigned:assigned_to(id, full_name)
+      `)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    console.error('getDisputes error:', err);
+    return [];
+  }
+}
+
+export async function createDispute(dispute: {
+  respondentId?: string;
+  propertyId?: string;
+  applicationId?: string;
+  disputeType: string;
+  subject: string;
+  description: string;
+}) {
+  if (!supabase) return null;
+  try {
+    const { data: session } = await supabase.auth.getSession();
+    const { data, error } = await supabase
+      .from('disputes')
+      .insert([{
+        initiator_id: session?.session?.user?.id,
+        respondent_id: dispute.respondentId,
+        property_id: dispute.propertyId,
+        application_id: dispute.applicationId,
+        dispute_type: dispute.disputeType,
+        subject: dispute.subject,
+        description: dispute.description,
+      }])
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('createDispute error:', err);
+    return null;
+  }
+}
+
+export async function updateDispute(id: string, updates: {
+  status?: string;
+  priority?: string;
+  assignedTo?: string;
+  resolution?: string;
+}) {
+  if (!supabase) return null;
+  try {
+    const updateData: Record<string, any> = {};
+    if (updates.status) updateData.status = updates.status;
+    if (updates.priority) updateData.priority = updates.priority;
+    if (updates.assignedTo) updateData.assigned_to = updates.assignedTo;
+    if (updates.resolution) {
+      updateData.resolution = updates.resolution;
+      updateData.resolved_at = new Date().toISOString();
+      const { data: session } = await supabase.auth.getSession();
+      updateData.resolved_by = session?.session?.user?.id;
+    }
+    updateData.updated_at = new Date().toISOString();
+
+    const { data, error } = await supabase
+      .from('disputes')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('updateDispute error:', err);
+    return null;
+  }
+}
+
+export async function getDisputeMessages(disputeId: string) {
+  if (!supabase) return [];
+  try {
+    const { data, error } = await supabase
+      .from('dispute_messages')
+      .select(`
+        *,
+        sender:sender_id(id, full_name, email)
+      `)
+      .eq('dispute_id', disputeId)
+      .order('created_at', { ascending: true });
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    console.error('getDisputeMessages error:', err);
+    return [];
+  }
+}
+
+export async function addDisputeMessage(disputeId: string, message: string, isInternal: boolean = false) {
+  if (!supabase) return null;
+  try {
+    const { data: session } = await supabase.auth.getSession();
+    const { data, error } = await supabase
+      .from('dispute_messages')
+      .insert([{
+        dispute_id: disputeId,
+        sender_id: session?.session?.user?.id,
+        message,
+        is_internal: isInternal,
+      }])
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('addDisputeMessage error:', err);
+    return null;
+  }
+}
+
+export async function getDocumentVerifications() {
+  if (!supabase) return [];
+  try {
+    const { data, error } = await supabase
+      .from('document_verifications')
+      .select(`
+        *,
+        user:user_id(id, full_name, email),
+        application:application_id(id, status),
+        file:file_id(id, filename, original_name, mime_type),
+        verifier:verified_by(id, full_name)
+      `)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    console.error('getDocumentVerifications error:', err);
+    return [];
+  }
+}
+
+export async function updateDocumentVerification(id: string, updates: {
+  status: string;
+  rejectionReason?: string;
+  notes?: string;
+}) {
+  if (!supabase) return null;
+  try {
+    const updateData: Record<string, any> = {
+      status: updates.status,
+      updated_at: new Date().toISOString(),
+    };
+    if (updates.rejectionReason) updateData.rejection_reason = updates.rejectionReason;
+    if (updates.notes) updateData.notes = updates.notes;
+    
+    if (updates.status === 'verified' || updates.status === 'rejected') {
+      updateData.verified_at = new Date().toISOString();
+      const { data: session } = await supabase.auth.getSession();
+      updateData.verified_by = session?.session?.user?.id;
+    }
+
+    const { data, error } = await supabase
+      .from('document_verifications')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('updateDocumentVerification error:', err);
+    return null;
+  }
+}
+
+export async function flagPropertyListing(propertyId: string, status: string) {
+  if (!supabase) return null;
+  try {
+    const { data, error } = await supabase
+      .from('properties')
+      .update({ status })
+      .eq('id', propertyId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('flagPropertyListing error:', err);
+    return null;
+  }
+}
