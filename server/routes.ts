@@ -17,6 +17,7 @@ import {
   sendRentDueSoonNotification
 } from "./notification-service";
 import { generateSignedImageURL, canAccessPrivateImage } from "./image-transform";
+import { archivePhoto, replacePhoto, reorderPhotos } from "./image-management";
 import {
   signupSchema,
   loginSchema,
@@ -6919,6 +6920,149 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (err: any) {
       console.error("[IMAGES] Signed URL error:", err);
       return res.status(500).json(errorResponse("Failed to generate signed URL"));
+    }
+  });
+
+  // Reorder photos
+  app.put("/api/photos/:photoId/order", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { orderIndex } = req.body;
+      
+      if (orderIndex === undefined || typeof orderIndex !== 'number') {
+        return res.status(400).json(errorResponse("orderIndex must be a number"));
+      }
+
+      const { data: photo, error: photoError } = await supabase
+        .from("photos")
+        .select("id, property_id, uploader_id")
+        .eq("id", req.params.photoId)
+        .single();
+
+      if (photoError || !photo) {
+        return res.status(404).json(errorResponse("Photo not found"));
+      }
+
+      // Verify access
+      const { data: property } = photo.property_id
+        ? await supabase.from("properties").select("owner_id, listing_agent_id").eq("id", photo.property_id).single()
+        : { data: null };
+
+      const hasAccess = photo.uploader_id === req.user!.id || 
+                       property?.owner_id === req.user!.id ||
+                       property?.listing_agent_id === req.user!.id ||
+                       req.user!.role === "admin";
+
+      if (!hasAccess) {
+        return res.status(403).json(errorResponse("Unauthorized"));
+      }
+
+      const { data, error } = await supabase
+        .from("photos")
+        .update({ order_index: orderIndex })
+        .eq("id", req.params.photoId)
+        .select();
+
+      if (error) throw error;
+
+      await logSecurityEvent(req.user!.id, "photo_reordered", true, { photoId: req.params.photoId }, req);
+      return res.json(success(data[0], "Photo reordered"));
+    } catch (err: any) {
+      console.error("[IMAGES] Reorder error:", err);
+      return res.status(500).json(errorResponse("Failed to reorder photo"));
+    }
+  });
+
+  // Delete/archive photo
+  app.delete("/api/photos/:photoId", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data: photo, error: photoError } = await supabase
+        .from("photos")
+        .select("id, property_id, uploader_id, imagekit_file_id, archived")
+        .eq("id", req.params.photoId)
+        .single();
+
+      if (photoError || !photo) {
+        return res.status(404).json(errorResponse("Photo not found"));
+      }
+
+      if (photo.archived) {
+        return res.status(400).json(errorResponse("Photo already archived"));
+      }
+
+      // Verify access
+      const { data: property } = photo.property_id
+        ? await supabase.from("properties").select("owner_id, listing_agent_id").eq("id", photo.property_id).single()
+        : { data: null };
+
+      const hasAccess = photo.uploader_id === req.user!.id || 
+                       property?.owner_id === req.user!.id ||
+                       property?.listing_agent_id === req.user!.id ||
+                       req.user!.role === "admin";
+
+      if (!hasAccess) {
+        return res.status(403).json(errorResponse("Unauthorized"));
+      }
+
+      // Archive photo and delete from ImageKit
+      await archivePhoto(supabase, req.params.photoId, photo.imagekit_file_id);
+
+      await logSecurityEvent(req.user!.id, "photo_archived", true, { photoId: req.params.photoId }, req);
+      return res.json(success(null, "Photo archived"));
+    } catch (err: any) {
+      console.error("[IMAGES] Delete error:", err);
+      return res.status(500).json(errorResponse("Failed to delete photo"));
+    }
+  });
+
+  // Replace photo
+  app.post("/api/photos/:photoId/replace", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { imageKitFileId, url, thumbnailUrl } = req.body;
+
+      if (!imageKitFileId || !url) {
+        return res.status(400).json(errorResponse("imageKitFileId and url are required"));
+      }
+
+      const { data: photo, error: photoError } = await supabase
+        .from("photos")
+        .select("id, property_id, uploader_id, archived")
+        .eq("id", req.params.photoId)
+        .single();
+
+      if (photoError || !photo) {
+        return res.status(404).json(errorResponse("Photo not found"));
+      }
+
+      if (photo.archived) {
+        return res.status(400).json(errorResponse("Cannot replace archived photo"));
+      }
+
+      // Verify access
+      const { data: property } = photo.property_id
+        ? await supabase.from("properties").select("owner_id, listing_agent_id").eq("id", photo.property_id).single()
+        : { data: null };
+
+      const hasAccess = photo.uploader_id === req.user!.id || 
+                       property?.owner_id === req.user!.id ||
+                       property?.listing_agent_id === req.user!.id ||
+                       req.user!.role === "admin";
+
+      if (!hasAccess) {
+        return res.status(403).json(errorResponse("Unauthorized"));
+      }
+
+      // Replace photo
+      const newPhoto = await replacePhoto(supabase, req.params.photoId, {
+        imageKitFileId,
+        url,
+        thumbnailUrl,
+      });
+
+      await logSecurityEvent(req.user!.id, "photo_replaced", true, { oldPhotoId: req.params.photoId, newPhotoId: newPhoto.id }, req);
+      return res.json(success(newPhoto, "Photo replaced"));
+    } catch (err: any) {
+      console.error("[IMAGES] Replace error:", err);
+      return res.status(500).json(errorResponse("Failed to replace photo"));
     }
   });
 
