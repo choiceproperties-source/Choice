@@ -605,6 +605,7 @@ export const signupSchema = z.object({
     .regex(/^[\+]?[(]?[0-9]{1,4}[)]?[-\s\.]?[(]?[0-9]{1,4}[)]?[-\s\.]?[0-9]{1,9}$/, "Please enter a valid phone number")
     .optional()
     .or(z.literal("")),
+  role: z.enum(['renter', 'buyer', 'landlord', 'property_manager', 'agent']).optional().default('renter'),
 });
 
 export const loginSchema = z.object({

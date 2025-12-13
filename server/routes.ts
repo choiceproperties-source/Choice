@@ -38,13 +38,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: validation.error.errors[0].message });
       }
 
-      const { email, password, fullName, phone } = validation.data;
+      const { email, password, fullName, phone, role = 'renter' } = validation.data;
 
       const { data, error } = await supabase.auth.admin.createUser({
         email,
         password,
         phone: phone || undefined,
-        user_metadata: { full_name: fullName, phone: phone || null },
+        user_metadata: { full_name: fullName, phone: phone || null, role },
       });
 
       if (error) {
@@ -65,7 +65,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               email: email,
               full_name: fullName,
               phone: phone || null,
-              role: 'renter'
+              role: role
             }, { onConflict: 'id' });
         } catch (profileError) {
           console.error('Failed to save user profile:', profileError);
