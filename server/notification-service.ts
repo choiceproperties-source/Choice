@@ -17,7 +17,11 @@ export type NotificationType =
   | "document_request"
   | "new_application"
   | "scoring_complete"
-  | "reminder";
+  | "reminder"
+  | "payment_received"
+  | "payment_verified"
+  | "deposit_required"
+  | "rent_due_soon";
 
 interface NotificationRecord {
   applicationId: string;
@@ -152,14 +156,15 @@ export async function sendStatusChangeNotification(
 function getStatusSubject(status: ApplicationStatus): string {
   const subjects: Record<ApplicationStatus, string> = {
     draft: "Application Draft Saved",
-    pending: "Application Submitted Successfully",
+    pending_payment: "Payment Required for Your Application",
+    payment_verified: "Payment Verified",
+    submitted: "Application Submitted Successfully",
     under_review: "Application Under Review",
-    pending_verification: "Verification Required for Your Application",
+    info_requested: "Information Requested for Your Application",
+    conditional_approval: "Application Conditionally Approved",
     approved: "Congratulations! Application Approved",
-    approved_pending_lease: "Application Approved - Lease Pending",
     rejected: "Application Status Update",
     withdrawn: "Application Withdrawn",
-    expired: "Application Expired",
   };
   return subjects[status] || "Application Status Update";
 }
@@ -386,6 +391,243 @@ export async function notifyOwnerOfScoringComplete(
     return result.success;
   } catch (err) {
     console.error("[NOTIFICATION] Failed to notify scoring complete:", err);
+    return false;
+  }
+}
+
+// Send payment received notification (to landlord when tenant marks as paid)
+export async function sendPaymentReceivedNotification(
+  paymentId: string,
+  tenantName: string,
+  paymentType: string,
+  amount: string
+): Promise<boolean> {
+  try {
+    const { data: payment } = await supabase
+      .from("payments")
+      .select("id, lease_id, leases(landlord_id)")
+      .eq("id", paymentId)
+      .single();
+
+    if (!payment || !(payment as any).leases?.landlord_id) return false;
+
+    const { data: landlord } = await supabase
+      .from("users")
+      .select("id, email, full_name")
+      .eq("id", (payment as any).leases.landlord_id)
+      .single();
+
+    if (!landlord?.email) return false;
+
+    // Check for duplicate notification (prevent duplicates sent in last 1 hour)
+    const { data: existingNotif } = await supabase
+      .from("application_notifications")
+      .select("id")
+      .eq("user_id", landlord.id)
+      .eq("notification_type", "payment_received")
+      .gte("created_at", new Date(Date.now() - 60 * 60 * 1000).toISOString())
+      .single();
+
+    if (existingNotif) return false;
+
+    const propertyTitle = "Property";
+    const subject = `Payment Received from ${tenantName}`;
+    const content = `
+      <p>Hi ${landlord.full_name},</p>
+      <p>${tenantName} has marked a ${paymentType} payment of $${amount} as paid for <strong>${propertyTitle}</strong>.</p>
+      <p>Please verify the payment in the landlord portal.</p>
+      <p>Best regards,<br>Choice Properties</p>
+    `;
+
+    const notificationId = await createNotificationRecord({
+      applicationId: "", // Payment notifications not tied to applications
+      userId: landlord.id,
+      type: "payment_received",
+      subject,
+      content,
+    });
+
+    // Send in-app notification only (email is optional)
+    if (notificationId) {
+      await supabase
+        .from("application_notifications")
+        .update({ channel: "in_app" })
+        .eq("id", notificationId);
+    }
+
+    return true;
+  } catch (err) {
+    console.error("[NOTIFICATION] Failed to send payment received:", err);
+    return false;
+  }
+}
+
+// Send payment verified notification (to tenant when landlord verifies)
+export async function sendPaymentVerifiedNotification(
+  paymentId: string,
+  tenantId: string,
+  paymentType: string,
+  amount: string
+): Promise<boolean> {
+  try {
+    const { data: tenant } = await supabase
+      .from("users")
+      .select("id, email, full_name")
+      .eq("id", tenantId)
+      .single();
+
+    if (!tenant?.email) return false;
+
+    // Check for duplicate (prevent in last 1 hour)
+    const { data: existingNotif } = await supabase
+      .from("application_notifications")
+      .select("id")
+      .eq("user_id", tenant.id)
+      .eq("notification_type", "payment_verified")
+      .gte("created_at", new Date(Date.now() - 60 * 60 * 1000).toISOString())
+      .single();
+
+    if (existingNotif) return false;
+
+    const subject = `Payment Verified: ${paymentType}`;
+    const content = `
+      <p>Hi ${tenant.full_name},</p>
+      <p>Your ${paymentType} payment of $${amount} has been verified and received.</p>
+      <p>Thank you for your timely payment.</p>
+      <p>Best regards,<br>Choice Properties</p>
+    `;
+
+    const notificationId = await createNotificationRecord({
+      applicationId: "",
+      userId: tenant.id,
+      type: "payment_verified",
+      subject,
+      content,
+    });
+
+    // Send in-app + email notification
+    const result = await sendEmail({ to: tenant.email, subject, html: content });
+
+    if (notificationId) {
+      await updateNotificationStatus(notificationId, result.success ? "sent" : "failed");
+    }
+
+    return result.success;
+  } catch (err) {
+    console.error("[NOTIFICATION] Failed to send payment verified:", err);
+    return false;
+  }
+}
+
+// Send deposit required notification (to tenant when lease is accepted)
+export async function sendDepositRequiredNotification(
+  tenantId: string,
+  depositAmount: string,
+  propertyTitle: string
+): Promise<boolean> {
+  try {
+    const { data: tenant } = await supabase
+      .from("users")
+      .select("id, email, full_name")
+      .eq("id", tenantId)
+      .single();
+
+    if (!tenant?.email) return false;
+
+    // Check for duplicate
+    const { data: existingNotif } = await supabase
+      .from("application_notifications")
+      .select("id")
+      .eq("user_id", tenant.id)
+      .eq("notification_type", "deposit_required")
+      .gte("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+      .single();
+
+    if (existingNotif) return false;
+
+    const subject = `Security Deposit Required for ${propertyTitle}`;
+    const content = `
+      <p>Hi ${tenant.full_name},</p>
+      <p>Your lease for <strong>${propertyTitle}</strong> has been accepted!</p>
+      <p>A security deposit of <strong>$${depositAmount}</strong> is now required.</p>
+      <p>Please submit your deposit payment to proceed with move-in.</p>
+      <p>Best regards,<br>Choice Properties</p>
+    `;
+
+    const notificationId = await createNotificationRecord({
+      applicationId: "",
+      userId: tenant.id,
+      type: "deposit_required",
+      subject,
+      content,
+    });
+
+    const result = await sendEmail({ to: tenant.email, subject, html: content });
+
+    if (notificationId) {
+      await updateNotificationStatus(notificationId, result.success ? "sent" : "failed");
+    }
+
+    return result.success;
+  } catch (err) {
+    console.error("[NOTIFICATION] Failed to send deposit required:", err);
+    return false;
+  }
+}
+
+// Send rent due soon notification
+export async function sendRentDueSoonNotification(
+  tenantId: string,
+  rentAmount: string,
+  dueDate: string,
+  daysUntilDue: number
+): Promise<boolean> {
+  try {
+    const { data: tenant } = await supabase
+      .from("users")
+      .select("id, email, full_name")
+      .eq("id", tenantId)
+      .single();
+
+    if (!tenant?.email) return false;
+
+    // Check for duplicate (prevent multiple in same day)
+    const { data: existingNotif } = await supabase
+      .from("application_notifications")
+      .select("id")
+      .eq("user_id", tenant.id)
+      .eq("notification_type", "rent_due_soon")
+      .gte("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+      .single();
+
+    if (existingNotif) return false;
+
+    const subject = `Rent Due in ${daysUntilDue} Day${daysUntilDue !== 1 ? 's' : ''}`;
+    const content = `
+      <p>Hi ${tenant.full_name},</p>
+      <p>Reminder: Your rent payment of <strong>$${rentAmount}</strong> is due on ${dueDate}.</p>
+      <p>Please ensure your payment is submitted on time.</p>
+      <p>Best regards,<br>Choice Properties</p>
+    `;
+
+    const notificationId = await createNotificationRecord({
+      applicationId: "",
+      userId: tenant.id,
+      type: "rent_due_soon",
+      subject,
+      content,
+    });
+
+    // In-app + email for payment reminders
+    const result = await sendEmail({ to: tenant.email, subject, html: content });
+
+    if (notificationId) {
+      await updateNotificationStatus(notificationId, result.success ? "sent" : "failed");
+    }
+
+    return result.success;
+  } catch (err) {
+    console.error("[NOTIFICATION] Failed to send rent due soon:", err);
     return false;
   }
 }

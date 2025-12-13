@@ -8,7 +8,13 @@ import {
   getAgentInquiryEmailTemplate,
   getApplicationConfirmationEmailTemplate,
 } from "./email";
-import { notifyOwnerOfNewApplication } from "./notification-service";
+import { 
+  notifyOwnerOfNewApplication,
+  sendPaymentReceivedNotification,
+  sendPaymentVerifiedNotification,
+  sendDepositRequiredNotification,
+  sendRentDueSoonNotification
+} from "./notification-service";
 import {
   signupSchema,
   loginSchema,
@@ -2978,7 +2984,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Get application details for tenant and property info
         const { data: appInfo } = await supabase
           .from("applications")
-          .select("user_id, property_id, properties(owner_id)")
+          .select("user_id, property_id, properties(owner_id, title)")
           .eq("id", req.params.applicationId)
           .limit(1)
           .maybeSingle();
@@ -3047,6 +3053,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 status: "pending",
                 due_date: dueDate.toISOString()
               });
+          }
+
+          // Send deposit required notification to tenant
+          try {
+            const propertyTitle = (appInfo.properties as any)?.title || "Property";
+            await sendDepositRequiredNotification(
+              appInfo.user_id,
+              leaseDraft.security_deposit.toString(),
+              propertyTitle
+            );
+          } catch (notifErr) {
+            console.error("[LEASE] Failed to send deposit notification:", notifErr);
           }
         }
       }
@@ -5762,6 +5780,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         newData: { status: "verified", method, amount, dateReceived }
       });
 
+      // Send notification to tenant that payment was verified
+      try {
+        const { data: tenantData } = await supabase
+          .from("users")
+          .select("full_name")
+          .eq("id", payment.leases?.tenant_id)
+          .single();
+        
+        if (tenantData?.full_name) {
+          await sendPaymentVerifiedNotification(
+            paymentId,
+            payment.leases?.tenant_id,
+            payment.type === 'rent' ? 'Rent' : 'Security Deposit',
+            amount.toString()
+          );
+        }
+      } catch (notificationErr) {
+        console.error("[PAYMENTS] Failed to send verification notification:", notificationErr);
+        // Continue with response even if notification fails
+      }
+
       return res.json(success(
         { status: "verified", message: "Payment verified." },
         "Payment verified successfully"
@@ -5813,6 +5852,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .eq("id", paymentId);
 
       if (error) throw error;
+
+      // Send notification to landlord that payment was marked as paid
+      try {
+        const { data: tenantData } = await supabase
+          .from("users")
+          .select("full_name")
+          .eq("id", req.user!.id)
+          .single();
+        
+        if (tenantData?.full_name) {
+          await sendPaymentReceivedNotification(
+            paymentId,
+            tenantData.full_name,
+            payment.type === 'rent' ? 'Rent' : 'Security Deposit',
+            payment.amount.toString()
+          );
+        }
+      } catch (notificationErr) {
+        console.error("[PAYMENTS] Failed to send notification:", notificationErr);
+        // Continue with response even if notification fails
+      }
 
       return res.json(success({ status: "paid" }, "Payment marked as paid - awaiting verification"));
     } catch (err: any) {
