@@ -226,6 +226,38 @@ export const applicationNotifications = pgTable("application_notifications", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// User notification preferences for controlling communication channels
+export const userNotificationPreferences = pgTable("user_notification_preferences", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").notNull().unique().references(() => users.id, { onDelete: "cascade" }),
+  emailNewApplications: boolean("email_new_applications").default(true),
+  emailStatusUpdates: boolean("email_status_updates").default(true),
+  emailPropertySaved: boolean("email_property_saved").default(true),
+  emailLeaseReminders: boolean("email_lease_reminders").default(true),
+  inAppNotifications: boolean("in_app_notifications").default(true),
+  pushNotifications: boolean("push_notifications").default(false),
+  notificationFrequency: text("notification_frequency").default("instant"), // instant, daily, weekly
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Property notifications for tracking property-related events
+export const propertyNotifications = pgTable("property_notifications", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+  propertyId: uuid("property_id").references(() => properties.id, { onDelete: "cascade" }),
+  notificationType: text("notification_type").notNull(), // property_saved, price_changed, status_changed, new_similar_property
+  channel: text("channel").default("email"), // email, in_app, sms
+  subject: text("subject"),
+  content: text("content"),
+  sentAt: timestamp("sent_at"),
+  readAt: timestamp("read_at"),
+  status: text("status").default("pending"), // pending, sent, failed, read
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  userPropertyUnique: unique().on(table.userId, table.propertyId),
+}));
+
 export const inquiries = pgTable("inquiries", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   agentId: uuid("agent_id").references(() => users.id, { onDelete: "cascade" }),
@@ -547,6 +579,19 @@ export const insertApplicationNotificationSchema = createInsertSchema(applicatio
   readAt: true,
 });
 
+export const insertUserNotificationPreferencesSchema = createInsertSchema(userNotificationPreferences).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPropertyNotificationSchema = createInsertSchema(propertyNotifications).omit({
+  id: true,
+  createdAt: true,
+  sentAt: true,
+  readAt: true,
+});
+
 export const insertInquirySchema = createInsertSchema(inquiries).omit({
   id: true,
   createdAt: true,
@@ -641,6 +686,12 @@ export type ApplicationComment = typeof applicationComments.$inferSelect;
 
 export type InsertApplicationNotification = z.infer<typeof insertApplicationNotificationSchema>;
 export type ApplicationNotification = typeof applicationNotifications.$inferSelect;
+
+export type InsertUserNotificationPreferences = z.infer<typeof insertUserNotificationPreferencesSchema>;
+export type UserNotificationPreferences = typeof userNotificationPreferences.$inferSelect;
+
+export type InsertPropertyNotification = z.infer<typeof insertPropertyNotificationSchema>;
+export type PropertyNotification = typeof propertyNotifications.$inferSelect;
 
 export type ApplicationStatus = typeof APPLICATION_STATUSES[number];
 export type RejectionCategory = typeof REJECTION_CATEGORIES[number];

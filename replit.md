@@ -196,7 +196,22 @@ The project is configured for Replit deployment:
 - Manage platform settings
 - View all reviews and content
 
-## Recent Changes (December 10, 2025)
+## Recent Changes (December 13, 2025)
+
+### Communication & Engagement System
+✅ User notification preferences table added with preference controls
+✅ Property notifications table added for property-related events
+✅ Support for email, in-app, and SMS notification channels
+✅ Notification types: new applications, status updates, property saved, lease reminders
+✅ Read/unread tracking for in-app messages
+✅ User preference controls: notification frequency (instant, daily, weekly)
+
+### Database Schema Updates
+✅ `userNotificationPreferences` - Controls notification channels and frequency per user
+✅ `propertyNotifications` - Tracks property-related notification events
+✅ Both tables integrate with existing SendGrid email service
+
+## Previous Changes (December 10, 2025)
 
 ### Setup & Configuration
 ✅ Supabase authentication configured
