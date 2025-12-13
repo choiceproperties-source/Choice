@@ -1178,6 +1178,70 @@ export const insertPushSubscriptionSchema = createInsertSchema(pushSubscriptions
 export type InsertPushSubscription = z.infer<typeof insertPushSubscriptionSchema>;
 export type PushSubscription = typeof pushSubscriptions.$inferSelect;
 
+// Payment types and statuses
+export const PAYMENT_TYPES = ["rent", "security_deposit"] as const;
+export const PAYMENT_STATUSES = ["pending", "paid", "overdue", "verified"] as const;
+
+// Active leases between landlord and tenant
+export const leases = pgTable("leases", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  applicationId: uuid("application_id").references(() => applications.id, { onDelete: "cascade" }),
+  propertyId: uuid("property_id").references(() => properties.id, { onDelete: "cascade" }),
+  tenantId: uuid("tenant_id").references(() => users.id, { onDelete: "cascade" }),
+  landlordId: uuid("landlord_id").references(() => users.id, { onDelete: "cascade" }),
+  monthlyRent: decimal("monthly_rent", { precision: 12, scale: 2 }).notNull(),
+  securityDepositAmount: decimal("security_deposit_amount", { precision: 12, scale: 2 }).notNull(),
+  rentDueDay: integer("rent_due_day").default(1).notNull(), // Day of month (1-31)
+  leaseStartDate: timestamp("lease_start_date").notNull(),
+  leaseEndDate: timestamp("lease_end_date").notNull(),
+  status: text("status").default("active"), // active, expired, terminated
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Payment tracking for rent and security deposits
+export const payments = pgTable("payments", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  leaseId: uuid("lease_id").references(() => leases.id, { onDelete: "cascade" }).notNull(),
+  tenantId: uuid("tenant_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  type: text("type").notNull(), // rent, security_deposit
+  status: text("status").default("pending"), // pending, paid, overdue, verified
+  dueDate: timestamp("due_date").notNull(),
+  paidAt: timestamp("paid_at"),
+  referenceId: text("reference_id"), // Transaction/receipt reference
+  verifiedBy: uuid("verified_by").references(() => users.id, { onDelete: "set null" }),
+  verifiedAt: timestamp("verified_at"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Insert schemas
+export const insertLeaseSchema = createInsertSchema(leases).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPaymentSchema = createInsertSchema(payments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  paidAt: true,
+  verifiedBy: true,
+  verifiedAt: true,
+});
+
+// Types
+export type InsertLease = z.infer<typeof insertLeaseSchema>;
+export type Lease = typeof leases.$inferSelect;
+export type PaymentType = typeof PAYMENT_TYPES[number];
+export type PaymentStatus = typeof PAYMENT_STATUSES[number];
+
+export type InsertPayment = z.infer<typeof insertPaymentSchema>;
+export type Payment = typeof payments.$inferSelect;
+
 // Lease Templates for landlords to use as starting point
 export const leaseTemplates = pgTable("lease_templates", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
