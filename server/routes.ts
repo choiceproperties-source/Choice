@@ -8,6 +8,7 @@ import {
   getAgentInquiryEmailTemplate,
   getApplicationConfirmationEmailTemplate,
 } from "./email";
+import { notifyOwnerOfNewApplication } from "./notification-service";
 import {
   signupSchema,
   loginSchema,
@@ -430,6 +431,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }).catch((err) => console.error("Email send error:", err));
       }
 
+      // Notify property owner of new application
+      if (data[0]?.id) {
+        notifyOwnerOfNewApplication(data[0].id).catch((err) => 
+          console.error("Owner notification error:", err)
+        );
+      }
+
       return res.json(success(data[0], "Application submitted successfully"));
     } catch (err: any) {
       return res.status(500).json(errorResponse("Failed to submit application"));
@@ -491,6 +499,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             propertyTitle: propertyData?.title || "Your Property",
           }),
         }).catch((err) => console.error("Email send error:", err));
+      }
+
+      // Notify property owner of new application
+      if (data[0]?.id) {
+        notifyOwnerOfNewApplication(data[0].id).catch((err) => 
+          console.error("Owner notification error:", err)
+        );
       }
 
       return res.json(success(data[0], "Application submitted successfully"));
