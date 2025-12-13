@@ -1191,8 +1191,21 @@ export const leaseDrafts = pgTable("lease_drafts", {
     changeDescription?: string;
     previousValues?: Record<string, any>;
   }>>(),
+  signatureEnabled: boolean("signature_enabled").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Lease Signatures - tracks who signed the lease and when
+export const leaseSignatures = pgTable("lease_signatures", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  applicationId: uuid("application_id").references(() => applications.id, { onDelete: "cascade" }),
+  signerId: uuid("signer_id").references(() => users.id, { onDelete: "cascade" }),
+  signerRole: text("signer_role").notNull(), // tenant, landlord
+  signatureData: text("signature_data").notNull(), // Base64 encoded signature or digital signature
+  documentHash: text("document_hash"), // Hash of signed document for verification
+  signedAt: timestamp("signed_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Property Templates for quick listing creation
@@ -1265,6 +1278,15 @@ export const updateLeaseDraftSchema = z.object({
 export type InsertLeaseDraft = z.infer<typeof insertLeaseDraftSchema>;
 export type UpdateLeaseDraft = z.infer<typeof updateLeaseDraftSchema>;
 export type LeaseDraft = typeof leaseDrafts.$inferSelect;
+export type LeaseSignature = typeof leaseSignatures.$inferSelect;
+
+export const insertLeaseSignatureSchema = createInsertSchema(leaseSignatures).omit({
+  id: true,
+  createdAt: true,
+  signedAt: true,
+});
+
+export type InsertLeaseSignature = z.infer<typeof insertLeaseSignatureSchema>;
 
 // Lease send schema
 export const leaseSendSchema = z.object({
@@ -1280,6 +1302,25 @@ export const leaseAcceptSchema = z.object({
 export const leaseDeclineSchema = z.object({
   reason: z.string().min(1, "Decline reason is required").optional(),
 });
+
+// Lease signature schemas
+export const leaseSignatureEnableSchema = z.object({
+  signatureEnabled: z.boolean(),
+});
+
+export const leaseSignSchema = z.object({
+  signatureData: z.string().min(1, "Signature data is required"),
+  documentHash: z.string().optional(),
+});
+
+export const leaseCounstersignSchema = z.object({
+  signatureData: z.string().min(1, "Signature data is required"),
+  documentHash: z.string().optional(),
+});
+
+export type LeaseSignatureEnable = z.infer<typeof leaseSignatureEnableSchema>;
+export type LeaseSign = z.infer<typeof leaseSignSchema>;
+export type LeaseCounstersign = z.infer<typeof leaseCounstersignSchema>;
 
 // Geocoding validation schema
 export const geocodeAddressSchema = z.object({

@@ -35,6 +35,9 @@ import {
   leaseSendSchema,
   leaseAcceptSchema,
   leaseDeclineSchema,
+  leaseSignatureEnableSchema,
+  leaseSignSchema,
+  leaseCounstersignSchema,
 } from "@shared/schema";
 import { authLimiter, signupLimiter, inquiryLimiter, newsletterLimiter } from "./rate-limit";
 import { cache, CACHE_TTL } from "./cache";
@@ -2952,6 +2955,228 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (err: any) {
       console.error("[LEASE] Accept error:", err);
       return res.status(500).json(errorResponse("Failed to accept lease"));
+    }
+  });
+
+  // Enable/disable digital signatures for lease
+  app.patch("/api/applications/:applicationId/lease-draft/signature-enable", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const validation = leaseSignatureEnableSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error.errors[0].message });
+      }
+
+      const { data: application } = await supabase
+        .from("applications")
+        .select("properties(owner_id)")
+        .eq("id", req.params.applicationId)
+        .single();
+
+      if (!application) {
+        return res.status(404).json({ error: "Application not found" });
+      }
+
+      const isPropertyOwner = application.properties?.owner_id === req.user!.id;
+      const isAdmin = req.user!.role === "admin";
+
+      if (!isPropertyOwner && !isAdmin) {
+        return res.status(403).json({ error: "Only landlord/agent can enable signatures" });
+      }
+
+      const { data, error } = await supabase
+        .from("lease_drafts")
+        .update({ signature_enabled: validation.data.signatureEnabled, updated_at: new Date().toISOString() })
+        .eq("application_id", req.params.applicationId)
+        .select();
+
+      if (error) throw error;
+
+      return res.json(success(data[0], "Signature setting updated successfully"));
+    } catch (err: any) {
+      console.error("[LEASE] Signature enable error:", err);
+      return res.status(500).json(errorResponse("Failed to update signature setting"));
+    }
+  });
+
+  // Tenant signs lease
+  app.post("/api/applications/:applicationId/lease/sign", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const validation = leaseSignSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error.errors[0].message });
+      }
+
+      const { data: application } = await supabase
+        .from("applications")
+        .select("user_id, lease_status")
+        .eq("id", req.params.applicationId)
+        .single();
+
+      if (!application) {
+        return res.status(404).json({ error: "Application not found" });
+      }
+
+      if (application.user_id !== req.user!.id) {
+        return res.status(403).json({ error: "Only tenant can sign lease" });
+      }
+
+      if (application.lease_status !== "lease_accepted") {
+        return res.status(400).json({ error: "Lease must be accepted before signing" });
+      }
+
+      // Check if signatures enabled
+      const { data: draft } = await supabase
+        .from("lease_drafts")
+        .select("signature_enabled")
+        .eq("application_id", req.params.applicationId)
+        .order("version", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!draft?.signature_enabled) {
+        return res.status(400).json({ error: "Digital signatures not enabled for this lease" });
+      }
+
+      // Record tenant signature
+      const { data: sig, error: sigError } = await supabase
+        .from("lease_signatures")
+        .insert([{
+          application_id: req.params.applicationId,
+          signer_id: req.user!.id,
+          signer_role: "tenant",
+          signature_data: validation.data.signatureData,
+          document_hash: validation.data.documentHash || null
+        }])
+        .select();
+
+      if (sigError) throw sigError;
+
+      // Update lease_signed_at timestamp
+      await supabase
+        .from("applications")
+        .update({ lease_signed_at: new Date().toISOString() })
+        .eq("id", req.params.applicationId);
+
+      // Notify landlord of signature
+      const { data: appData } = await supabase
+        .from("applications")
+        .select("properties(owner_id)")
+        .eq("id", req.params.applicationId)
+        .single();
+
+      if (appData?.properties?.owner_id) {
+        await supabase
+          .from("application_notifications")
+          .insert([{
+            application_id: req.params.applicationId,
+            user_id: appData.properties.owner_id,
+            notification_type: "lease_signed_tenant",
+            channel: "email",
+            subject: "Tenant has signed the lease",
+            content: "The tenant has digitally signed the lease.",
+            status: "pending"
+          }]);
+      }
+
+      return res.json(success(sig[0], "Lease signed successfully"));
+    } catch (err: any) {
+      console.error("[LEASE] Sign error:", err);
+      return res.status(500).json(errorResponse("Failed to sign lease"));
+    }
+  });
+
+  // Landlord countersigns lease
+  app.post("/api/applications/:applicationId/lease/countersign", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const validation = leaseCounstersignSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error.errors[0].message });
+      }
+
+      const { data: application } = await supabase
+        .from("applications")
+        .select("properties(owner_id)")
+        .eq("id", req.params.applicationId)
+        .single();
+
+      if (!application) {
+        return res.status(404).json({ error: "Application not found" });
+      }
+
+      const isPropertyOwner = application.properties?.owner_id === req.user!.id;
+      const isAdmin = req.user!.role === "admin";
+
+      if (!isPropertyOwner && !isAdmin) {
+        return res.status(403).json({ error: "Only landlord/agent can countersign" });
+      }
+
+      // Check if tenant already signed
+      const { data: tenantSig } = await supabase
+        .from("lease_signatures")
+        .select("id")
+        .eq("application_id", req.params.applicationId)
+        .eq("signer_role", "tenant")
+        .limit(1)
+        .single();
+
+      if (!tenantSig) {
+        return res.status(400).json({ error: "Tenant must sign first before landlord countersigns" });
+      }
+
+      // Record landlord signature
+      const { data: sig, error: sigError } = await supabase
+        .from("lease_signatures")
+        .insert([{
+          application_id: req.params.applicationId,
+          signer_id: req.user!.id,
+          signer_role: "landlord",
+          signature_data: validation.data.signatureData,
+          document_hash: validation.data.documentHash || null
+        }])
+        .select();
+
+      if (sigError) throw sigError;
+
+      return res.json(success(sig[0], "Lease countersigned successfully"));
+    } catch (err: any) {
+      console.error("[LEASE] Countersign error:", err);
+      return res.status(500).json(errorResponse("Failed to countersign lease"));
+    }
+  });
+
+  // Get lease signatures for an application
+  app.get("/api/applications/:applicationId/lease/signatures", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data: application } = await supabase
+        .from("applications")
+        .select("user_id, properties(owner_id)")
+        .eq("id", req.params.applicationId)
+        .single();
+
+      if (!application) {
+        return res.status(404).json({ error: "Application not found" });
+      }
+
+      const isTenant = application.user_id === req.user!.id;
+      const isPropertyOwner = application.properties?.owner_id === req.user!.id;
+      const isAdmin = req.user!.role === "admin";
+
+      if (!isTenant && !isPropertyOwner && !isAdmin) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      const { data: signatures, error } = await supabase
+        .from("lease_signatures")
+        .select("*, signer:users(full_name, email)")
+        .eq("application_id", req.params.applicationId)
+        .order("signed_at", { ascending: false });
+
+      if (error) throw error;
+
+      return res.json(success(signatures, "Lease signatures retrieved successfully"));
+    } catch (err: any) {
+      console.error("[LEASE] Get signatures error:", err);
+      return res.status(500).json(errorResponse("Failed to retrieve signatures"));
     }
   });
 
