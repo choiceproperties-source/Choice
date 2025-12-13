@@ -136,6 +136,11 @@ export default function PropertyDetails() {
       ? property.images!.map(img => imageMap[img] || placeholderExterior)
       : [placeholderExterior, placeholderLiving, placeholderKitchen, placeholderBedroom]);
   
+  // Use low-resolution thumbnails for the thumbnail strip
+  const allThumbnails = photosData && photosData.length > 0
+    ? photosData.map(photo => photo.imageUrls.thumbnail)
+    : allImages;
+  
   const position: [number, number] = [lat, lng];
 
   const averageRating = reviews && reviews.length > 0 
@@ -274,18 +279,18 @@ export default function PropertyDetails() {
             </Button>
           </div>
           <div className="flex gap-2 p-4 overflow-x-auto justify-center">
-            {allImages.map((img, idx) => (
+            {allThumbnails.map((thumbnailUrl, idx) => (
               <button
                 key={idx}
                 onClick={() => setCurrentImageIndex(idx)}
-                className={`flex-shrink-0 rounded overflow-hidden transition-all ${
+                className={`flex-shrink-0 rounded overflow-hidden transition-all cursor-pointer ${
                   idx === currentImageIndex ? "ring-2 ring-white" : "opacity-50 hover:opacity-100"
                 }`}
                 data-testid={`thumbnail-${idx}`}
                 aria-label={`View photo ${idx + 1}`}
                 aria-current={idx === currentImageIndex ? "true" : "false"}
               >
-                <img src={img} alt={`Thumbnail ${idx + 1}`} className="w-16 h-12 object-cover" />
+                <img src={thumbnailUrl} alt={`Thumbnail ${idx + 1}`} className="w-16 h-12 object-cover" />
               </button>
             ))}
           </div>
