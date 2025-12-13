@@ -5801,5 +5801,177 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Generate monthly rent payment records for a lease
+  app.post("/api/leases/:leaseId/generate-rent-payments", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const leaseId = req.params.leaseId;
+      const { gracePeriodDays = 0 } = req.body;
+
+      // Get lease with authorization check
+      const { data: lease, error: leaseError } = await supabase
+        .from("leases")
+        .select("id, tenant_id, landlord_id, monthly_rent, rent_due_day, lease_start_date, lease_end_date")
+        .eq("id", leaseId)
+        .single();
+
+      if (leaseError || !lease) {
+        return res.status(404).json({ error: "Lease not found" });
+      }
+
+      // Authorization: tenant, landlord, or admin
+      const isTenant = lease.tenant_id === req.user!.id;
+      const isLandlord = lease.landlord_id === req.user!.id;
+      const isAdmin = req.user!.role === "admin";
+
+      if (!isTenant && !isLandlord && !isAdmin) {
+        return res.status(403).json({ error: "Not authorized to generate rent payments" });
+      }
+
+      const startDate = new Date(lease.lease_start_date);
+      const endDate = new Date(lease.lease_end_date);
+      const rentDueDay = lease.rent_due_day || 1;
+      const rentAmount = parseFloat(lease.monthly_rent.toString());
+      const gracePeriodMs = gracePeriodDays * 24 * 60 * 60 * 1000;
+
+      // Generate monthly rent payment dates
+      const paymentsToCreate = [];
+      const currentDate = new Date(startDate);
+
+      while (currentDate < endDate) {
+        // Calculate the due date for this month (rentDueDay of current month)
+        const dueDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), rentDueDay);
+        
+        // If the due date is before the lease start, set it to next month
+        if (dueDate < startDate) {
+          dueDate.setMonth(dueDate.getMonth() + 1);
+        }
+
+        // Only add if due date is within lease period
+        if (dueDate <= endDate) {
+          paymentsToCreate.push({
+            lease_id: leaseId,
+            tenant_id: lease.tenant_id,
+            amount: rentAmount,
+            type: "rent",
+            status: "pending",
+            due_date: dueDate.toISOString()
+          });
+        }
+
+        // Move to next month
+        currentDate.setMonth(currentDate.getMonth() + 1);
+      }
+
+      if (paymentsToCreate.length === 0) {
+        return res.json(success({ created: 0, message: "No rent payments to create for lease period" }, "No payments generated"));
+      }
+
+      // Check for existing rent payments to prevent duplicates
+      const { data: existingPayments, error: existingError } = await supabase
+        .from("payments")
+        .select("due_date, type")
+        .eq("lease_id", leaseId)
+        .eq("type", "rent");
+
+      if (existingError) throw existingError;
+
+      // Filter out duplicate payment dates
+      const existingDates = new Set(existingPayments?.map(p => new Date(p.due_date).toDateString()) || []);
+      const newPayments = paymentsToCreate.filter(p => 
+        !existingDates.has(new Date(p.due_date).toDateString())
+      );
+
+      if (newPayments.length === 0) {
+        return res.json(success({ created: 0, message: "All rent payments already exist" }, "No duplicate payments created"));
+      }
+
+      // Insert new rent payments
+      const { data: inserted, error: insertError } = await supabase
+        .from("payments")
+        .insert(newPayments)
+        .select();
+
+      if (insertError) throw insertError;
+
+      // Log audit event
+      await logAuditEvent({
+        userId: req.user!.id,
+        action: "create",
+        resourceType: "payment",
+        resourceId: leaseId,
+        previousData: null,
+        newData: { count: inserted?.length || 0, type: "rent" },
+        ipAddress: req.ip,
+        userAgent: req.get("User-Agent")
+      });
+
+      return res.json(success({
+        created: inserted?.length || 0,
+        payments: inserted || [],
+        message: `Generated ${inserted?.length || 0} rent payment records`
+      }, "Rent payments generated successfully"));
+    } catch (err: any) {
+      console.error("[PAYMENTS] Generate rent error:", err);
+      return res.status(500).json(errorResponse("Failed to generate rent payments"));
+    }
+  });
+
+  // Get rent payments for a lease (grouped by month)
+  app.get("/api/leases/:leaseId/rent-payments", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const leaseId = req.params.leaseId;
+
+      // Get lease with authorization check
+      const { data: lease } = await supabase
+        .from("leases")
+        .select("tenant_id, landlord_id")
+        .eq("id", leaseId)
+        .single();
+
+      if (!lease) {
+        return res.status(404).json({ error: "Lease not found" });
+      }
+
+      const isTenant = lease.tenant_id === req.user!.id;
+      const isLandlord = lease.landlord_id === req.user!.id;
+      const isAdmin = req.user!.role === "admin";
+
+      if (!isTenant && !isLandlord && !isAdmin) {
+        return res.status(403).json({ error: "Not authorized to view rent payments" });
+      }
+
+      // Get all rent payments for this lease
+      const { data: payments, error } = await supabase
+        .from("payments")
+        .select("*")
+        .eq("lease_id", leaseId)
+        .eq("type", "rent")
+        .order("due_date", { ascending: true });
+
+      if (error) throw error;
+
+      // Group by payment status
+      const grouped = {
+        pending: payments?.filter(p => p.status === "pending") || [],
+        paid: payments?.filter(p => p.status === "paid") || [],
+        verified: payments?.filter(p => p.status === "verified") || [],
+        overdue: payments?.filter(p => p.status === "overdue") || []
+      };
+
+      const stats = {
+        totalRent: payments?.reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0) || 0,
+        pendingAmount: grouped.pending.reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0),
+        paidAmount: grouped.paid.reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0),
+        verifiedAmount: grouped.verified.reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0),
+        overdueAmount: grouped.overdue.reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0)
+      };
+
+      return res.json(success({ payments: grouped, stats }, "Rent payments retrieved successfully"));
+    } catch (err: any) {
+      console.error("[PAYMENTS] Get rent payments error:", err);
+      return res.status(500).json(errorResponse("Failed to retrieve rent payments"));
+    }
+  });
+
   return httpServer;
 }
