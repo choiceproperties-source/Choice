@@ -152,16 +152,28 @@ export const propertyNotes = pgTable("property_notes", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Application status workflow: draft -> submitted -> under_review -> info_requested -> approved/rejected/withdrawn
-// Valid transitions: draft->submitted, submitted->under_review, under_review->info_requested/approved/rejected, info_requested->under_review/approved/rejected
+// Application status workflow: draft -> pending_payment -> payment_verified -> submitted -> under_review -> info_requested -> approved/rejected/withdrawn
+// Valid transitions: draft->pending_payment, pending_payment->payment_verified, payment_verified->submitted, submitted->under_review, under_review->info_requested/approved/rejected, info_requested->under_review/approved/rejected
 export const APPLICATION_STATUSES = [
   "draft",
+  "pending_payment",
+  "payment_verified",
   "submitted",
   "under_review",
   "info_requested",
   "approved",
   "rejected",
   "withdrawn"
+] as const;
+
+// Payment verification methods for manual verification
+export const PAYMENT_VERIFICATION_METHODS = [
+  "cash",
+  "check",
+  "bank_transfer",
+  "wire_transfer",
+  "money_order",
+  "other"
 ] as const;
 
 export const REJECTION_CATEGORIES = [
@@ -232,7 +244,7 @@ export const applications = pgTable("applications", {
   // Application fee
   applicationFee: decimal("application_fee", { precision: 8, scale: 2 }),
   // Payment tracking
-  paymentStatus: text("payment_status").default("pending"), // pending, paid, failed
+  paymentStatus: text("payment_status").default("pending"), // pending, paid, failed, manually_verified
   paymentAttempts: jsonb("payment_attempts").$type<Array<{
     referenceId: string;
     timestamp: string;
@@ -241,6 +253,15 @@ export const applications = pgTable("applications", {
     errorMessage?: string;
   }>>(),
   paymentPaidAt: timestamp("payment_paid_at"),
+  // Manual payment verification
+  manualPaymentVerified: boolean("manual_payment_verified").default(false),
+  manualPaymentVerifiedAt: timestamp("manual_payment_verified_at"),
+  manualPaymentVerifiedBy: uuid("manual_payment_verified_by").references(() => users.id),
+  manualPaymentAmount: decimal("manual_payment_amount", { precision: 8, scale: 2 }),
+  manualPaymentMethod: text("manual_payment_method"), // cash, check, bank_transfer, wire_transfer, money_order, other
+  manualPaymentReceivedAt: timestamp("manual_payment_received_at"),
+  manualPaymentNote: text("manual_payment_note"),
+  manualPaymentReferenceId: text("manual_payment_reference_id"),
   // Info request tracking
   infoRequestedReason: text("info_requested_reason"),
   infoRequestedAt: timestamp("info_requested_at"),
@@ -432,8 +453,34 @@ export const AUDIT_ACTIONS = [
   "create", "update", "delete", "view", "login", "logout", 
   "2fa_enable", "2fa_disable", "2fa_verify", "password_change",
   "role_change", "status_change", "document_upload", "document_verify",
-  "application_review", "application_approve", "application_reject"
+  "application_review", "application_approve", "application_reject",
+  "payment_verify_manual", "payment_attempt", "application_info_request",
+  "application_conditional_approve"
 ] as const;
+
+// Payment verification audit trail
+export const paymentVerifications = pgTable("payment_verifications", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  applicationId: uuid("application_id").references(() => applications.id, { onDelete: "cascade" }),
+  verifiedBy: uuid("verified_by").references(() => users.id, { onDelete: "set null" }),
+  amount: decimal("amount", { precision: 8, scale: 2 }).notNull(),
+  paymentMethod: text("payment_method").notNull(), // cash, check, bank_transfer, wire_transfer, money_order, other
+  receivedAt: timestamp("received_at").notNull(),
+  referenceId: text("reference_id").notNull(),
+  internalNote: text("internal_note"),
+  confirmationChecked: boolean("confirmation_checked").default(false),
+  previousPaymentStatus: text("previous_payment_status"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertPaymentVerificationSchema = createInsertSchema(paymentVerifications).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertPaymentVerification = z.infer<typeof insertPaymentVerificationSchema>;
+export type PaymentVerification = typeof paymentVerifications.$inferSelect;
+export type PaymentVerificationMethod = typeof PAYMENT_VERIFICATION_METHODS[number];
 
 export const auditLogs = pgTable("audit_logs", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),

@@ -24,6 +24,8 @@ import {
   insertAgencySchema,
   insertTransactionSchema,
   insertAgentReviewSchema,
+  insertPaymentVerificationSchema,
+  PAYMENT_VERIFICATION_METHODS,
 } from "@shared/schema";
 import { authLimiter, signupLimiter, inquiryLimiter, newsletterLimiter } from "./rate-limit";
 import { cache, CACHE_TTL } from "./cache";
@@ -944,6 +946,508 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (err: any) {
       console.error("[PAYMENT] Record attempt error:", err);
       return res.status(500).json(errorResponse("Failed to record payment attempt"));
+    }
+  });
+
+  // Manual payment verification endpoint (landlord/admin only)
+  app.post("/api/applications/:id/verify-payment", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { amount, paymentMethod, receivedAt, internalNote, confirmationChecked } = req.body;
+      
+      // Validate required fields
+      if (!amount || !paymentMethod || !receivedAt) {
+        return res.status(400).json(errorResponse("Missing required fields: amount, paymentMethod, receivedAt"));
+      }
+
+      // Validate confirmation checkbox
+      if (!confirmationChecked) {
+        return res.status(400).json(errorResponse("You must confirm the application fee has been received"));
+      }
+
+      // Validate payment method
+      if (!PAYMENT_VERIFICATION_METHODS.includes(paymentMethod)) {
+        return res.status(400).json(errorResponse("Invalid payment method"));
+      }
+
+      // Get application with property owner info
+      const { data: application, error: appError } = await supabase
+        .from("applications")
+        .select(`
+          *,
+          properties:property_id(id, owner_id, title, address, listing_agent_id),
+          users:user_id(id, full_name, email)
+        `)
+        .eq("id", req.params.id)
+        .single();
+
+      if (appError || !application) {
+        return res.status(404).json(errorResponse("Application not found"));
+      }
+
+      // Check if payment already verified
+      if (application.manual_payment_verified || application.payment_status === 'paid' || application.payment_status === 'manually_verified') {
+        return res.status(400).json(errorResponse("Payment has already been verified for this application"));
+      }
+
+      // Check user authorization (must be property owner, listing agent, or admin)
+      const isOwner = application.properties?.owner_id === req.user!.id;
+      const isAgent = application.properties?.listing_agent_id === req.user!.id;
+      const isAdmin = req.user!.role === 'admin';
+      
+      if (!isOwner && !isAgent && !isAdmin) {
+        return res.status(403).json(errorResponse("Not authorized to verify payments for this application"));
+      }
+
+      // Generate reference ID for manual verification
+      const referenceId = `MV-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
+      // Create payment verification record
+      const { data: verification, error: verifyError } = await supabase
+        .from("payment_verifications")
+        .insert([{
+          application_id: req.params.id,
+          verified_by: req.user!.id,
+          amount,
+          payment_method: paymentMethod,
+          received_at: receivedAt,
+          reference_id: referenceId,
+          internal_note: internalNote || null,
+          confirmation_checked: true,
+          previous_payment_status: application.payment_status,
+        }])
+        .select()
+        .single();
+
+      if (verifyError) throw verifyError;
+
+      // Build status history entry
+      const statusHistoryEntry = {
+        status: 'payment_verified',
+        changedAt: new Date().toISOString(),
+        changedBy: req.user!.id,
+        reason: `Manual payment verified via ${paymentMethod}. Amount: $${amount}`
+      };
+
+      const existingHistory = application.status_history || [];
+
+      // Update application with manual verification info
+      const { data: updatedApp, error: updateError } = await supabase
+        .from("applications")
+        .update({
+          payment_status: 'manually_verified',
+          status: 'payment_verified',
+          previous_status: application.status,
+          status_history: [...existingHistory, statusHistoryEntry],
+          manual_payment_verified: true,
+          manual_payment_verified_at: new Date().toISOString(),
+          manual_payment_verified_by: req.user!.id,
+          manual_payment_amount: amount,
+          manual_payment_method: paymentMethod,
+          manual_payment_received_at: receivedAt,
+          manual_payment_note: internalNote || null,
+          manual_payment_reference_id: referenceId,
+          payment_paid_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", req.params.id)
+        .select()
+        .single();
+
+      if (updateError) throw updateError;
+
+      // Log audit event
+      await logAuditEvent({
+        userId: req.user!.id,
+        action: 'payment_verify_manual',
+        resourceType: 'application',
+        resourceId: req.params.id,
+        metadata: {
+          previousPaymentStatus: application.payment_status,
+          newPaymentStatus: 'manually_verified',
+          amount,
+          paymentMethod,
+          referenceId,
+        },
+        req,
+      });
+
+      // Insert system message in the conversation if exists
+      if (application.conversation_id) {
+        await supabase
+          .from("messages")
+          .insert([{
+            conversation_id: application.conversation_id,
+            sender_id: req.user!.id,
+            content: `System: Application fee verified ($${amount} via ${paymentMethod}). Application moved to review stage. Reference: ${referenceId}`,
+            message_type: "system",
+          }]);
+      }
+
+      // Create notification for tenant
+      await supabase
+        .from("application_notifications")
+        .insert([{
+          application_id: req.params.id,
+          user_id: application.user_id,
+          notification_type: "payment_verified",
+          channel: "in_app",
+          subject: "Application Fee Verified",
+          content: `Your application fee of $${amount} has been verified. Your application is now under review.`,
+          status: "pending",
+        }]);
+
+      return res.json(success({
+        application: updatedApp,
+        verification,
+        referenceId,
+      }, "Payment verified successfully. Application moved to review stage."));
+    } catch (err: any) {
+      console.error("[PAYMENT] Manual verification error:", err);
+      return res.status(500).json(errorResponse("Failed to verify payment"));
+    }
+  });
+
+  // Get payment verification history for an application
+  app.get("/api/applications/:id/payment-verifications", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      // Get application with property info
+      const { data: application, error: appError } = await supabase
+        .from("applications")
+        .select(`*, properties:property_id(owner_id, listing_agent_id)`)
+        .eq("id", req.params.id)
+        .single();
+
+      if (appError || !application) {
+        return res.status(404).json(errorResponse("Application not found"));
+      }
+
+      // Check authorization
+      const isOwner = application.properties?.owner_id === req.user!.id;
+      const isAgent = application.properties?.listing_agent_id === req.user!.id;
+      const isAdmin = req.user!.role === 'admin';
+      const isApplicant = application.user_id === req.user!.id;
+
+      if (!isOwner && !isAgent && !isAdmin && !isApplicant) {
+        return res.status(403).json(errorResponse("Not authorized to view payment verifications"));
+      }
+
+      // Get payment verifications
+      const { data: verifications, error } = await supabase
+        .from("payment_verifications")
+        .select(`*, users:verified_by(id, full_name, email)`)
+        .eq("application_id", req.params.id)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      // For tenants, hide internal notes
+      const sanitizedVerifications = verifications?.map(v => {
+        if (isApplicant && !isOwner && !isAgent && !isAdmin) {
+          return { ...v, internal_note: null };
+        }
+        return v;
+      });
+
+      return res.json(success({
+        verifications: sanitizedVerifications || [],
+        paymentAttempts: application.payment_attempts || [],
+        currentStatus: application.payment_status,
+        manuallyVerified: application.manual_payment_verified,
+      }, "Payment history fetched successfully"));
+    } catch (err: any) {
+      console.error("[PAYMENT] Get verifications error:", err);
+      return res.status(500).json(errorResponse("Failed to fetch payment verifications"));
+    }
+  });
+
+  // Application review actions (approve, reject, request info)
+  app.post("/api/applications/:id/review-action", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { action, reason, conditionalRequirements, dueDate } = req.body;
+      
+      const validActions = ['approve', 'reject', 'conditional_approve', 'request_info', 'submit_for_review'];
+      if (!validActions.includes(action)) {
+        return res.status(400).json(errorResponse("Invalid action. Must be: approve, reject, conditional_approve, request_info, or submit_for_review"));
+      }
+
+      // Get application with property info
+      const { data: application, error: appError } = await supabase
+        .from("applications")
+        .select(`
+          *,
+          properties:property_id(id, owner_id, title, address, listing_agent_id),
+          users:user_id(id, full_name, email)
+        `)
+        .eq("id", req.params.id)
+        .single();
+
+      if (appError || !application) {
+        return res.status(404).json(errorResponse("Application not found"));
+      }
+
+      // Check authorization for landlord/agent actions
+      const isOwner = application.properties?.owner_id === req.user!.id;
+      const isAgent = application.properties?.listing_agent_id === req.user!.id;
+      const isAdmin = req.user!.role === 'admin';
+      const isApplicant = application.user_id === req.user!.id;
+
+      // For submit_for_review, applicant can do it
+      if (action === 'submit_for_review') {
+        if (!isApplicant && !isAdmin) {
+          return res.status(403).json(errorResponse("Only the applicant can submit for review"));
+        }
+        // Check if payment is verified
+        if (application.payment_status !== 'manually_verified' && application.payment_status !== 'paid') {
+          return res.status(400).json(errorResponse("Payment must be verified before submitting for review"));
+        }
+      } else {
+        // For other actions, must be owner/agent/admin
+        if (!isOwner && !isAgent && !isAdmin) {
+          return res.status(403).json(errorResponse("Not authorized to perform this action"));
+        }
+      }
+
+      // Determine new status and validation
+      let newStatus = application.status;
+      let updateData: any = {
+        updated_at: new Date().toISOString(),
+        reviewed_by: req.user!.id,
+        reviewed_at: new Date().toISOString(),
+      };
+
+      switch (action) {
+        case 'submit_for_review':
+          if (application.status !== 'payment_verified' && application.status !== 'draft') {
+            return res.status(400).json(errorResponse("Application cannot be submitted for review in its current state"));
+          }
+          newStatus = 'submitted';
+          break;
+          
+        case 'approve':
+          if (!['submitted', 'under_review', 'info_requested'].includes(application.status)) {
+            return res.status(400).json(errorResponse("Application cannot be approved in its current state"));
+          }
+          newStatus = 'approved';
+          break;
+          
+        case 'reject':
+          if (!reason) {
+            return res.status(400).json(errorResponse("Rejection reason is required"));
+          }
+          if (!['submitted', 'under_review', 'info_requested'].includes(application.status)) {
+            return res.status(400).json(errorResponse("Application cannot be rejected in its current state"));
+          }
+          newStatus = 'rejected';
+          updateData.rejection_reason = reason;
+          updateData.rejection_details = { explanation: reason, appealable: true, categories: [] };
+          break;
+          
+        case 'conditional_approve':
+          if (!conditionalRequirements) {
+            return res.status(400).json(errorResponse("Conditional requirements are required"));
+          }
+          if (!['submitted', 'under_review'].includes(application.status)) {
+            return res.status(400).json(errorResponse("Application cannot be conditionally approved in its current state"));
+          }
+          newStatus = 'info_requested';
+          updateData.info_requested_reason = conditionalRequirements;
+          updateData.info_requested_at = new Date().toISOString();
+          updateData.info_requested_by = req.user!.id;
+          if (dueDate) {
+            updateData.info_requested_due_date = dueDate;
+          }
+          break;
+          
+        case 'request_info':
+          if (!reason) {
+            return res.status(400).json(errorResponse("Information request reason is required"));
+          }
+          if (!['submitted', 'under_review'].includes(application.status)) {
+            return res.status(400).json(errorResponse("Cannot request info in the current state"));
+          }
+          newStatus = 'info_requested';
+          updateData.info_requested_reason = reason;
+          updateData.info_requested_at = new Date().toISOString();
+          updateData.info_requested_by = req.user!.id;
+          if (dueDate) {
+            updateData.info_requested_due_date = dueDate;
+          }
+          break;
+      }
+
+      // Build status history
+      const statusHistoryEntry = {
+        status: newStatus,
+        changedAt: new Date().toISOString(),
+        changedBy: req.user!.id,
+        reason: reason || `Application ${action.replace('_', ' ')}`,
+      };
+
+      const existingHistory = application.status_history || [];
+      
+      updateData.status = newStatus;
+      updateData.previous_status = application.status;
+      updateData.status_history = [...existingHistory, statusHistoryEntry];
+
+      // Update application
+      const { data: updatedApp, error: updateError } = await supabase
+        .from("applications")
+        .update(updateData)
+        .eq("id", req.params.id)
+        .select()
+        .single();
+
+      if (updateError) throw updateError;
+
+      // Log audit event
+      await logAuditEvent({
+        userId: req.user!.id,
+        action: `application_${action}`,
+        resourceType: 'application',
+        resourceId: req.params.id,
+        metadata: {
+          previousStatus: application.status,
+          newStatus,
+          reason,
+        },
+        req,
+      });
+
+      // Send system message if conversation exists
+      if (application.conversation_id) {
+        let messageContent = '';
+        switch (action) {
+          case 'submit_for_review':
+            messageContent = 'System: Application has been submitted for review.';
+            break;
+          case 'approve':
+            messageContent = 'System: Congratulations! Your application has been approved.';
+            break;
+          case 'reject':
+            messageContent = `System: Your application has been declined. Reason: ${reason}`;
+            break;
+          case 'conditional_approve':
+            messageContent = `System: Your application has been conditionally approved. Additional requirements: ${conditionalRequirements}`;
+            break;
+          case 'request_info':
+            messageContent = `System: Additional information has been requested: ${reason}`;
+            break;
+        }
+        
+        if (messageContent) {
+          await supabase
+            .from("messages")
+            .insert([{
+              conversation_id: application.conversation_id,
+              sender_id: req.user!.id,
+              content: messageContent,
+              message_type: "system",
+            }]);
+        }
+      }
+
+      // Create notification for the appropriate party
+      const notificationUserId = action === 'submit_for_review' 
+        ? application.properties?.owner_id 
+        : application.user_id;
+
+      if (notificationUserId) {
+        await supabase
+          .from("application_notifications")
+          .insert([{
+            application_id: req.params.id,
+            user_id: notificationUserId,
+            notification_type: `application_${action}`,
+            channel: "in_app",
+            subject: `Application ${action.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}`,
+            content: reason || `Application has been ${action.replace('_', ' ')}`,
+            status: "pending",
+          }]);
+      }
+
+      return res.json(success(updatedApp, `Application ${action.replace('_', ' ')} successfully`));
+    } catch (err: any) {
+      console.error("[APPLICATION] Review action error:", err);
+      return res.status(500).json(errorResponse("Failed to process application action"));
+    }
+  });
+
+  // Get application audit trail
+  app.get("/api/applications/:id/audit-trail", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      // Get application with property info
+      const { data: application, error: appError } = await supabase
+        .from("applications")
+        .select(`*, properties:property_id(owner_id, listing_agent_id)`)
+        .eq("id", req.params.id)
+        .single();
+
+      if (appError || !application) {
+        return res.status(404).json(errorResponse("Application not found"));
+      }
+
+      // Check authorization
+      const isOwner = application.properties?.owner_id === req.user!.id;
+      const isAgent = application.properties?.listing_agent_id === req.user!.id;
+      const isAdmin = req.user!.role === 'admin';
+      const isApplicant = application.user_id === req.user!.id;
+
+      if (!isOwner && !isAgent && !isAdmin && !isApplicant) {
+        return res.status(403).json(errorResponse("Not authorized to view audit trail"));
+      }
+
+      // Get audit logs
+      const { data: auditLogs, error: auditError } = await supabase
+        .from("audit_logs")
+        .select(`*, users:user_id(id, full_name, email)`)
+        .eq("resource_type", "application")
+        .eq("resource_id", req.params.id)
+        .order("created_at", { ascending: false });
+
+      if (auditError) throw auditError;
+
+      // Get payment verifications
+      const { data: paymentVerifications, error: pvError } = await supabase
+        .from("payment_verifications")
+        .select(`*, users:verified_by(id, full_name)`)
+        .eq("application_id", req.params.id)
+        .order("created_at", { ascending: false });
+
+      if (pvError) throw pvError;
+
+      // Get application comments
+      const { data: comments, error: commentsError } = await supabase
+        .from("application_comments")
+        .select(`*, users:user_id(id, full_name)`)
+        .eq("application_id", req.params.id)
+        .order("created_at", { ascending: false });
+
+      if (commentsError) throw commentsError;
+
+      // For tenants, filter out internal comments and notes
+      let filteredComments = comments || [];
+      let filteredVerifications = paymentVerifications || [];
+      
+      if (isApplicant && !isOwner && !isAgent && !isAdmin) {
+        filteredComments = filteredComments.filter(c => !c.is_internal);
+        filteredVerifications = filteredVerifications.map(v => ({
+          ...v,
+          internal_note: null,
+        }));
+      }
+
+      return res.json(success({
+        statusHistory: application.status_history || [],
+        paymentAttempts: application.payment_attempts || [],
+        paymentVerifications: filteredVerifications,
+        auditLogs: auditLogs || [],
+        comments: filteredComments,
+        currentStatus: application.status,
+        paymentStatus: application.payment_status,
+      }, "Audit trail fetched successfully"));
+    } catch (err: any) {
+      console.error("[APPLICATION] Audit trail error:", err);
+      return res.status(500).json(errorResponse("Failed to fetch audit trail"));
     }
   });
 
