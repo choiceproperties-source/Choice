@@ -904,13 +904,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create guest user if not authenticated
       if (!userId && guestEmail) {
+        // Generate secure temporary password for guest
+        const tempPassword = Math.random().toString(36).slice(2, 15) + Math.random().toString(36).slice(2, 15);
+        
         const { data: guestUser, error: guestError } = await supabase
           .from("users")
           .insert([{
             email: guestEmail,
             full_name: guestName || "Guest User",
             role: "renter",
-            password_hash: Math.random().toString(36), // Dummy hash for guests
+            password_hash: tempPassword, // Temporary secure hash
           }])
           .select("id")
           .single();
@@ -923,6 +926,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const applicationData = {
         ...validation.data,
         user_id: userId,
+        status: "submitted", // Set status to submitted instead of draft
       };
 
       const { data, error } = await supabase
@@ -932,16 +936,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (error) throw error;
 
+      const appId = data[0]?.id;
+
+      // Get property owner ID to create conversation
+      const { data: propertyData } = await supabase
+        .from("properties")
+        .select("owner_id, title")
+        .eq("id", propertyId)
+        .single();
+
+      // Create conversation linking tenant and landlord
+      if (appId && propertyData?.owner_id && userId) {
+        const { data: conversation, error: convError } = await supabase
+          .from("conversations")
+          .insert([{
+            property_id: propertyId,
+            application_id: appId,
+            subject: `Application for ${propertyData.title}`,
+          }])
+          .select()
+          .single();
+
+        if (conversation && !convError) {
+          // Add both participants
+          await supabase.from("conversation_participants").insert([
+            { conversation_id: conversation.id, user_id: userId },
+            { conversation_id: conversation.id, user_id: propertyData.owner_id },
+          ]);
+
+          // Update application with conversation_id
+          await supabase
+            .from("applications")
+            .update({ conversation_id: conversation.id })
+            .eq("id", appId);
+        }
+      }
+
       // Send confirmation email to authenticated user or guest
       const emailTo = req.user ? 
         (await supabase.from("users").select("email, full_name").eq("id", req.user.id).single()).data :
         { email: guestEmail, full_name: guestName };
-
-      const { data: propertyData } = await supabase
-        .from("properties")
-        .select("title")
-        .eq("id", validation.data.propertyId)
-        .single();
 
       if (emailTo?.email) {
         sendEmail({
@@ -955,8 +989,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Notify property owner of new application
-      if (data[0]?.id) {
-        notifyOwnerOfNewApplication(data[0].id).catch((err) => 
+      if (appId) {
+        notifyOwnerOfNewApplication(appId).catch((err) => 
           console.error("Owner notification error:", err)
         );
       }
@@ -991,6 +1025,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const applicationData = {
         ...validation.data,
         user_id: req.user!.id,
+        status: "submitted", // Set status to submitted instead of draft
       };
 
       const { data, error } = await supabase
@@ -1000,6 +1035,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (error) throw error;
 
+      const appId = data[0]?.id;
+
       const { data: userData } = await supabase
         .from("users")
         .select("email, full_name")
@@ -1008,9 +1045,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { data: propertyData } = await supabase
         .from("properties")
-        .select("title")
-        .eq("id", validation.data.propertyId)
+        .select("title, owner_id")
+        .eq("id", propertyId)
         .single();
+
+      // Create conversation linking tenant and landlord
+      if (appId && propertyData?.owner_id) {
+        const { data: conversation, error: convError } = await supabase
+          .from("conversations")
+          .insert([{
+            property_id: propertyId,
+            application_id: appId,
+            subject: `Application for ${propertyData.title}`,
+          }])
+          .select()
+          .single();
+
+        if (conversation && !convError) {
+          // Add both participants
+          await supabase.from("conversation_participants").insert([
+            { conversation_id: conversation.id, user_id: req.user!.id },
+            { conversation_id: conversation.id, user_id: propertyData.owner_id },
+          ]);
+
+          // Update application with conversation_id
+          await supabase
+            .from("applications")
+            .update({ conversation_id: conversation.id })
+            .eq("id", appId);
+        }
+      }
 
       if (userData?.email) {
         // Fire-and-forget email sending (don't block request)
@@ -1025,8 +1089,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Notify property owner of new application
-      if (data[0]?.id) {
-        notifyOwnerOfNewApplication(data[0].id).catch((err) => 
+      if (appId) {
+        notifyOwnerOfNewApplication(appId).catch((err) => 
           console.error("Owner notification error:", err)
         );
       }
