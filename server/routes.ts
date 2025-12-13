@@ -50,7 +50,7 @@ import {
 import { authLimiter, signupLimiter, inquiryLimiter, newsletterLimiter } from "./rate-limit";
 import { cache, CACHE_TTL } from "./cache";
 import { registerSecurityRoutes } from "./security/routes";
-import { logAuditEvent, logPropertyChange, logApplicationChange, logSecurityEvent, logLeaseAction, getAuditLogs } from "./security/audit-logger";
+import { logAuditEvent, logPropertyChange, logApplicationChange, logSecurityEvent, logLeaseAction, logPaymentAction, getAuditLogs, getPaymentAuditLogs } from "./security/audit-logger";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
@@ -5770,15 +5770,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (error) throw error;
 
-      // Log audit event
-      await logAuditEvent({
-        userId: req.user!.id,
-        action: "payment_verify_manual",
-        resourceType: "payment",
-        resourceId: paymentId,
-        previousData: { status: payment.status },
-        newData: { status: "verified", method, amount, dateReceived }
-      });
+      // Log payment audit event
+      await logPaymentAction(
+        req.user!.id,
+        paymentId,
+        "payment_verified",
+        payment.status,
+        "verified",
+        { 
+          method, 
+          amount, 
+          dateReceived,
+          type: payment.type,
+          verifiedByRole: req.user!.role
+        },
+        req
+      );
 
       // Send notification to tenant that payment was verified
       try {
@@ -5852,6 +5859,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .eq("id", paymentId);
 
       if (error) throw error;
+
+      // Log payment audit event
+      await logPaymentAction(
+        req.user!.id,
+        paymentId,
+        "payment_marked_paid",
+        payment.status,
+        "paid",
+        { 
+          referenceId,
+          notes,
+          amount: payment.amount,
+          type: payment.type
+        },
+        req
+      );
 
       // Send notification to landlord that payment was marked as paid
       try {
@@ -6147,6 +6170,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (err: any) {
       console.error("[PAYMENTS] Generate rent error:", err);
       return res.status(500).json(errorResponse("Failed to generate rent payments"));
+    }
+  });
+
+  // BLOCK: Prevent payment deletion - Payments cannot be deleted for audit compliance
+  app.delete("/api/payments/:paymentId", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    // Log the blocked deletion attempt
+    await logPaymentAction(
+      req.user!.id,
+      req.params.paymentId,
+      "payment_delete_blocked",
+      undefined,
+      undefined,
+      { 
+        attemptedBy: req.user!.id,
+        role: req.user!.role,
+        reason: "Payment deletion is blocked for financial accountability"
+      },
+      req
+    );
+    
+    return res.status(403).json({ 
+      error: "Payment records cannot be deleted for audit and compliance purposes",
+      code: "PAYMENT_DELETE_BLOCKED"
+    });
+  });
+
+  // Get payment audit logs (admin/landlord only)
+  app.get("/api/payments/audit-logs", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const isAdmin = req.user!.role === "admin";
+      const isLandlord = req.user!.role === "landlord";
+      const isPropertyManager = req.user!.role === "property_manager";
+
+      if (!isAdmin && !isLandlord && !isPropertyManager) {
+        return res.status(403).json({ error: "Only admins, landlords, and property managers can view payment audit logs" });
+      }
+
+      const paymentId = req.query.paymentId as string | undefined;
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+
+      const { logs, total } = await getPaymentAuditLogs(paymentId, page, limit);
+
+      return res.json(success({
+        logs,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }, "Payment audit logs retrieved successfully"));
+    } catch (err: any) {
+      console.error("[PAYMENTS] Audit logs error:", err);
+      return res.status(500).json(errorResponse("Failed to retrieve payment audit logs"));
     }
   });
 

@@ -1,7 +1,7 @@
 import { supabase } from "../supabase";
 import type { Request } from "express";
 import type { AuthenticatedRequest } from "../auth-middleware";
-import type { AuditAction } from "@shared/schema";
+import type { AuditAction, PaymentAuditAction } from "@shared/schema";
 
 export interface AuditLogParams {
   userId?: string;
@@ -126,6 +126,61 @@ export async function logLeaseAction(
     },
     req,
   });
+}
+
+export async function logPaymentAction(
+  userId: string,
+  paymentId: string,
+  action: PaymentAuditAction,
+  previousStatus?: string,
+  newStatus?: string,
+  metadata?: Record<string, any>,
+  req?: Request
+): Promise<void> {
+  await logAuditEvent({
+    userId,
+    action,
+    resourceType: "payment",
+    resourceId: paymentId,
+    previousData: previousStatus ? { status: previousStatus } : undefined,
+    newData: newStatus ? { status: newStatus } : undefined,
+    metadata: {
+      ...metadata,
+      actionType: action,
+      timestamp: new Date().toISOString(),
+    },
+    req,
+  });
+}
+
+export async function getPaymentAuditLogs(
+  paymentId?: string,
+  page: number = 1,
+  limit: number = 50
+): Promise<{ logs: any[]; total: number }> {
+  try {
+    let query = supabase.from("audit_logs").select("*", { count: "exact" })
+      .eq("resource_type", "payment");
+
+    if (paymentId) {
+      query = query.eq("resource_id", paymentId);
+    }
+
+    const offset = (page - 1) * limit;
+    query = query.order("created_at", { ascending: false }).range(offset, offset + limit - 1);
+
+    const { data, error, count } = await query;
+
+    if (error) throw error;
+
+    return {
+      logs: data || [],
+      total: count || 0,
+    };
+  } catch (error) {
+    console.error("[AUDIT] Failed to fetch payment logs:", error);
+    return { logs: [], total: 0 };
+  }
 }
 
 export async function getAuditLogs(

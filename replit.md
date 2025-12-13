@@ -104,6 +104,20 @@ project/
 - Encrypted database connections
 - Secure session management
 
+### Payment Audit & Safeguards (NEW)
+- **Full Audit Trail:** All payment actions are logged with actor, timestamp, and action type
+  - `payment_created` - When a payment record is generated
+  - `payment_marked_paid` - When tenant marks payment as paid
+  - `payment_verified` - When landlord/admin verifies payment
+  - `payment_marked_overdue` - When payment becomes overdue
+  - `payment_delete_blocked` - When deletion is attempted (blocked)
+- **Role-Based Access Control:**
+  - Only tenants can mark their own payments as paid
+  - Only landlords/admins can verify payments
+  - Only admins, landlords, and property managers can view audit logs
+- **Payment Deletion Prevention:** Payments cannot be deleted for financial accountability
+- **Audit Log Endpoint:** `GET /api/payments/audit-logs` for viewing payment history
+
 ## Environment Variables
 
 Required environment variables (see `.env.example`):

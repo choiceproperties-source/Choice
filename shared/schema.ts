@@ -1477,3 +1477,15 @@ export const scheduledPublishSchema = z.object({
 });
 
 export type ScheduledPublishInput = z.infer<typeof scheduledPublishSchema>;
+
+// Payment Audit Action Types
+export const PAYMENT_AUDIT_ACTIONS = [
+  "payment_created",
+  "payment_marked_paid",
+  "payment_verified",
+  "payment_marked_overdue",
+  "payment_status_changed",
+  "payment_delete_blocked"
+] as const;
+
+export type PaymentAuditAction = typeof PAYMENT_AUDIT_ACTIONS[number];
