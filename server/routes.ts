@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { supabase } from "./supabase";
+import imagekit from "./imagekit";
 import { authenticateToken, optionalAuth, requireRole, requireOwnership, preventTenantPropertyEdit, type AuthenticatedRequest } from "./auth-middleware";
 import { success, error as errorResponse } from "./response";
 import {
@@ -6617,6 +6618,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (err: any) {
       console.error("[PAYMENTS] Get rent payments error:", err);
       return res.status(500).json(errorResponse("Failed to retrieve rent payments"));
+    }
+  });
+
+  // ===== IMAGE KIT UPLOAD =====
+  // Generate signed upload token for secure direct uploads to ImageKit
+  app.post("/api/imagekit/upload-token", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { category = "general" } = req.body;
+
+      // Verify user has upload permissions
+      const uploadRoles = ["admin", "owner", "agent", "landlord", "property_manager"];
+      if (!uploadRoles.includes(req.user!.role)) {
+        await logSecurityEvent(
+          req.user!.id,
+          "login",
+          false,
+          { reason: "Unauthorized upload attempt", role: req.user!.role },
+          req
+        );
+        return res.status(403).json({ error: "Your role does not have permission to upload" });
+      }
+
+      // Generate token with 15 minute expiry
+      const expirySeconds = 15 * 60; // 15 minutes
+      const token = imagekit.getAuthenticationParameters({
+        expire: Math.floor(Date.now() / 1000) + expirySeconds
+      });
+
+      return res.json(success({
+        token: token.token,
+        signature: token.signature,
+        expire: token.expire,
+        publicKey: process.env.IMAGEKIT_PUBLIC_KEY,
+        urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT,
+        category
+      }, "Upload token generated successfully"));
+    } catch (err: any) {
+      console.error("[IMAGEKIT] Upload token error:", err);
+      return res.status(500).json(errorResponse("Failed to generate upload token"));
     }
   });
 
