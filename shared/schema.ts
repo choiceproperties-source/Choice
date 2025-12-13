@@ -1575,6 +1575,8 @@ export const photos: any = pgTable("photos", {
   archivedAt: timestamp("archived_at"),
   replacedWithId: uuid("replaced_with_id").references(() => photos.id, { onDelete: "set null" }),
   metadata: jsonb("metadata").$type<Record<string, any>>(),
+  fileSizeBytes: integer("file_size_bytes").default(0),
+  viewCount: integer("view_count").default(0),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

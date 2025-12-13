@@ -50,6 +50,7 @@ const LandlordLeaseDashboard = lazy(() => import("@/pages/landlord-lease-dashboa
 const TenantPaymentsDashboard = lazy(() => import("@/pages/tenant-payments-dashboard"));
 const LandlordPaymentsVerification = lazy(() => import("@/pages/landlord-payments-verification"));
 const LandlordPaymentHistory = lazy(() => import("@/pages/landlord-payment-history"));
+const AdminStorageMonitor = lazy(() => import("@/pages/admin-storage-monitor"));
 
 function LoadingFallback() {
   return (
@@ -271,6 +272,13 @@ function Router() {
         <ReactSuspense fallback={<LoadingFallback />}>
           <ProtectedRoute requiredRoles={['landlord', 'admin']}>
             <LandlordPaymentHistory />
+          </ProtectedRoute>
+        </ReactSuspense>
+      </Route>
+      <Route path="/admin/storage-monitor">
+        <ReactSuspense fallback={<LoadingFallback />}>
+          <ProtectedRoute requiredRoles={['admin']}>
+            <AdminStorageMonitor />
           </ProtectedRoute>
         </ReactSuspense>
       </Route>

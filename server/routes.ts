@@ -7171,5 +7171,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== ADMIN: STORAGE & BANDWIDTH MONITOR =====
+  app.get("/api/admin/storage-metrics", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      // Check admin role
+      if (req.user!.role !== "admin") {
+        return res.status(403).json(errorResponse("Admin access only"));
+      }
+
+      // Get all photos with their file size and view count
+      const { data: photos, error } = await supabase
+        .from("photos")
+        .select("file_size_bytes, view_count, archived")
+        .eq("archived", false);
+
+      if (error) throw error;
+
+      // Calculate metrics
+      const totalImages = photos?.length || 0;
+      const totalStorageUsed = photos?.reduce((sum, p) => sum + (p.file_size_bytes || 0), 0) || 0;
+      const estimatedBandwidthUsed = photos?.reduce((sum, p) => sum + ((p.file_size_bytes || 0) * (p.view_count || 0)), 0) || 0;
+
+      // Free tier limits (100GB storage, 100GB bandwidth per month)
+      const FREE_TIER_STORAGE_BYTES = 100 * 1024 * 1024 * 1024; // 100GB
+      const storagePercentage = (totalStorageUsed / FREE_TIER_STORAGE_BYTES) * 100;
+
+      return res.json(success({
+        totalImages,
+        totalStorageUsed,
+        estimatedBandwidthUsed,
+        storagePercentage
+      }, "Storage metrics retrieved successfully"));
+    } catch (err: any) {
+      console.error("[ADMIN] Storage metrics error:", err);
+      return res.status(500).json(errorResponse("Failed to retrieve storage metrics"));
+    }
+  });
+
   return httpServer;
 }
