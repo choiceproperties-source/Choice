@@ -6786,5 +6786,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get optimized images for property (public - no auth required)
+  app.get("/api/images/property/:propertyId", optionalAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data: photos, error } = await supabase
+        .from("photos")
+        .select("id, imagekit_file_id, thumbnail_url, category, created_at")
+        .eq("property_id", req.params.propertyId)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      // Transform photo data to include optimized URLs
+      const urlEndpoint = process.env.IMAGEKIT_URL_ENDPOINT || "";
+      if (!urlEndpoint) {
+        return res.status(500).json(errorResponse("ImageKit not configured"));
+      }
+
+      const optimizedPhotos = photos.map((photo) => ({
+        id: photo.id,
+        category: photo.category,
+        createdAt: photo.created_at,
+        imageUrls: {
+          // Thumbnail: 300x200, 75% quality
+          thumbnail: `${urlEndpoint}/${photo.imagekit_file_id}?tr=w-300,h-200,q-75,f-auto`,
+          // Gallery: 800x600, 85% quality
+          gallery: `${urlEndpoint}/${photo.imagekit_file_id}?tr=w-800,h-600,q-85,f-auto`,
+          // Original: high quality
+          original: `${urlEndpoint}/${photo.imagekit_file_id}?tr=q-90,f-auto`,
+        },
+      }));
+
+      return res.json(success(optimizedPhotos, "Optimized images fetched successfully"));
+    } catch (err: any) {
+      console.error("[IMAGES] Fetch optimized error:", err);
+      return res.status(500).json(errorResponse("Failed to fetch images"));
+    }
+  });
+
   return httpServer;
 }
