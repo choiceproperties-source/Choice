@@ -65,7 +65,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               email: email,
               full_name: fullName,
               phone: phone || null,
-              role: role
+              role
             }, { onConflict: 'id' });
         } catch (profileError) {
           console.error('Failed to save user profile:', profileError);

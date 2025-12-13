@@ -31,7 +31,7 @@ export const users = pgTable("users", {
   passwordHash: text("password_hash").notNull(),
   fullName: text("full_name"),
   phone: text("phone"),
-  role: text("role").default("user"),
+  role: text("role").default("renter"),
   profileImage: text("profile_image"),
   bio: text("bio"),
   agencyId: uuid("agency_id").references(() => agencies.id, { onDelete: "set null" }),
