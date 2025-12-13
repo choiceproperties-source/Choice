@@ -117,6 +117,24 @@ export default function PropertyDetails() {
     return () => { removeStructuredData('property'); };
   }, [property, bedrooms, bathrooms, sqft]);
 
+  useEffect(() => {
+    if (!showFullGallery) return;
+
+    const handleEscapeKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowFullGallery(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleEscapeKey);
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.removeEventListener('keydown', handleEscapeKey);
+      document.body.style.overflow = 'unset';
+    };
+  }, [showFullGallery]);
+
   if (!match) return <NotFound />;
 
   if (isLoading || !property) {
@@ -155,7 +173,13 @@ export default function PropertyDetails() {
 
       {/* Fullscreen Gallery Modal */}
       {showFullGallery && (
-        <div className="fixed inset-0 z-50 bg-black flex flex-col">
+        <div 
+          className="fixed inset-0 z-50 bg-black flex flex-col"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Photo gallery for ${property.title}`}
+          data-testid="gallery-modal"
+        >
           <div className="flex justify-between items-center p-4 border-b border-white/10">
             <span className="text-white text-lg font-semibold">
               {currentImageIndex + 1} / {allImages.length}
@@ -166,6 +190,7 @@ export default function PropertyDetails() {
               className="text-white hover:bg-white/20"
               onClick={() => setShowFullGallery(false)}
               data-testid="button-close-gallery"
+              aria-label="Close gallery"
             >
               <X className="h-6 w-6" />
             </Button>
@@ -177,6 +202,7 @@ export default function PropertyDetails() {
               className="absolute left-4 text-white hover:bg-white/20 h-12 w-12"
               onClick={prevImage}
               data-testid="button-prev-image"
+              aria-label="Previous image"
             >
               <ChevronLeft className="h-8 w-8" />
             </Button>
@@ -191,6 +217,7 @@ export default function PropertyDetails() {
               className="absolute right-4 text-white hover:bg-white/20 h-12 w-12"
               onClick={nextImage}
               data-testid="button-next-image"
+              aria-label="Next image"
             >
               <ChevronRight className="h-8 w-8" />
             </Button>
@@ -204,6 +231,8 @@ export default function PropertyDetails() {
                   idx === currentImageIndex ? "ring-2 ring-white" : "opacity-50 hover:opacity-100"
                 }`}
                 data-testid={`thumbnail-${idx}`}
+                aria-label={`View photo ${idx + 1}`}
+                aria-current={idx === currentImageIndex ? "true" : "false"}
               >
                 <img src={img} alt={`Thumbnail ${idx + 1}`} className="w-16 h-12 object-cover" />
               </button>
