@@ -230,6 +230,16 @@ export const applications = pgTable("applications", {
   expiredAt: timestamp("expired_at"),
   // Application fee
   applicationFee: decimal("application_fee", { precision: 8, scale: 2 }),
+  // Payment tracking
+  paymentStatus: text("payment_status").default("pending"), // pending, paid, failed
+  paymentAttempts: jsonb("payment_attempts").$type<Array<{
+    referenceId: string;
+    timestamp: string;
+    status: 'failed' | 'pending' | 'success';
+    amount: number;
+    errorMessage?: string;
+  }>>(),
+  paymentPaidAt: timestamp("payment_paid_at"),
   // Info request tracking
   infoRequestedReason: text("info_requested_reason"),
   infoRequestedAt: timestamp("info_requested_at"),

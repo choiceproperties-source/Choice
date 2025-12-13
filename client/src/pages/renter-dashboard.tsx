@@ -28,7 +28,12 @@ import {
   X,
   Eye,
   Filter,
+  CreditCard,
+  AlertCircle,
+  RefreshCw,
 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { PaymentForm } from '@/components/payment-form';
 
 interface PropertyData {
   id: string;
@@ -45,13 +50,25 @@ interface PropertyData {
   property_type?: string;
 }
 
+interface PaymentAttempt {
+  referenceId: string;
+  timestamp: string;
+  status: 'failed' | 'pending' | 'success';
+  amount: number;
+  errorMessage?: string;
+}
+
 interface ApplicationData {
   id: string;
   property_id?: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'rejected' | 'submitted' | 'under_review' | 'info_requested' | 'withdrawn';
   property?: PropertyData;
   created_at?: string;
   updated_at?: string;
+  application_fee?: number;
+  payment_status?: 'pending' | 'paid' | 'failed';
+  payment_attempts?: PaymentAttempt[];
+  payment_paid_at?: string;
   [key: string]: any;
 }
 
@@ -62,6 +79,8 @@ export default function RenterDashboard() {
   const [activeTab, setActiveTab] = useState('applications');
   const [favoriteProperties, setFavoriteProperties] = useState<PropertyData[]>([]);
   const [loadingFavoritesDetails, setLoadingFavoritesDetails] = useState(false);
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [selectedApplication, setSelectedApplication] = useState<ApplicationData | null>(null);
 
   // Fetch hooks
   const { applications, loading: appsLoading } = useApplications();
@@ -386,16 +405,59 @@ export default function RenterDashboard() {
                           <Badge className={getStatusBadge(app.status)}>
                             {getStatusLabel(app.status)}
                           </Badge>
+                          {app.payment_status === 'paid' ? (
+                            <Badge className="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 border border-green-300 dark:border-green-700">
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              Fee Paid
+                            </Badge>
+                          ) : app.payment_status === 'failed' ? (
+                            <Badge className="bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 border border-red-300 dark:border-red-700">
+                              <AlertCircle className="h-3 w-3 mr-1" />
+                              Payment Failed
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700">
+                              <CreditCard className="h-3 w-3 mr-1" />
+                              Fee Pending
+                            </Badge>
+                          )}
                           {app.created_at && (
                             <span className="text-xs text-muted-foreground font-medium">
                               Applied {new Date(app.created_at).toLocaleDateString()}
                             </span>
                           )}
                         </div>
+
+                        {/* Payment Attempts */}
+                        {app.payment_attempts && app.payment_attempts.length > 0 && (
+                          <div className="mt-3 p-3 bg-muted/30 rounded-lg">
+                            <p className="text-xs font-medium text-muted-foreground mb-2">
+                              Payment Attempts ({app.payment_attempts.length})
+                            </p>
+                            <div className="space-y-1 max-h-20 overflow-y-auto">
+                              {app.payment_attempts.slice(-3).map((attempt, idx) => (
+                                <div key={idx} className="flex items-center justify-between text-xs">
+                                  <span className="text-muted-foreground font-mono">{attempt.referenceId}</span>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-muted-foreground">
+                                      {new Date(attempt.timestamp).toLocaleDateString()}
+                                    </span>
+                                    <Badge 
+                                      variant={attempt.status === 'success' ? 'default' : 'destructive'} 
+                                      className="text-xs"
+                                    >
+                                      {attempt.status === 'success' ? 'Paid' : 'Failed'}
+                                    </Badge>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       {/* Right Actions */}
-                      <div className="flex gap-2 flex-shrink-0">
+                      <div className="flex flex-col gap-2 flex-shrink-0">
                         {app.property_id && (
                           <Button
                             size="sm"
@@ -405,6 +467,20 @@ export default function RenterDashboard() {
                           >
                             <Eye className="h-4 w-4 mr-1" />
                             View
+                          </Button>
+                        )}
+                        {app.payment_status !== 'paid' && (
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={() => {
+                              setSelectedApplication(app);
+                              setShowPaymentDialog(true);
+                            }}
+                            data-testid={`button-pay-fee-${app.id}`}
+                          >
+                            <CreditCard className="h-4 w-4 mr-1" />
+                            {app.payment_status === 'failed' ? 'Retry Payment' : 'Pay Fee'}
                           </Button>
                         )}
                       </div>
@@ -672,6 +748,32 @@ export default function RenterDashboard() {
           </div>
         )}
       </div>
+
+      {/* Payment Dialog */}
+      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Application Processing Fee</DialogTitle>
+            <DialogDescription>
+              Pay the application fee to expedite your application review.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedApplication && (
+            <PaymentForm
+              amount={selectedApplication.application_fee || 50}
+              propertyAddress={selectedApplication.property?.address}
+              applicationId={selectedApplication.id}
+              onError={(error) => {
+                toast({
+                  title: "Payment Failed",
+                  description: error,
+                  variant: "destructive"
+                });
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Footer />
     </div>
