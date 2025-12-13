@@ -29,6 +29,9 @@ import {
   leaseStatusUpdateSchema,
   LEASE_STATUS_TRANSITIONS,
   LEASE_STATUSES,
+  insertLeaseTemplateSchema,
+  insertLeaseDraftSchema,
+  updateLeaseDraftSchema,
 } from "@shared/schema";
 import { authLimiter, signupLimiter, inquiryLimiter, newsletterLimiter } from "./rate-limit";
 import { cache, CACHE_TTL } from "./cache";
@@ -2509,6 +2512,234 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (err: any) {
       console.error("[LEASE] Status update error:", err);
       return res.status(500).json(errorResponse("Failed to update lease status"));
+    }
+  });
+
+  // ===== LEASE DRAFT MANAGEMENT =====
+  // Create lease draft from template or application
+  app.post("/api/applications/:applicationId/lease-draft", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { templateId, rentAmount, leaseStartDate, leaseEndDate, securityDeposit, customClauses } = req.body;
+
+      // Get application and verify authorization
+      const { data: application, error: appError } = await supabase
+        .from("applications")
+        .select("*, properties(owner_id)")
+        .eq("id", req.params.applicationId)
+        .single();
+
+      if (appError || !application) {
+        return res.status(404).json({ error: "Application not found" });
+      }
+
+      const isPropertyOwner = application.properties?.owner_id === req.user!.id;
+      const isAdmin = req.user!.role === "admin";
+
+      if (!isPropertyOwner && !isAdmin) {
+        return res.status(403).json({ error: "Only landlord/agent can create lease drafts" });
+      }
+
+      // Get template if provided
+      let template = null;
+      if (templateId) {
+        const { data: tmpl } = await supabase
+          .from("lease_templates")
+          .select("*")
+          .eq("id", templateId)
+          .single();
+        template = tmpl;
+      }
+
+      const draftData = {
+        application_id: req.params.applicationId,
+        template_id: templateId || null,
+        created_by: req.user!.id,
+        rent_amount: rentAmount || (template?.rent_amount ?? 0),
+        security_deposit: securityDeposit || template?.security_deposit,
+        lease_start_date: leaseStartDate,
+        lease_end_date: leaseEndDate,
+        content: template?.content || "",
+        custom_clauses: customClauses || template?.custom_clauses || [],
+        changes: [{
+          version: 1,
+          changedBy: req.user!.id,
+          changedAt: new Date().toISOString(),
+          changeDescription: "Initial draft created"
+        }],
+        status: "draft"
+      };
+
+      const { data, error } = await supabase
+        .from("lease_drafts")
+        .insert([draftData])
+        .select();
+
+      if (error) throw error;
+
+      return res.json(success(data[0], "Lease draft created successfully"));
+    } catch (err: any) {
+      console.error("[LEASE_DRAFT] Create error:", err);
+      return res.status(500).json(errorResponse("Failed to create lease draft"));
+    }
+  });
+
+  // Get lease draft
+  app.get("/api/applications/:applicationId/lease-draft", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data: application } = await supabase
+        .from("applications")
+        .select("user_id, properties(owner_id)")
+        .eq("id", req.params.applicationId)
+        .single();
+
+      if (!application) {
+        return res.status(404).json({ error: "Application not found" });
+      }
+
+      // Only tenant, landlord/agent (property owner), or admin can view
+      const isTenant = application.user_id === req.user!.id;
+      const isPropertyOwner = application.properties?.owner_id === req.user!.id;
+      const isAdmin = req.user!.role === "admin";
+
+      if (!isTenant && !isPropertyOwner && !isAdmin) {
+        return res.status(403).json({ error: "Not authorized to view draft" });
+      }
+
+      const { data: draft, error } = await supabase
+        .from("lease_drafts")
+        .select("*, created_by_user:users(full_name, email)")
+        .eq("application_id", req.params.applicationId)
+        .order("version", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (error) {
+        return res.status(404).json({ error: "No lease draft found" });
+      }
+
+      // Tenants cannot see draft status - only landlord can
+      if (isTenant && draft.status === "draft") {
+        return res.status(403).json({ error: "Draft lease not yet ready" });
+      }
+
+      return res.json(success(draft, "Lease draft retrieved"));
+    } catch (err: any) {
+      console.error("[LEASE_DRAFT] Get error:", err);
+      return res.status(500).json(errorResponse("Failed to retrieve lease draft"));
+    }
+  });
+
+  // Update lease draft
+  app.patch("/api/applications/:applicationId/lease-draft", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const validation = updateLeaseDraftSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error.errors[0].message });
+      }
+
+      const { data: application } = await supabase
+        .from("applications")
+        .select("properties(owner_id)")
+        .eq("id", req.params.applicationId)
+        .single();
+
+      if (!application) {
+        return res.status(404).json({ error: "Application not found" });
+      }
+
+      const isPropertyOwner = application.properties?.owner_id === req.user!.id;
+      const isAdmin = req.user!.role === "admin";
+
+      if (!isPropertyOwner && !isAdmin) {
+        return res.status(403).json({ error: "Only landlord/agent can edit lease drafts" });
+      }
+
+      // Get current draft
+      const { data: currentDraft } = await supabase
+        .from("lease_drafts")
+        .select("*")
+        .eq("application_id", req.params.applicationId)
+        .order("version", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!currentDraft) {
+        return res.status(404).json({ error: "No lease draft found" });
+      }
+
+      // Track changes
+      const changes = currentDraft.changes || [];
+      const previousValues: Record<string, any> = {};
+      if (req.body.rentAmount && req.body.rentAmount !== currentDraft.rent_amount) previousValues.rentAmount = currentDraft.rent_amount;
+      if (req.body.securityDeposit && req.body.securityDeposit !== currentDraft.security_deposit) previousValues.securityDeposit = currentDraft.security_deposit;
+      if (req.body.leaseStartDate && req.body.leaseStartDate !== currentDraft.lease_start_date) previousValues.leaseStartDate = currentDraft.lease_start_date;
+      if (req.body.leaseEndDate && req.body.leaseEndDate !== currentDraft.lease_end_date) previousValues.leaseEndDate = currentDraft.lease_end_date;
+
+      changes.push({
+        version: currentDraft.version + 1,
+        changedBy: req.user!.id,
+        changedAt: new Date().toISOString(),
+        changeDescription: validation.data.changeDescription,
+        previousValues: Object.keys(previousValues).length > 0 ? previousValues : undefined
+      });
+
+      const updateData: any = { updated_at: new Date().toISOString(), changes };
+      if (validation.data.rentAmount) updateData.rent_amount = validation.data.rentAmount;
+      if (validation.data.securityDeposit !== undefined) updateData.security_deposit = validation.data.securityDeposit;
+      if (validation.data.leaseStartDate) updateData.lease_start_date = validation.data.leaseStartDate;
+      if (validation.data.leaseEndDate) updateData.lease_end_date = validation.data.leaseEndDate;
+      if (validation.data.content) updateData.content = validation.data.content;
+      if (validation.data.customClauses) updateData.custom_clauses = validation.data.customClauses;
+      if (validation.data.status) updateData.status = validation.data.status;
+      updateData.version = currentDraft.version + 1;
+
+      const { data, error } = await supabase
+        .from("lease_drafts")
+        .update(updateData)
+        .eq("id", currentDraft.id)
+        .select();
+
+      if (error) throw error;
+
+      return res.json(success(data[0], "Lease draft updated successfully"));
+    } catch (err: any) {
+      console.error("[LEASE_DRAFT] Update error:", err);
+      return res.status(500).json(errorResponse("Failed to update lease draft"));
+    }
+  });
+
+  // Get lease draft version history
+  app.get("/api/applications/:applicationId/lease-draft/history", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data: application } = await supabase
+        .from("applications")
+        .select("properties(owner_id)")
+        .eq("id", req.params.applicationId)
+        .single();
+
+      if (!application) {
+        return res.status(404).json({ error: "Application not found" });
+      }
+
+      const isPropertyOwner = application.properties?.owner_id === req.user!.id;
+      const isAdmin = req.user!.role === "admin";
+
+      if (!isPropertyOwner && !isAdmin) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      const { data: drafts, error } = await supabase
+        .from("lease_drafts")
+        .select("id, version, status, created_at, updated_at, changes")
+        .eq("application_id", req.params.applicationId)
+        .order("version", { ascending: false });
+
+      if (error) throw error;
+
+      return res.json(success(drafts, "Lease draft history retrieved"));
+    } catch (err: any) {
+      console.error("[LEASE_DRAFT] History error:", err);
+      return res.status(500).json(errorResponse("Failed to retrieve history"));
     }
   });
 

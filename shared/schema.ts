@@ -1138,6 +1138,60 @@ export const insertPushSubscriptionSchema = createInsertSchema(pushSubscriptions
 export type InsertPushSubscription = z.infer<typeof insertPushSubscriptionSchema>;
 export type PushSubscription = typeof pushSubscriptions.$inferSelect;
 
+// Lease Templates for landlords to use as starting point
+export const leaseTemplates = pgTable("lease_templates", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+  agencyId: uuid("agency_id").references(() => agencies.id, { onDelete: "set null" }),
+  name: text("name").notNull(),
+  description: text("description"),
+  state: text("state"), // State-specific template
+  rentAmount: decimal("rent_amount", { precision: 12, scale: 2 }),
+  securityDeposit: decimal("security_deposit", { precision: 12, scale: 2 }),
+  leaseTermMonths: integer("lease_term_months"),
+  content: text("content").notNull(), // Template HTML/text content
+  customClauses: jsonb("custom_clauses").$type<Array<{
+    id: string;
+    title: string;
+    content: string;
+    optional: boolean;
+  }>>(),
+  isDefault: boolean("is_default").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Lease Drafts - working drafts of leases before sending to tenant
+export const leaseDrafts = pgTable("lease_drafts", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  applicationId: uuid("application_id").references(() => applications.id, { onDelete: "cascade" }),
+  templateId: uuid("template_id").references(() => leaseTemplates.id, { onDelete: "set null" }),
+  createdBy: uuid("created_by").references(() => users.id, { onDelete: "cascade" }),
+  version: integer("version").default(1),
+  status: text("status").default("draft"), // draft, ready_to_send, sent
+  rentAmount: decimal("rent_amount", { precision: 12, scale: 2 }).notNull(),
+  securityDeposit: decimal("security_deposit", { precision: 12, scale: 2 }),
+  leaseStartDate: timestamp("lease_start_date").notNull(),
+  leaseEndDate: timestamp("lease_end_date").notNull(),
+  content: text("content").notNull(),
+  customClauses: jsonb("custom_clauses").$type<Array<{
+    id: string;
+    title: string;
+    content: string;
+    optional: boolean;
+    included: boolean;
+  }>>(),
+  changes: jsonb("changes").$type<Array<{
+    version: number;
+    changedBy: string;
+    changedAt: string;
+    changeDescription?: string;
+    previousValues?: Record<string, any>;
+  }>>(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Property Templates for quick listing creation
 export const propertyTemplates = pgTable("property_templates", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -1167,6 +1221,47 @@ export const insertPropertyTemplateSchema = createInsertSchema(propertyTemplates
 
 export type InsertPropertyTemplate = z.infer<typeof insertPropertyTemplateSchema>;
 export type PropertyTemplate = typeof propertyTemplates.$inferSelect;
+
+// Lease Template insert schema
+export const insertLeaseTemplateSchema = createInsertSchema(leaseTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertLeaseTemplate = z.infer<typeof insertLeaseTemplateSchema>;
+export type LeaseTemplate = typeof leaseTemplates.$inferSelect;
+
+// Lease Draft insert and update schemas
+export const insertLeaseDraftSchema = createInsertSchema(leaseDrafts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  version: true,
+  changes: true,
+  status: true,
+});
+
+export const updateLeaseDraftSchema = z.object({
+  rentAmount: z.number().positive().optional(),
+  securityDeposit: z.number().nonnegative().optional(),
+  leaseStartDate: z.string().datetime().optional(),
+  leaseEndDate: z.string().datetime().optional(),
+  content: z.string().optional(),
+  customClauses: z.array(z.object({
+    id: z.string(),
+    title: z.string(),
+    content: z.string(),
+    optional: z.boolean(),
+    included: z.boolean().optional(),
+  })).optional(),
+  status: z.enum(["draft", "ready_to_send", "sent"]).optional(),
+  changeDescription: z.string().optional(),
+});
+
+export type InsertLeaseDraft = z.infer<typeof insertLeaseDraftSchema>;
+export type UpdateLeaseDraft = z.infer<typeof updateLeaseDraftSchema>;
+export type LeaseDraft = typeof leaseDrafts.$inferSelect;
 
 // Geocoding validation schema
 export const geocodeAddressSchema = z.object({
