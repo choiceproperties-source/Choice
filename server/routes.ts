@@ -6226,6 +6226,343 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== MANAGER APPLICATION & LEASE MANAGEMENT =====
+  // Get applications for manager (property manager assigned to property)
+  app.get("/api/manager/applications", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      if (req.user!.role !== "property_manager") {
+        return res.status(403).json({ error: "Only property managers can access this endpoint" });
+      }
+
+      const { propertyId, status, page = "1" } = req.query;
+      const pageNum = Math.max(1, parseInt(page as string) || 1);
+      const limit = 20;
+      const offset = (pageNum - 1) * limit;
+
+      let query = supabase
+        .from("applications")
+        .select("*, properties(owner_id, title), users(full_name, email)", { count: "exact" });
+
+      if (propertyId) {
+        // Check if manager is assigned to this property
+        const { data: assignment } = await supabase
+          .from("property_manager_assignments")
+          .select("id")
+          .eq("property_manager_id", req.user!.id)
+          .eq("property_id", propertyId as string)
+          .is("revoked_at", null)
+          .single();
+
+        if (!assignment) {
+          return res.status(403).json({ error: "Not assigned to this property" });
+        }
+
+        query = query.eq("property_id", propertyId as string);
+      } else {
+        // Get all properties assigned to this manager
+        const { data: assignments } = await supabase
+          .from("property_manager_assignments")
+          .select("property_id")
+          .eq("property_manager_id", req.user!.id)
+          .is("revoked_at", null);
+
+        const propertyIds = assignments?.map(a => a.property_id) || [];
+        if (propertyIds.length === 0) {
+          return res.json(success({ applications: [], pagination: { page: pageNum, limit, total: 0, totalPages: 0 } }));
+        }
+
+        query = query.in("property_id", propertyIds);
+      }
+
+      if (status) {
+        query = query.eq("status", status);
+      }
+
+      const { data, error, count } = await query
+        .order("created_at", { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (error) throw error;
+
+      const totalPages = Math.ceil((count || 0) / limit);
+      return res.json(success({
+        applications: data,
+        pagination: { page: pageNum, limit, total: count || 0, totalPages }
+      }, "Applications fetched"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to fetch applications"));
+    }
+  });
+
+  // Manager review application (move to under_review)
+  app.post("/api/manager/applications/:id/review", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      if (req.user!.role !== "property_manager") {
+        return res.status(403).json({ error: "Only property managers can review applications" });
+      }
+
+      const { data: application } = await supabase
+        .from("applications")
+        .select("property_id, status")
+        .eq("id", req.params.id)
+        .single();
+
+      if (!application) {
+        return res.status(404).json({ error: "Application not found" });
+      }
+
+      // Verify manager is assigned to property
+      const { data: assignment } = await supabase
+        .from("property_manager_assignments")
+        .select("id")
+        .eq("property_manager_id", req.user!.id)
+        .eq("property_id", application.property_id)
+        .is("revoked_at", null)
+        .single();
+
+      if (!assignment) {
+        return res.status(403).json({ error: "Not assigned to this property" });
+      }
+
+      // Update status to under_review
+      const { data, error } = await supabase
+        .from("applications")
+        .update({
+          status: "under_review",
+          reviewed_by: req.user!.id,
+          reviewed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", req.params.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Log action
+      await logApplicationChange(
+        req.user!.id,
+        req.params.id,
+        "status_change",
+        application.status,
+        "under_review",
+        { action: "Manager reviewed application" },
+        req
+      );
+
+      return res.json(success(data, "Application moved to under review"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to review application"));
+    }
+  });
+
+  // Manager approve application
+  app.post("/api/manager/applications/:id/approve", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      if (req.user!.role !== "property_manager") {
+        return res.status(403).json({ error: "Only property managers can approve applications" });
+      }
+
+      const { data: application } = await supabase
+        .from("applications")
+        .select("property_id, status")
+        .eq("id", req.params.id)
+        .single();
+
+      if (!application) {
+        return res.status(404).json({ error: "Application not found" });
+      }
+
+      const { data: assignment } = await supabase
+        .from("property_manager_assignments")
+        .select("id")
+        .eq("property_manager_id", req.user!.id)
+        .eq("property_id", application.property_id)
+        .is("revoked_at", null)
+        .single();
+
+      if (!assignment) {
+        return res.status(403).json({ error: "Not assigned to this property" });
+      }
+
+      const { data, error } = await supabase
+        .from("applications")
+        .update({
+          status: "approved",
+          reviewed_by: req.user!.id,
+          reviewed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", req.params.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      await logApplicationChange(
+        req.user!.id,
+        req.params.id,
+        "status_change",
+        application.status,
+        "approved",
+        { action: "Manager approved application" },
+        req
+      );
+
+      return res.json(success(data, "Application approved"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to approve application"));
+    }
+  });
+
+  // Manager reject application
+  app.post("/api/manager/applications/:id/reject", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      if (req.user!.role !== "property_manager") {
+        return res.status(403).json({ error: "Only property managers can reject applications" });
+      }
+
+      const { rejectionCategory, rejectionReason } = req.body;
+
+      if (!rejectionCategory || !rejectionReason) {
+        return res.status(400).json({ error: "Rejection category and reason are required" });
+      }
+
+      const { data: application } = await supabase
+        .from("applications")
+        .select("property_id, status")
+        .eq("id", req.params.id)
+        .single();
+
+      if (!application) {
+        return res.status(404).json({ error: "Application not found" });
+      }
+
+      const { data: assignment } = await supabase
+        .from("property_manager_assignments")
+        .select("id")
+        .eq("property_manager_id", req.user!.id)
+        .eq("property_id", application.property_id)
+        .is("revoked_at", null)
+        .single();
+
+      if (!assignment) {
+        return res.status(403).json({ error: "Not assigned to this property" });
+      }
+
+      const { data, error } = await supabase
+        .from("applications")
+        .update({
+          status: "rejected",
+          rejection_category: rejectionCategory,
+          rejection_reason: rejectionReason,
+          reviewed_by: req.user!.id,
+          reviewed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", req.params.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      await logApplicationChange(
+        req.user!.id,
+        req.params.id,
+        "status_change",
+        application.status,
+        "rejected",
+        { action: "Manager rejected application", rejectionCategory, rejectionReason },
+        req
+      );
+
+      return res.json(success(data, "Application rejected"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to reject application"));
+    }
+  });
+
+  // Manager send lease to tenant
+  app.post("/api/manager/leases/:leaseId/send", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      if (req.user!.role !== "property_manager") {
+        return res.status(403).json({ error: "Only property managers can send leases" });
+      }
+
+      const { data: lease } = await supabase
+        .from("leases")
+        .select("application_id, property_id, status")
+        .eq("id", req.params.leaseId)
+        .single();
+
+      if (!lease) {
+        return res.status(404).json({ error: "Lease not found" });
+      }
+
+      const { data: assignment } = await supabase
+        .from("property_manager_assignments")
+        .select("id")
+        .eq("property_manager_id", req.user!.id)
+        .eq("property_id", lease.property_id)
+        .is("revoked_at", null)
+        .single();
+
+      if (!assignment) {
+        return res.status(403).json({ error: "Not assigned to this property" });
+      }
+
+      const { data, error } = await supabase
+        .from("leases")
+        .update({
+          status: "lease_sent",
+          sent_at: new Date().toISOString(),
+          sent_by: req.user!.id,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", req.params.leaseId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      await logLeaseAction(
+        req.user!.id,
+        req.params.leaseId,
+        "lease_sent",
+        { action: "Manager sent lease", sentBy: req.user!.id },
+        req
+      );
+
+      return res.json(success(data, "Lease sent to tenant"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to send lease"));
+    }
+  });
+
+  // Block property ownership changes for managers
+  app.patch("/api/manager/applications/:id/application-fee", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      // This endpoint explicitly blocks property managers from modifying application fees
+      if (req.user!.role === "property_manager") {
+        await logSecurityEvent(
+          req.user!.id,
+          "login",
+          false,
+          { reason: "Blocked: Manager attempted to modify application fee" },
+          req
+        );
+        return res.status(403).json({ 
+          error: "Property managers cannot modify application fees",
+          code: "PERMISSION_DENIED"
+        });
+      }
+
+      return res.status(403).json({ error: "Unauthorized" });
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Operation failed"));
+    }
+  });
+
   // Get rent payments for a lease (grouped by month)
   app.get("/api/leases/:leaseId/rent-payments", authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
