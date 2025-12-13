@@ -138,50 +138,123 @@ export default function PropertyDetails() {
         onToggleFavorite={() => toggleFavorite(property.id)}
       />
 
-      <div className="max-w-[1400px] mx-auto w-full p-2 md:p-4">
-        <PhotoGallery images={allImages} title={property.title} />
+      <div className="max-w-[1600px] mx-auto w-full px-2 md:px-4 py-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Gallery Section - Left (spans 2 columns on desktop) */}
+          <div className="lg:col-span-2">
+            <PhotoGallery images={allImages} title={property.title} />
+          </div>
+
+          {/* Property Info Sidebar - Right (spans 1 column on desktop) */}
+          <div className="lg:col-span-1">
+            <Card className="sticky top-24 border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden shadow-md">
+              {/* Price Section */}
+              <CardContent className="p-6 space-y-6">
+                <div>
+                  <div className="flex items-baseline gap-2 mb-1">
+                    <span className="text-4xl font-bold text-gray-900 dark:text-white">
+                      {formatPrice(property.price)}
+                    </span>
+                    <span className="text-xl text-gray-600 dark:text-gray-400">/mo</span>
+                  </div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Monthly Rent</p>
+                </div>
+
+                {/* Key Features */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
+                    <span className="text-gray-600 dark:text-gray-400">Bedrooms</span>
+                    <span className="font-bold text-lg text-gray-900 dark:text-white">{bedrooms}</span>
+                  </div>
+                  <div className="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
+                    <span className="text-gray-600 dark:text-gray-400">Bathrooms</span>
+                    <span className="font-bold text-lg text-gray-900 dark:text-white">{bathrooms}</span>
+                  </div>
+                  <div className="flex items-center justify-between py-2">
+                    <span className="text-gray-600 dark:text-gray-400">Square Feet</span>
+                    <span className="font-bold text-lg text-gray-900 dark:text-white">{sqft.toLocaleString()}</span>
+                  </div>
+                </div>
+
+                {/* CTA Buttons */}
+                <div className="space-y-2 pt-2">
+                  <Link href={`/apply?propertyId=${property.id}`} className="block">
+                    <Button 
+                      className="w-full bg-primary text-white font-bold h-11"
+                      data-testid="button-apply-now"
+                    >
+                      Apply Now
+                    </Button>
+                  </Link>
+                  
+                  <div className="flex gap-2">
+                    <Button 
+                      onClick={() => toggleFavorite(property.id)}
+                      variant="outline" 
+                      className="flex-1 border-gray-300 dark:border-gray-600 font-semibold h-11"
+                      data-testid={isFavorited(property.id) ? "button-unsave" : "button-save"}
+                    >
+                      <Heart className={`h-5 w-5 ${isFavorited(property.id) ? 'fill-red-500 text-red-500' : ''}`} />
+                    </Button>
+                    <Button 
+                      onClick={() => {
+                        navigator.share?.({
+                          title: property.title,
+                          text: `Check out this property: ${property.title} - ${formatPrice(property.price)}/mo`,
+                          url: window.location.href
+                        });
+                      }}
+                      variant="outline" 
+                      className="flex-1 border-gray-300 dark:border-gray-600 font-semibold h-11"
+                      data-testid="button-share"
+                    >
+                      <Share2 className="h-5 w-5" />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Property Type Badges */}
+                <div className="flex flex-wrap gap-2 pt-2">
+                  <Badge variant="outline" className="text-xs">
+                    {property.status || 'Active'}
+                  </Badge>
+                  <Badge variant="outline" className="text-xs">
+                    {property.property_type || 'Apartment'}
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Tour Request Card */}
+            {owner && (
+              <Card className="mt-4 border-gray-200 dark:border-gray-800 rounded-xl">
+                <div className="bg-gradient-to-r from-primary to-primary/80 p-4 text-white">
+                  <h3 className="font-bold text-lg">Schedule a Tour</h3>
+                </div>
+                <CardContent className="p-6 space-y-3">
+                  <AgentContactDialog 
+                    agent={{
+                      id: owner.id,
+                      name: owner.full_name || 'Property Manager',
+                      email: owner.email,
+                      phone: owner.phone || ''
+                    }}
+                    propertyId={property.id}
+                    propertyTitle={property.title}
+                    triggerText="Request a Tour"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                    Available as early as today
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
       </div>
 
-      <div className="container mx-auto px-4 max-w-[1200px] py-6 pb-32 md:pb-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-          <div className="lg:col-span-2 space-y-8">
-            {/* Property Overview Section */}
-            <PropertyOverview property={property} />
-
-            {/* Action Buttons */}
-            <div className="flex gap-3 flex-wrap" data-testid="section-actions">
-              <Link href={`/apply?propertyId=${property.id}`}>
-                <Button 
-                  className="bg-primary hover:bg-primary/90 text-white gap-2 font-bold"
-                  data-testid="button-apply-now"
-                >
-                  Apply Now
-                </Button>
-              </Link>
-              <Button 
-                onClick={() => toggleFavorite(property.id)}
-                variant={isFavorited(property.id) ? "default" : "outline"} 
-                className={isFavorited(property.id) ? "bg-red-500 hover:bg-red-600 text-white gap-2" : "text-primary border-primary hover:bg-primary/5 gap-2"}
-                data-testid={isFavorited(property.id) ? "button-unsave" : "button-save"}
-              >
-                <Heart className={isFavorited(property.id) ? "h-4 w-4 fill-white" : "h-4 w-4"} /> 
-                {isFavorited(property.id) ? "Saved" : "Save"}
-              </Button>
-              <Button 
-                onClick={() => {
-                  navigator.share?.({
-                    title: property.title,
-                    text: `Check out this property: ${property.title} - ${formatPrice(property.price)}/mo`,
-                    url: window.location.href
-                  });
-                }}
-                variant="outline" 
-                className="text-primary border-primary hover:bg-primary/5 gap-2"
-                data-testid="button-share"
-              >
-                <Share2 className="h-4 w-4" /> Share
-              </Button>
-            </div>
+      <div className="container mx-auto px-4 max-w-[1600px] py-8 pb-32 md:pb-8">
+        <div className="space-y-8">
 
             <Separator />
 
@@ -352,47 +425,6 @@ export default function PropertyDetails() {
                 </Card>
               </div>
             )}
-          </div>
-
-          <div className="lg:col-span-1">
-            <Card className="sticky top-24 shadow-lg border-gray-200 rounded-xl overflow-hidden">
-              <div className="bg-primary p-4 text-white text-center">
-                <h3 className="font-bold text-lg">Request a Tour</h3>
-                <p className="text-primary-foreground/80 text-sm">As early as today at 3:00 pm</p>
-              </div>
-              <CardContent className="p-6 space-y-4">
-                {owner && (
-                  <AgentContactDialog 
-                    agent={{
-                      id: owner.id,
-                      name: owner.full_name || 'Property Manager',
-                      email: owner.email,
-                      phone: owner.phone || ''
-                    }}
-                    propertyId={property.id}
-                    propertyTitle={property.title}
-                    triggerText="Request a Tour"
-                  />
-                )}
-
-                <div className="flex items-center gap-2 my-4">
-                  <div className="h-px bg-gray-200 flex-1"></div>
-                  <span className="text-xs text-gray-400 uppercase font-bold">or</span>
-                  <div className="h-px bg-gray-200 flex-1"></div>
-                </div>
-
-                <Link href={`/apply?propertyId=${property.id}`}>
-                  <Button variant="outline" className="w-full border-primary text-primary hover:bg-primary/5 font-bold h-12">
-                    Start Application
-                  </Button>
-                </Link>
-
-                <p className="text-xs text-gray-400 text-center mt-4">
-                  By pressing Request a Tour, you agree that Choice Properties may call/text you about your inquiry.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
         </div>
       </div>
 
