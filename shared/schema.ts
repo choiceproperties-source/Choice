@@ -327,6 +327,31 @@ export const applications = pgTable("applications", {
   leaseSignedAt: timestamp("lease_signed_at"),
   moveInDate: timestamp("move_in_date"),
   moveInScheduledAt: timestamp("move_in_scheduled_at"),
+  moveInInstructions: jsonb("move_in_instructions").$type<{
+    keyPickup?: {
+      location: string;
+      time: string;
+      notes?: string;
+    };
+    accessDetails?: {
+      gateCode?: string;
+      keypadCode?: string;
+      smartLockCode?: string;
+      notes?: string;
+    };
+    utilityNotes?: {
+      electricity?: string;
+      water?: string;
+      gas?: string;
+      internet?: string;
+      other?: string;
+    };
+    checklistItems?: Array<{
+      id: string;
+      item: string;
+      completed: boolean;
+    }>;
+  }>(),
   // Custom answers to property-specific questions
   customAnswers: jsonb("custom_answers").$type<Record<string, string>>(),
   // Conversation link for messaging
@@ -1321,6 +1346,44 @@ export const leaseCounstersignSchema = z.object({
 export type LeaseSignatureEnable = z.infer<typeof leaseSignatureEnableSchema>;
 export type LeaseSign = z.infer<typeof leaseSignSchema>;
 export type LeaseCounstersign = z.infer<typeof leaseCounstersignSchema>;
+
+// Move-in preparation schemas
+export const moveInPrepareSchema = z.object({
+  moveInDate: z.string().datetime().optional(),
+  keyPickup: z.object({
+    location: z.string().min(1, "Key pickup location required"),
+    time: z.string().min(1, "Key pickup time required"),
+    notes: z.string().optional(),
+  }).optional(),
+  accessDetails: z.object({
+    gateCode: z.string().optional(),
+    keypadCode: z.string().optional(),
+    smartLockCode: z.string().optional(),
+    notes: z.string().optional(),
+  }).optional(),
+  utilityNotes: z.object({
+    electricity: z.string().optional(),
+    water: z.string().optional(),
+    gas: z.string().optional(),
+    internet: z.string().optional(),
+    other: z.string().optional(),
+  }).optional(),
+  checklistItems: z.array(z.object({
+    id: z.string(),
+    item: z.string(),
+    completed: z.boolean().optional(),
+  })).optional(),
+});
+
+export const moveInChecklistUpdateSchema = z.object({
+  checklistItems: z.array(z.object({
+    id: z.string(),
+    completed: z.boolean(),
+  })).min(1),
+});
+
+export type MoveInPrepare = z.infer<typeof moveInPrepareSchema>;
+export type MoveInChecklistUpdate = z.infer<typeof moveInChecklistUpdateSchema>;
 
 // Geocoding validation schema
 export const geocodeAddressSchema = z.object({

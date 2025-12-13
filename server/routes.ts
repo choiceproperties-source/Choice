@@ -38,6 +38,8 @@ import {
   leaseSignatureEnableSchema,
   leaseSignSchema,
   leaseCounstersignSchema,
+  moveInPrepareSchema,
+  moveInChecklistUpdateSchema,
 } from "@shared/schema";
 import { authLimiter, signupLimiter, inquiryLimiter, newsletterLimiter } from "./rate-limit";
 import { cache, CACHE_TTL } from "./cache";
@@ -3177,6 +3179,162 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (err: any) {
       console.error("[LEASE] Get signatures error:", err);
       return res.status(500).json(errorResponse("Failed to retrieve signatures"));
+    }
+  });
+
+  // ===== MOVE-IN PREPARATION =====
+  // Landlord sets move-in instructions
+  app.post("/api/applications/:applicationId/move-in/prepare", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const validation = moveInPrepareSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error.errors[0].message });
+      }
+
+      const { data: application } = await supabase
+        .from("applications")
+        .select("properties(owner_id), lease_status")
+        .eq("id", req.params.applicationId)
+        .single();
+
+      if (!application) {
+        return res.status(404).json({ error: "Application not found" });
+      }
+
+      const isPropertyOwner = application.properties?.owner_id === req.user!.id;
+      const isAdmin = req.user!.role === "admin";
+
+      if (!isPropertyOwner && !isAdmin) {
+        return res.status(403).json({ error: "Only landlord/agent can set move-in details" });
+      }
+
+      if (application.lease_status !== "lease_accepted") {
+        return res.status(400).json({ error: "Lease must be accepted before move-in preparation" });
+      }
+
+      const moveInInstructions: any = {};
+      if (validation.data.keyPickup) moveInInstructions.keyPickup = validation.data.keyPickup;
+      if (validation.data.accessDetails) moveInInstructions.accessDetails = validation.data.accessDetails;
+      if (validation.data.utilityNotes) moveInInstructions.utilityNotes = validation.data.utilityNotes;
+      if (validation.data.checklistItems) moveInInstructions.checklistItems = validation.data.checklistItems;
+
+      const { data, error } = await supabase
+        .from("applications")
+        .update({
+          move_in_instructions: moveInInstructions,
+          lease_status: "move_in_ready",
+          move_in_date: validation.data.moveInDate || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", req.params.applicationId)
+        .select();
+
+      if (error) throw error;
+
+      // Notify tenant of move-in details
+      const { data: appData } = await supabase
+        .from("applications")
+        .select("user_id")
+        .eq("id", req.params.applicationId)
+        .single();
+
+      if (appData?.user_id) {
+        await supabase
+          .from("application_notifications")
+          .insert([{
+            application_id: req.params.applicationId,
+            user_id: appData.user_id,
+            notification_type: "move_in_ready",
+            channel: "email",
+            subject: "Move-in details ready",
+            content: "Your landlord has provided move-in instructions and next steps.",
+            status: "pending"
+          }]);
+      }
+
+      return res.json(success(data[0], "Move-in details saved successfully"));
+    } catch (err: any) {
+      console.error("[MOVE_IN] Prepare error:", err);
+      return res.status(500).json(errorResponse("Failed to save move-in details"));
+    }
+  });
+
+  // Tenant views move-in instructions
+  app.get("/api/applications/:applicationId/move-in/instructions", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data: application, error } = await supabase
+        .from("applications")
+        .select("user_id, move_in_instructions, move_in_date, lease_status")
+        .eq("id", req.params.applicationId)
+        .single();
+
+      if (error) throw error;
+
+      if (!application) {
+        return res.status(404).json({ error: "Application not found" });
+      }
+
+      if (application.user_id !== req.user!.id && req.user!.role !== "admin") {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      return res.json(success({
+        leaseStatus: application.lease_status,
+        moveInDate: application.move_in_date,
+        instructions: application.move_in_instructions
+      }, "Move-in instructions retrieved successfully"));
+    } catch (err: any) {
+      console.error("[MOVE_IN] Get instructions error:", err);
+      return res.status(500).json(errorResponse("Failed to retrieve move-in instructions"));
+    }
+  });
+
+  // Tenant updates move-in checklist
+  app.patch("/api/applications/:applicationId/move-in/checklist", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const validation = moveInChecklistUpdateSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error.errors[0].message });
+      }
+
+      const { data: application } = await supabase
+        .from("applications")
+        .select("user_id, move_in_instructions")
+        .eq("id", req.params.applicationId)
+        .single();
+
+      if (!application) {
+        return res.status(404).json({ error: "Application not found" });
+      }
+
+      if (application.user_id !== req.user!.id) {
+        return res.status(403).json({ error: "Only tenant can update their checklist" });
+      }
+
+      const instructions = application.move_in_instructions || {};
+      const checklistItems = instructions.checklistItems || [];
+
+      // Update checked items
+      validation.data.checklistItems.forEach(update => {
+        const item = checklistItems.find((i: any) => i.id === update.id);
+        if (item) item.completed = update.completed;
+      });
+
+      const { data, error } = await supabase
+        .from("applications")
+        .update({
+          move_in_instructions: { ...instructions, checklistItems },
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", req.params.applicationId)
+        .select();
+
+      if (error) throw error;
+
+      return res.json(success(data[0], "Checklist updated successfully"));
+    } catch (err: any) {
+      console.error("[MOVE_IN] Checklist error:", err);
+      return res.status(500).json(errorResponse("Failed to update checklist"));
     }
   });
 
