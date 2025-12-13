@@ -16,7 +16,7 @@ import { AddressVerification } from "@/components/address-verification";
 import { 
   Share2, Heart, Mail, Phone, Star, MapPin, Bed, Bath, Maximize, 
   Calendar, Home, PawPrint, Sofa, ChevronDown, ChevronUp, X,
-  ChevronLeft, ChevronRight, Grid3X3, Building2, Settings
+  ChevronLeft, ChevronRight, Grid3X3, Building2, Settings, ImageIcon
 } from "lucide-react";
 import { useFavorites } from "@/hooks/use-favorites";
 import { useNearbyPlaces } from "@/hooks/use-nearby-places";
@@ -78,6 +78,23 @@ export default function PropertyDetails() {
     select: (res: any) => res?.data ?? [],
   });
 
+  interface PropertyPhoto {
+    id: string;
+    category: string;
+    isPrivate: boolean;
+    imageUrls: {
+      thumbnail: string;
+      gallery: string;
+      original: string;
+    };
+  }
+
+  const { data: photosData } = useQuery<PropertyPhoto[]>({
+    queryKey: ['/api/images/property', id],
+    enabled: !!id,
+    select: (res: any) => res?.data ?? [],
+  });
+
   const lat = property?.latitude ? parseFloat(String(property.latitude)) : 34.0522;
   const lng = property?.longitude ? parseFloat(String(property.longitude)) : -118.2437;
   const nearbyPlaces = useNearbyPlaces(lat, lng);
@@ -112,9 +129,12 @@ export default function PropertyDetails() {
     );
   }
 
-  const allImages = (property.images || []).length > 0 
-    ? property.images!.map(img => imageMap[img] || placeholderExterior)
-    : [placeholderExterior, placeholderLiving, placeholderKitchen, placeholderBedroom];
+  // Use real photos from API if available, fallback to placeholder images
+  const allImages = photosData && photosData.length > 0
+    ? photosData.map(photo => photo.imageUrls.gallery)
+    : ((property.images || []).length > 0 
+      ? property.images!.map(img => imageMap[img] || placeholderExterior)
+      : [placeholderExterior, placeholderLiving, placeholderKitchen, placeholderBedroom]);
   
   const position: [number, number] = [lat, lng];
 
@@ -197,19 +217,30 @@ export default function PropertyDetails() {
         <div className="max-w-[1400px] mx-auto">
           {/* Desktop Gallery Grid */}
           <div className="hidden md:grid grid-cols-4 grid-rows-2 gap-1 h-[450px] cursor-pointer" onClick={() => setShowFullGallery(true)}>
-            <div className="col-span-2 row-span-2 relative group overflow-hidden">
+            <div className="col-span-2 row-span-2 relative group overflow-hidden bg-gray-200 dark:bg-gray-800">
               <img
                 src={allImages[0]}
                 alt={property.title}
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                data-testid="hero-image-primary"
               />
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+              {allImages.length > 0 && (
+                <div className="absolute top-3 right-3 bg-black/70 text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-semibold text-sm">
+                  <ImageIcon className="h-4 w-4" />
+                  {allImages.length}
+                </div>
+              )}
             </div>
             {allImages.slice(1, 5).map((img, idx) => (
-              <div key={idx} className="relative group overflow-hidden">
+              <div key={idx} className="relative group overflow-hidden bg-gray-200 dark:bg-gray-800">
                 <img
                   src={img}
                   alt={`${property.title} - ${idx + 2}`}
+                  loading="lazy"
+                  decoding="async"
                   className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                 />
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
@@ -231,22 +262,28 @@ export default function PropertyDetails() {
           </div>
 
           {/* Mobile Gallery */}
-          <div className="md:hidden relative h-72">
+          <div className="md:hidden relative h-72 bg-gray-200 dark:bg-gray-800 cursor-pointer" onClick={() => setShowFullGallery(true)}>
             <img
               src={allImages[currentImageIndex]}
               alt={property.title}
+              loading="lazy"
+              decoding="async"
               className="w-full h-full object-cover"
-              onClick={() => setShowFullGallery(true)}
+              data-testid="hero-image-mobile"
             />
+            <div className="absolute top-3 right-3 bg-black/70 text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-semibold text-sm">
+              <ImageIcon className="h-4 w-4" />
+              {allImages.length}
+            </div>
             <div className="absolute bottom-4 left-4 right-4 flex justify-between items-center">
               <span className="bg-black/70 text-white px-3 py-1 rounded text-sm font-medium">
                 {currentImageIndex + 1}/{allImages.length}
               </span>
               <div className="flex gap-2">
-                <Button size="icon" variant="ghost" className="bg-black/70 text-white h-8 w-8" onClick={prevImage}>
+                <Button size="icon" variant="ghost" className="bg-black/70 text-white h-8 w-8" onClick={(e) => { e.stopPropagation(); prevImage(); }}>
                   <ChevronLeft className="h-5 w-5" />
                 </Button>
-                <Button size="icon" variant="ghost" className="bg-black/70 text-white h-8 w-8" onClick={nextImage}>
+                <Button size="icon" variant="ghost" className="bg-black/70 text-white h-8 w-8" onClick={(e) => { e.stopPropagation(); nextImage(); }}>
                   <ChevronRight className="h-5 w-5" />
                 </Button>
               </div>
