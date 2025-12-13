@@ -1,33 +1,29 @@
 import { useRoute, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import type { Property, PropertyWithOwner, Review, Owner } from "@/lib/types";
+import type { Property, Review, Owner } from "@/lib/types";
 import { formatPrice, parseDecimal } from "@/lib/types";
-import { Share2, Heart, Mail, Phone, Star } from "lucide-react";
+import { 
+  Share2, Heart, Mail, Phone, Star, MapPin, Bed, Bath, Maximize, 
+  Calendar, Home, PawPrint, Sofa, ChevronDown, ChevronUp, X,
+  ChevronLeft, ChevronRight, Grid3X3, Building2
+} from "lucide-react";
 import { useFavorites } from "@/hooks/use-favorites";
 import { useNearbyPlaces } from "@/hooks/use-nearby-places";
-import { usePropertyReviews } from "@/hooks/use-property-reviews";
-import { PhotoGallery } from "@/components/photo-gallery";
-import { PropertyOverview } from "@/components/property-overview";
 import { AmenitiesGrid } from "@/components/amenities-grid";
 import { MapSection } from "@/components/map-section";
 import { NearbyPlaces } from "@/components/nearby-places";
-import { ReviewsSection } from "@/components/reviews-section";
 import NotFound from "@/pages/not-found";
-import { PropertyCard } from "@/components/property-card";
 import { AgentContactDialog } from "@/components/agent-contact-dialog";
 import { useEffect } from "react";
 import { updateMetaTags, getPropertyStructuredData, addStructuredData, removeStructuredData } from "@/lib/seo";
-import { Breadcrumb } from "@/components/breadcrumb";
-import { trackEvent } from "@/lib/pwa";
 import { PropertyDetailsSkeleton } from "@/components/property-details-skeleton";
-import { MobileActionBar } from "@/components/mobile-action-bar";
 
 import placeholderExterior from "@assets/generated_images/modern_luxury_home_exterior_with_blue_sky.png";
 import placeholderLiving from "@assets/generated_images/bright_modern_living_room_interior.png";
@@ -45,8 +41,15 @@ export default function PropertyDetails() {
   const [match, params] = useRoute("/property/:id");
   const id = params?.id;
   const { isFavorited, toggleFavorite } = useFavorites();
+  const [showFullGallery, setShowFullGallery] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    overview: true,
+    facts: true,
+    amenities: false,
+    location: false,
+  });
 
-  // Fetch property data with owner from backend
   const { data: propertyData, isLoading } = useQuery<{ property: Property; owner: Owner | null }>({
     queryKey: ['/api/properties', id, 'full'],
     enabled: !!id && !!match,
@@ -63,45 +66,35 @@ export default function PropertyDetails() {
   const property = propertyData?.property;
   const owner = propertyData?.owner;
 
-  // Fetch reviews for this property
   const { data: reviews = [] } = useQuery<Review[]>({
     queryKey: ['/api/reviews/property', id],
     enabled: !!id,
     select: (res: any) => res?.data ?? [],
   });
 
-  // Move hooks to top level (CRITICAL FIX #2)
   const lat = property?.latitude ? parseFloat(String(property.latitude)) : 34.0522;
   const lng = property?.longitude ? parseFloat(String(property.longitude)) : -118.2437;
   const nearbyPlaces = useNearbyPlaces(lat, lng);
 
-  // Calculate property metrics (must be before useEffect)
   const bedrooms = property?.bedrooms || 0;
   const bathrooms = property ? Math.round(parseDecimal(property.bathrooms)) : 0;
   const sqft = property?.square_feet || 0;
   
-  // SEO Effect - must be called unconditionally before any returns
   useEffect(() => {
     if (property) {
       updateMetaTags({
         title: `${property.title} - ${bedrooms}bd, ${bathrooms}ba in ${property.city}`,
-        description: `${property.title} - ${formatPrice(property.price)}/month. ${bedrooms} bedrooms, ${bathrooms} bathrooms, ${sqft} sqft. Apply online at Choice Properties.`,
+        description: `${property.title} - ${formatPrice(property.price)}/month. ${bedrooms} bedrooms, ${bathrooms} bathrooms, ${sqft} sqft.`,
         image: "https://choiceproperties.com/og-image.png",
         url: `https://choiceproperties.com/property/${property.id}`,
         type: "property"
       });
       addStructuredData(getPropertyStructuredData(property), 'property');
     }
-    
-    // Cleanup property-specific structured data on unmount
-    return () => {
-      removeStructuredData('property');
-    };
+    return () => { removeStructuredData('property'); };
   }, [property, bedrooms, bathrooms, sqft]);
 
-  if (!match) {
-    return <NotFound />;
-  }
+  if (!match) return <NotFound />;
 
   if (isLoading || !property) {
     return (
@@ -113,322 +106,531 @@ export default function PropertyDetails() {
     );
   }
 
-  // Build image array
   const allImages = (property.images || []).length > 0 
     ? property.images!.map(img => imageMap[img] || placeholderExterior)
     : [placeholderExterior, placeholderLiving, placeholderKitchen, placeholderBedroom];
   
-  // Use real coordinates from database
   const position: [number, number] = [lat, lng];
 
-  // Calculate average rating from reviews
   const averageRating = reviews && reviews.length > 0 
     ? reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length
     : 0;
 
-  return (
-    <div className="min-h-screen bg-white dark:bg-gray-950 flex flex-col overflow-x-hidden">
-      <Navbar />
-      <Breadcrumb items={[
-        { label: "Properties", href: "/properties" },
-        { label: property.title }
-      ]} />
-      <MobileActionBar
-        property={property}
-        isFavorited={isFavorited(property.id)}
-        onToggleFavorite={() => toggleFavorite(property.id)}
-      />
+  const toggleSection = (section: string) => {
+    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
 
-      <div className="max-w-[1600px] mx-auto w-full px-2 md:px-4 py-4">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Gallery Section - Left (spans 2 columns on desktop) */}
-          <div className="lg:col-span-2">
-            <PhotoGallery images={allImages} title={property.title} />
+  const nextImage = () => setCurrentImageIndex((prev) => (prev + 1) % allImages.length);
+  const prevImage = () => setCurrentImageIndex((prev) => (prev - 1 + allImages.length) % allImages.length);
+
+  return (
+    <div className="min-h-screen bg-white dark:bg-gray-950 flex flex-col">
+      <Navbar />
+
+      {/* Fullscreen Gallery Modal */}
+      {showFullGallery && (
+        <div className="fixed inset-0 z-50 bg-black flex flex-col">
+          <div className="flex justify-between items-center p-4 border-b border-white/10">
+            <span className="text-white text-lg font-semibold">
+              {currentImageIndex + 1} / {allImages.length}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-white hover:bg-white/20"
+              onClick={() => setShowFullGallery(false)}
+              data-testid="button-close-gallery"
+            >
+              <X className="h-6 w-6" />
+            </Button>
+          </div>
+          <div className="flex-1 flex items-center justify-center relative">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute left-4 text-white hover:bg-white/20 h-12 w-12"
+              onClick={prevImage}
+              data-testid="button-prev-image"
+            >
+              <ChevronLeft className="h-8 w-8" />
+            </Button>
+            <img
+              src={allImages[currentImageIndex]}
+              alt={`${property.title} - Photo ${currentImageIndex + 1}`}
+              className="max-h-[80vh] max-w-[90vw] object-contain"
+            />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-4 text-white hover:bg-white/20 h-12 w-12"
+              onClick={nextImage}
+              data-testid="button-next-image"
+            >
+              <ChevronRight className="h-8 w-8" />
+            </Button>
+          </div>
+          <div className="flex gap-2 p-4 overflow-x-auto justify-center">
+            {allImages.map((img, idx) => (
+              <button
+                key={idx}
+                onClick={() => setCurrentImageIndex(idx)}
+                className={`flex-shrink-0 rounded overflow-hidden transition-all ${
+                  idx === currentImageIndex ? "ring-2 ring-white" : "opacity-50 hover:opacity-100"
+                }`}
+                data-testid={`thumbnail-${idx}`}
+              >
+                <img src={img} alt={`Thumbnail ${idx + 1}`} className="w-16 h-12 object-cover" />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Hero Gallery - Zillow Style */}
+      <div className="w-full bg-gray-100 dark:bg-gray-900">
+        <div className="max-w-[1400px] mx-auto">
+          {/* Desktop Gallery Grid */}
+          <div className="hidden md:grid grid-cols-4 grid-rows-2 gap-1 h-[450px] cursor-pointer" onClick={() => setShowFullGallery(true)}>
+            <div className="col-span-2 row-span-2 relative group overflow-hidden">
+              <img
+                src={allImages[0]}
+                alt={property.title}
+                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+            </div>
+            {allImages.slice(1, 5).map((img, idx) => (
+              <div key={idx} className="relative group overflow-hidden">
+                <img
+                  src={img}
+                  alt={`${property.title} - ${idx + 2}`}
+                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                {idx === 3 && allImages.length > 5 && (
+                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                    <span className="text-white font-bold text-xl">+{allImages.length - 5} more</span>
+                  </div>
+                )}
+              </div>
+            ))}
+            <button
+              className="absolute bottom-4 right-4 bg-white dark:bg-gray-800 px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 font-semibold text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              onClick={(e) => { e.stopPropagation(); setShowFullGallery(true); }}
+              data-testid="button-view-all-photos"
+            >
+              <Grid3X3 className="h-4 w-4" />
+              View all {allImages.length} photos
+            </button>
           </div>
 
-          {/* Property Info Sidebar - Right (spans 1 column on desktop) */}
-          <div className="lg:col-span-1">
-            <Card className="sticky top-24 border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden shadow-md">
-              {/* Price Section */}
-              <CardContent className="p-6 space-y-6">
-                <div>
-                  <div className="flex items-baseline gap-2 mb-1">
-                    <span className="text-4xl font-bold text-gray-900 dark:text-white">
-                      {formatPrice(property.price)}
-                    </span>
-                    <span className="text-xl text-gray-600 dark:text-gray-400">/mo</span>
-                  </div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Monthly Rent</p>
-                </div>
-
-                {/* Key Features */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
-                    <span className="text-gray-600 dark:text-gray-400">Bedrooms</span>
-                    <span className="font-bold text-lg text-gray-900 dark:text-white">{bedrooms}</span>
-                  </div>
-                  <div className="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
-                    <span className="text-gray-600 dark:text-gray-400">Bathrooms</span>
-                    <span className="font-bold text-lg text-gray-900 dark:text-white">{bathrooms}</span>
-                  </div>
-                  <div className="flex items-center justify-between py-2">
-                    <span className="text-gray-600 dark:text-gray-400">Square Feet</span>
-                    <span className="font-bold text-lg text-gray-900 dark:text-white">{sqft.toLocaleString()}</span>
-                  </div>
-                </div>
-
-                {/* CTA Buttons */}
-                <div className="space-y-2 pt-2">
-                  <Link href={`/apply?propertyId=${property.id}`} className="block">
-                    <Button 
-                      className="w-full bg-primary text-white font-bold h-11"
-                      data-testid="button-apply-now"
-                    >
-                      Apply Now
-                    </Button>
-                  </Link>
-                  
-                  <div className="flex gap-2">
-                    <Button 
-                      onClick={() => toggleFavorite(property.id)}
-                      variant="outline" 
-                      className="flex-1 border-gray-300 dark:border-gray-600 font-semibold h-11"
-                      data-testid={isFavorited(property.id) ? "button-unsave" : "button-save"}
-                    >
-                      <Heart className={`h-5 w-5 ${isFavorited(property.id) ? 'fill-red-500 text-red-500' : ''}`} />
-                    </Button>
-                    <Button 
-                      onClick={() => {
-                        navigator.share?.({
-                          title: property.title,
-                          text: `Check out this property: ${property.title} - ${formatPrice(property.price)}/mo`,
-                          url: window.location.href
-                        });
-                      }}
-                      variant="outline" 
-                      className="flex-1 border-gray-300 dark:border-gray-600 font-semibold h-11"
-                      data-testid="button-share"
-                    >
-                      <Share2 className="h-5 w-5" />
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Property Type Badges */}
-                <div className="flex flex-wrap gap-2 pt-2">
-                  <Badge variant="outline" className="text-xs">
-                    {property.status || 'Active'}
-                  </Badge>
-                  <Badge variant="outline" className="text-xs">
-                    {property.property_type || 'Apartment'}
-                  </Badge>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Tour Request Card */}
-            {owner && (
-              <Card className="mt-4 border-gray-200 dark:border-gray-800 rounded-xl">
-                <div className="bg-gradient-to-r from-primary to-primary/80 p-4 text-white">
-                  <h3 className="font-bold text-lg">Schedule a Tour</h3>
-                </div>
-                <CardContent className="p-6 space-y-3">
-                  <AgentContactDialog 
-                    agent={{
-                      id: owner.id,
-                      name: owner.full_name || 'Property Manager',
-                      email: owner.email,
-                      phone: owner.phone || ''
-                    }}
-                    propertyId={property.id}
-                    propertyTitle={property.title}
-                    triggerText="Request a Tour"
-                  />
-                  <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
-                    Available as early as today
-                  </p>
-                </CardContent>
-              </Card>
-            )}
+          {/* Mobile Gallery */}
+          <div className="md:hidden relative h-72">
+            <img
+              src={allImages[currentImageIndex]}
+              alt={property.title}
+              className="w-full h-full object-cover"
+              onClick={() => setShowFullGallery(true)}
+            />
+            <div className="absolute bottom-4 left-4 right-4 flex justify-between items-center">
+              <span className="bg-black/70 text-white px-3 py-1 rounded text-sm font-medium">
+                {currentImageIndex + 1}/{allImages.length}
+              </span>
+              <div className="flex gap-2">
+                <Button size="icon" variant="ghost" className="bg-black/70 text-white h-8 w-8" onClick={prevImage}>
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+                <Button size="icon" variant="ghost" className="bg-black/70 text-white h-8 w-8" onClick={nextImage}>
+                  <ChevronRight className="h-5 w-5" />
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="container mx-auto px-4 max-w-[1600px] py-8 pb-32 md:pb-8">
-        <div className="space-y-8">
-          <Separator />
+      {/* Main Content */}
+      <div className="max-w-[1400px] mx-auto w-full px-4 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left Column - Property Details */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Header Section */}
+            <div className="space-y-4">
+              {/* Price and Stats Row */}
+              <div className="flex flex-wrap items-center gap-4 md:gap-8">
+                <div>
+                  <span className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
+                    {formatPrice(property.price)}
+                  </span>
+                  <span className="text-xl text-gray-600 dark:text-gray-400">/mo</span>
+                </div>
+                <div className="flex items-center gap-6 text-gray-700 dark:text-gray-300">
+                  <div className="flex items-center gap-2">
+                    <Bed className="h-5 w-5" />
+                    <span className="font-bold text-lg">{bedrooms}</span>
+                    <span className="text-gray-500">bd</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Bath className="h-5 w-5" />
+                    <span className="font-bold text-lg">{bathrooms}</span>
+                    <span className="text-gray-500">ba</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Maximize className="h-5 w-5" />
+                    <span className="font-bold text-lg">{sqft.toLocaleString()}</span>
+                    <span className="text-gray-500">sqft</span>
+                  </div>
+                </div>
+              </div>
 
-          {/* Rental Terms Section */}
-          {(property.lease_term || (property.utilities_included && property.utilities_included.length > 0) || property.furnished !== undefined || property.pets_allowed !== undefined) && (
-            <div data-testid="section-rental-terms">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Rental Terms</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {property.lease_term && (
-                  <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
-                    <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Lease Term</h3>
-                    <p className="text-gray-900 dark:text-white">{property.lease_term}</p>
-                  </div>
-                )}
-                
-                {property.utilities_included && property.utilities_included.length > 0 && (
-                  <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
-                    <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Utilities Included</h3>
-                    <ul className="space-y-1">
-                      {property.utilities_included.map((utility, idx) => (
-                        <li key={idx} className="text-gray-900 dark:text-white">• {utility}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+              {/* Address */}
+              <div className="flex items-start gap-2">
+                <MapPin className="h-5 w-5 text-gray-500 mt-0.5 flex-shrink-0" />
+                <div>
+                  <h1 className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-white">
+                    {property.address}
+                  </h1>
+                  <p className="text-gray-600 dark:text-gray-400">
+                    {property.city}, {property.state} {property.zip_code}
+                  </p>
+                </div>
+              </div>
 
-                {property.furnished !== undefined && (
-                  <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
-                    <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Furnished</h3>
-                    <p className="text-gray-900 dark:text-white">{property.furnished ? 'Yes - Furnished' : 'No - Unfurnished'}</p>
-                  </div>
+              {/* Property Type & Status Badges */}
+              <div className="flex flex-wrap gap-2">
+                <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                  {property.status === 'active' ? 'Available' : property.status}
+                </Badge>
+                <Badge variant="outline" className="flex items-center gap-1">
+                  <Building2 className="h-3 w-3" />
+                  {property.property_type || 'Apartment'}
+                </Badge>
+                {property.furnished && (
+                  <Badge variant="outline" className="flex items-center gap-1">
+                    <Sofa className="h-3 w-3" />
+                    Furnished
+                  </Badge>
                 )}
-
-                {property.pets_allowed !== undefined && (
-                  <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
-                    <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Pets</h3>
-                    <p className="text-gray-900 dark:text-white">{property.pets_allowed ? 'Allowed' : 'Not Allowed'}</p>
-                  </div>
+                {property.pets_allowed && (
+                  <Badge variant="outline" className="flex items-center gap-1">
+                    <PawPrint className="h-3 w-3" />
+                    Pets OK
+                  </Badge>
                 )}
               </div>
+
+              {/* Action Buttons - Desktop */}
+              <div className="hidden md:flex gap-3">
+                <Button
+                  onClick={() => toggleFavorite(property.id)}
+                  variant="outline"
+                  className="flex items-center gap-2"
+                  data-testid="button-save"
+                >
+                  <Heart className={`h-5 w-5 ${isFavorited(property.id) ? 'fill-red-500 text-red-500' : ''}`} />
+                  {isFavorited(property.id) ? 'Saved' : 'Save'}
+                </Button>
+                <Button
+                  onClick={() => navigator.share?.({ title: property.title, url: window.location.href })}
+                  variant="outline"
+                  className="flex items-center gap-2"
+                  data-testid="button-share"
+                >
+                  <Share2 className="h-5 w-5" />
+                  Share
+                </Button>
+              </div>
             </div>
-          )}
 
-          {/* Description Section */}
-          <div data-testid="section-overview">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Overview</h2>
-            <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-lg">{property.description || 'No description available.'}</p>
-          </div>
+            {/* Overview Section */}
+            <div className="border-t pt-6">
+              <button
+                onClick={() => toggleSection('overview')}
+                className="flex items-center justify-between w-full text-left"
+                data-testid="section-overview-toggle"
+              >
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Overview</h2>
+                {expandedSections.overview ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+              </button>
+              {expandedSections.overview && (
+                <div className="mt-4 space-y-4">
+                  <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                    {property.description || 'No description available for this property.'}
+                  </p>
+                </div>
+              )}
+            </div>
 
-          {/* Amenities Section */}
-          <div data-testid="section-amenities">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Amenities</h2>
-            <AmenitiesGrid amenities={property.amenities as string[] | undefined} />
-          </div>
+            {/* Facts & Features Section */}
+            <div className="border-t pt-6">
+              <button
+                onClick={() => toggleSection('facts')}
+                className="flex items-center justify-between w-full text-left"
+                data-testid="section-facts-toggle"
+              >
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Facts & Features</h2>
+                {expandedSections.facts ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+              </button>
+              {expandedSections.facts && (
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-3">
+                    <h3 className="font-semibold text-gray-900 dark:text-white">Interior</h3>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-800">
+                        <span className="text-gray-600 dark:text-gray-400">Bedrooms</span>
+                        <span className="font-medium text-gray-900 dark:text-white">{bedrooms}</span>
+                      </div>
+                      <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-800">
+                        <span className="text-gray-600 dark:text-gray-400">Bathrooms</span>
+                        <span className="font-medium text-gray-900 dark:text-white">{bathrooms}</span>
+                      </div>
+                      <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-800">
+                        <span className="text-gray-600 dark:text-gray-400">Square Feet</span>
+                        <span className="font-medium text-gray-900 dark:text-white">{sqft.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-800">
+                        <span className="text-gray-600 dark:text-gray-400">Furnished</span>
+                        <span className="font-medium text-gray-900 dark:text-white">{property.furnished ? 'Yes' : 'No'}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <h3 className="font-semibold text-gray-900 dark:text-white">Rental Terms</h3>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-800">
+                        <span className="text-gray-600 dark:text-gray-400">Property Type</span>
+                        <span className="font-medium text-gray-900 dark:text-white capitalize">{property.property_type || 'Apartment'}</span>
+                      </div>
+                      <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-800">
+                        <span className="text-gray-600 dark:text-gray-400">Lease Term</span>
+                        <span className="font-medium text-gray-900 dark:text-white">{property.lease_term || '12 months'}</span>
+                      </div>
+                      <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-800">
+                        <span className="text-gray-600 dark:text-gray-400">Pets Allowed</span>
+                        <span className="font-medium text-gray-900 dark:text-white">{property.pets_allowed ? 'Yes' : 'No'}</span>
+                      </div>
+                      <div className="flex justify-between py-1 border-b border-gray-100 dark:border-gray-800">
+                        <span className="text-gray-600 dark:text-gray-400">Available</span>
+                        <span className="font-medium text-gray-900 dark:text-white">Now</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
 
-          <Separator />
+            {/* Amenities Section */}
+            <div className="border-t pt-6">
+              <button
+                onClick={() => toggleSection('amenities')}
+                className="flex items-center justify-between w-full text-left"
+                data-testid="section-amenities-toggle"
+              >
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Amenities</h2>
+                {expandedSections.amenities ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+              </button>
+              {expandedSections.amenities && (
+                <div className="mt-4">
+                  <AmenitiesGrid amenities={property.amenities as string[] | undefined} />
+                </div>
+              )}
+            </div>
 
-          {/* Reviews Section */}
-          {reviews && reviews.length > 0 && (
-            <>
-              <div>
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Reviews</h2>
+            {/* Reviews Section */}
+            {reviews && reviews.length > 0 && (
+              <div className="border-t pt-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Reviews</h2>
                   <div className="flex items-center gap-2">
-                    <div className="flex gap-1">
+                    <div className="flex gap-0.5">
                       {[1, 2, 3, 4, 5].map(i => (
                         <Star
                           key={i}
-                          className={`h-5 w-5 ${i <= Math.round(averageRating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
+                          className={`h-4 w-4 ${i <= Math.round(averageRating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
                         />
                       ))}
                     </div>
-                    <span className="text-sm text-gray-600 dark:text-gray-400">({reviews.length} reviews)</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">({reviews.length})</span>
                   </div>
                 </div>
                 <div className="space-y-4">
                   {reviews.slice(0, 3).map((review) => (
-                    <Card key={review.id} className="border-gray-200 dark:border-gray-700">
-                      <CardContent className="p-4">
-                        <div className="flex items-start gap-3 mb-2">
-                          <div className="flex-1">
-                            <div className="flex gap-1 mb-1">
-                              {[1, 2, 3, 4, 5].map(i => (
-                                <Star
-                                  key={i}
-                                  className={`h-4 w-4 ${i <= (review.rating || 0) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300 dark:text-gray-600'}`}
-                                />
-                              ))}
-                            </div>
-                            <p className="font-bold text-gray-900 dark:text-white">{review.title || 'Review'}</p>
-                            {review.users && (
-                              <p className="text-sm text-gray-600 dark:text-gray-400">{review.users.full_name || 'Anonymous'}</p>
-                            )}
-                          </div>
-                        </div>
-                        {review.comment && (
-                          <p className="text-gray-700 dark:text-gray-300 text-sm">{review.comment}</p>
-                        )}
-                      </CardContent>
-                    </Card>
+                    <div key={review.id} className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
+                      <div className="flex gap-0.5 mb-2">
+                        {[1, 2, 3, 4, 5].map(i => (
+                          <Star
+                            key={i}
+                            className={`h-3 w-3 ${i <= (review.rating || 0) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
+                          />
+                        ))}
+                      </div>
+                      <p className="font-semibold text-gray-900 dark:text-white text-sm">{review.title || 'Review'}</p>
+                      {review.comment && (
+                        <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">{review.comment}</p>
+                      )}
+                    </div>
                   ))}
                 </div>
               </div>
-              <Separator />
-            </>
-          )}
+            )}
 
-          {/* Location & Nearby Places Section */}
-          <div data-testid="section-location-nearby">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Location & Nearby Places</h2>
-            
-            {/* Map */}
-            <div className="mb-8">
-              <MapSection 
-                center={position} 
-                title={property.title} 
-                address={property.address}
-              />
-            </div>
-
-            {/* Nearby Places */}
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Nearby Places</h3>
-              <NearbyPlaces places={nearbyPlaces} />
+            {/* Location Section */}
+            <div className="border-t pt-6">
+              <button
+                onClick={() => toggleSection('location')}
+                className="flex items-center justify-between w-full text-left"
+                data-testid="section-location-toggle"
+              >
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Location</h2>
+                {expandedSections.location ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+              </button>
+              {expandedSections.location && (
+                <div className="mt-4 space-y-6">
+                  <div className="rounded-lg overflow-hidden">
+                    <MapSection center={position} title={property.title} address={property.address} />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Nearby Places</h3>
+                    <NearbyPlaces places={nearbyPlaces} />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Property Owner/Manager */}
-          {owner && (
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Property Manager</h2>
-              <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 hover:border-primary/50">
-                <CardContent className="p-6">
-                  <div className="flex items-start gap-4">
-                    <Avatar className="h-16 w-16">
-                      <AvatarImage src={owner.profile_image || undefined} alt={owner.full_name || 'Manager'} />
-                      <AvatarFallback>{owner.full_name?.charAt(0) || 'M'}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">{owner.full_name || 'Property Manager'}</h3>
-                      </div>
-                      <p className="text-gray-600 dark:text-gray-400 text-sm mb-3">{owner.bio || 'Professional property manager'}</p>
-                      <div className="flex flex-wrap gap-4 text-sm">
-                        <a
-                          href={`mailto:${owner.email}`}
-                          className="flex items-center gap-1 text-primary hover:underline"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <Mail className="h-4 w-4" /> {owner.email}
-                        </a>
-                        {owner.phone && (
-                          <a
-                            href={`tel:${owner.phone}`}
-                            className="flex items-center gap-1 text-primary hover:underline"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <Phone className="h-4 w-4" /> {owner.phone}
-                          </a>
-                        )}
+          {/* Right Column - Contact Sidebar */}
+          <div className="lg:col-span-1">
+            <div className="sticky top-24 space-y-4">
+              {/* Main CTA Card */}
+              <Card className="border-gray-200 dark:border-gray-800 shadow-lg overflow-hidden">
+                <CardContent className="p-0">
+                  <div className="bg-primary p-4">
+                    <h3 className="text-white font-bold text-lg">Request a Tour</h3>
+                    <p className="text-white/80 text-sm">Available as early as today</p>
+                  </div>
+                  <div className="p-4 space-y-4">
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button variant="outline" className="flex items-center justify-center gap-2 h-12">
+                        <Calendar className="h-4 w-4" />
+                        In Person
+                      </Button>
+                      <Button variant="outline" className="flex items-center justify-center gap-2 h-12">
+                        <Home className="h-4 w-4" />
+                        Video Chat
+                      </Button>
+                    </div>
+                    
+                    {owner && (
+                      <AgentContactDialog 
+                        agent={{
+                          id: owner.id,
+                          name: owner.full_name || 'Property Manager',
+                          email: owner.email,
+                          phone: owner.phone || ''
+                        }}
+                        propertyId={property.id}
+                        propertyTitle={property.title}
+                        triggerText="Request a Tour"
+                      />
+                    )}
+
+                    <Link href={`/apply?propertyId=${property.id}`} className="block">
+                      <Button className="w-full bg-primary text-white font-bold h-12" data-testid="button-apply-now">
+                        Apply Now
+                      </Button>
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Property Manager Card */}
+              {owner && (
+                <Card className="border-gray-200 dark:border-gray-800">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3 mb-4">
+                      <Avatar className="h-12 w-12">
+                        <AvatarImage src={owner.profile_image || undefined} alt={owner.full_name || 'Manager'} />
+                        <AvatarFallback>{owner.full_name?.charAt(0) || 'M'}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-semibold text-gray-900 dark:text-white">{owner.full_name || 'Property Manager'}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Property Manager</p>
                       </div>
                     </div>
-                    <Button variant="outline" className="border-primary text-primary hover:bg-primary/5">
-                      View Profile
-                    </Button>
+                    <div className="space-y-2">
+                      <a
+                        href={`mailto:${owner.email}`}
+                        className="flex items-center gap-2 text-sm text-primary hover:underline"
+                      >
+                        <Mail className="h-4 w-4" /> {owner.email}
+                      </a>
+                      {owner.phone && (
+                        <a
+                          href={`tel:${owner.phone}`}
+                          className="flex items-center gap-2 text-sm text-primary hover:underline"
+                        >
+                          <Phone className="h-4 w-4" /> {owner.phone}
+                        </a>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Price Breakdown Card */}
+              <Card className="border-gray-200 dark:border-gray-800">
+                <CardContent className="p-4">
+                  <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Monthly Cost</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between py-1">
+                      <span className="text-gray-600 dark:text-gray-400">Base Rent</span>
+                      <span className="font-medium text-gray-900 dark:text-white">{formatPrice(property.price)}</span>
+                    </div>
+                    {property.utilities_included && property.utilities_included.length > 0 && (
+                      <div className="flex justify-between py-1">
+                        <span className="text-gray-600 dark:text-gray-400">Utilities</span>
+                        <span className="font-medium text-green-600">Included</span>
+                      </div>
+                    )}
+                    <div className="border-t pt-2 mt-2 flex justify-between">
+                      <span className="font-semibold text-gray-900 dark:text-white">Total</span>
+                      <span className="font-bold text-gray-900 dark:text-white">{formatPrice(property.price)}/mo</span>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
             </div>
-          )}
+          </div>
         </div>
       </div>
 
-      <div className="mt-12">
+      {/* Mobile Bottom Action Bar */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-950 border-t border-gray-200 dark:border-gray-800 shadow-xl z-40 safe-area-inset-bottom">
+        <div className="flex items-center justify-between p-3 gap-2">
+          <div>
+            <span className="text-xl font-bold text-gray-900 dark:text-white">{formatPrice(property.price)}</span>
+            <span className="text-sm text-gray-500">/mo</span>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => toggleFavorite(property.id)}
+              variant="outline"
+              size="icon"
+              className="h-10 w-10"
+              data-testid="button-mobile-save"
+            >
+              <Heart className={`h-5 w-5 ${isFavorited(property.id) ? 'fill-red-500 text-red-500' : ''}`} />
+            </Button>
+            <Link href={`/apply?propertyId=${property.id}`}>
+              <Button className="bg-primary text-white font-bold h-10 px-6" data-testid="button-mobile-apply">
+                Apply Now
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-12 pb-20 md:pb-0">
         <Footer />
       </div>
     </div>
