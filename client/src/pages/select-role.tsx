@@ -25,12 +25,6 @@ const roleOptions: { value: UserRole; label: string; description: string; icon: 
     icon: Key
   },
   { 
-    value: 'buyer', 
-    label: 'Buyer', 
-    description: 'Looking to buy a property',
-    icon: Home
-  },
-  { 
     value: 'landlord', 
     label: 'Landlord', 
     description: 'Individual property owner',
@@ -70,7 +64,7 @@ export default function SelectRole() {
       if (selectedRole === 'agent') {
         setLocation('/agent-dashboard');
       } else if (selectedRole === 'landlord' || selectedRole === 'property_manager') {
-        setLocation('/seller-dashboard');
+        setLocation('/landlord-dashboard');
       } else {
         setLocation('/');
       }

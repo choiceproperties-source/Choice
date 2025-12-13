@@ -7,7 +7,7 @@ import { PropertyCard } from "@/components/property-card";
 import { Testimonials } from "@/components/testimonials";
 import { useProperties } from "@/hooks/use-properties";
 import type { Property } from "@/lib/types";
-import { ArrowRight, CheckCircle2, Users, Home as HomeIcon, MapPin, ShieldCheck, Key, TrendingUp } from "lucide-react";
+import { ArrowRight, CheckCircle2, Home as HomeIcon, MapPin, ShieldCheck } from "lucide-react";
 import heroBg from "@assets/generated_images/modern_luxury_home_exterior_with_blue_sky.png";
 import { updateMetaTags, getOrganizationStructuredData, addStructuredData, setCanonicalUrl, getBreadcrumbStructuredData } from "@/lib/seo";
 
@@ -67,14 +67,9 @@ export default function Home() {
                 Explore Rentals
               </Button>
             </Link>
-            <Link href="/buy">
-              <Button size="lg" className="bg-green-600 hover:bg-green-700 text-white font-bold text-lg px-10 h-14 shadow-xl hover:scale-105 transition-transform">
-                Buy a Home
-              </Button>
-            </Link>
             <Link href="/contact">
               <Button size="lg" variant="outline" className="border-2 border-white text-white hover:bg-white hover:text-primary font-bold text-lg px-10 h-14 bg-transparent hover:scale-105 transition-transform">
-                Learn More
+                Get Started
               </Button>
             </Link>
           </div>
@@ -85,9 +80,9 @@ export default function Home() {
       <section className="py-24 bg-background">
         <div className="container mx-auto px-4">
           <div className="text-center max-w-3xl mx-auto mb-16" data-aos="fade-up">
-            <h2 className="font-heading text-3xl md:text-5xl font-bold text-primary mb-6">Your Complete Real Estate Solution</h2>
+            <h2 className="font-heading text-3xl md:text-5xl font-bold text-primary mb-6">Your Rental Housing Solution</h2>
             <p className="text-muted-foreground text-lg">
-              Whether you're renting, buying, or selling, Choice Properties connects you with the right home at the right price.
+              Choice Properties connects renters with quality properties at the right price. Finding your next home is just a few clicks away.
             </p>
           </div>
 
@@ -97,34 +92,30 @@ export default function Home() {
                 <div className="mb-4">
                   <HomeIcon className="h-10 w-10 text-primary" />
                 </div>
-                <h3 className="font-heading text-2xl font-bold mb-3 text-primary group-hover:text-primary">For Rent</h3>
+                <h3 className="font-heading text-2xl font-bold mb-3 text-primary group-hover:text-primary">Browse Rentals</h3>
                 <p className="text-muted-foreground dark:text-gray-400 leading-relaxed">
                   Browse thousands of rental properties across the country. Find your perfect home with our easy application process.
                 </p>
               </div>
             </Link>
-            <Link href="/buy">
-              <div className="group p-8 rounded-2xl bg-green-50 dark:bg-slate-800 border-2 border-green-600 hover:border-green-600 hover:shadow-xl transition-all duration-300 cursor-pointer">
-                <div className="mb-4">
-                  <Key className="h-10 w-10 text-green-600 dark:text-green-400" />
-                </div>
-                <h3 className="font-heading text-2xl font-bold mb-3 text-green-600 dark:text-green-400 group-hover:text-green-700 dark:group-hover:text-green-300">For Sale</h3>
-                <p className="text-muted-foreground dark:text-gray-400 leading-relaxed">
-                  Discover properties for purchase. Use our mortgage calculator to estimate your monthly payments and find your dream home.
-                </p>
+            <div className="p-8 rounded-2xl bg-blue-50 dark:bg-slate-800 border-2 border-primary">
+              <div className="mb-4">
+                <MapPin className="h-10 w-10 text-primary" />
               </div>
-            </Link>
-            <Link href="/sell">
-              <div className="group p-8 rounded-2xl bg-amber-50 dark:bg-slate-800 border-2 border-amber-600 hover:border-amber-600 hover:shadow-xl transition-all duration-300 cursor-pointer">
-                <div className="mb-4">
-                  <TrendingUp className="h-10 w-10 text-amber-600 dark:text-amber-400" />
-                </div>
-                <h3 className="font-heading text-2xl font-bold mb-3 text-amber-600 dark:text-amber-400 group-hover:text-amber-700 dark:group-hover:text-amber-300">Sell or List</h3>
-                <p className="text-muted-foreground dark:text-gray-400 leading-relaxed">
-                  List your property in minutes. Reach thousands of qualified buyers and renters through our trusted network.
-                </p>
+              <h3 className="font-heading text-2xl font-bold mb-3 text-primary">Easy Application</h3>
+              <p className="text-muted-foreground dark:text-gray-400 leading-relaxed">
+                Apply to properties directly online. Our streamlined process gets you approved faster so you can move in sooner.
+              </p>
+            </div>
+            <div className="p-8 rounded-2xl bg-blue-50 dark:bg-slate-800 border-2 border-primary">
+              <div className="mb-4">
+                <ShieldCheck className="h-10 w-10 text-primary" />
               </div>
-            </Link>
+              <h3 className="font-heading text-2xl font-bold mb-3 text-primary">Secure & Verified</h3>
+              <p className="text-muted-foreground dark:text-gray-400 leading-relaxed">
+                All properties are verified and legitimate. Your information stays safe with our secure platform.
+              </p>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -136,8 +127,8 @@ export default function Home() {
               },
               {
                 icon: <ShieldCheck className="h-10 w-10 text-secondary" />,
-                title: "Secure Transactions",
-                description: "Protected buyer and seller interactions. Your information stays safe with our secure platform."
+                title: "Secure Platform",
+                description: "Your information stays safe with our secure platform. Protected renter-landlord interactions."
               },
               {
                 icon: <HomeIcon className="h-10 w-10 text-secondary" />,
@@ -147,7 +138,7 @@ export default function Home() {
               {
                 icon: <MapPin className="h-10 w-10 text-secondary" />,
                 title: "Nationwide Access",
-                description: "Properties available nationwide. Find your perfect match wherever life takes you."
+                description: "Rental properties available nationwide. Find your perfect match wherever life takes you."
               }
             ].map((feature, idx) => (
               <div 

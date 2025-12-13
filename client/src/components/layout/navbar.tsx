@@ -18,17 +18,11 @@ export function Navbar() {
   const links = [
     { href: "/", label: "Home" },
     { href: "/properties", label: "Rent" },
-    { href: "/buy", label: "Buy" },
-    { href: "/sell", label: "Sell" },
-    { href: "/property-requirements", label: "Find Home" },
-    { href: "/mortgage-calculator", label: "Mortgage" },
-    { href: "/agents", label: "Agents" },
     { href: "/faq", label: "FAQ" },
     ...(isAdmin ? [{ href: "/admin", label: "Admin" }] : []),
     ...(isLoggedInUser ? [
       { href: "/renter-dashboard", label: "Renter" },
-      { href: "/seller-dashboard", label: "Seller" },
-      { href: "/buyer-dashboard", label: "Buyer" }
+      { href: "/landlord-dashboard", label: "Landlord" }
     ] : []),
     { href: "/about", label: "About Us" },
     { href: "/contact", label: "Contact" },
