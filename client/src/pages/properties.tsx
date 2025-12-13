@@ -439,55 +439,56 @@ export default function Properties() {
       </Drawer>
       )}
 
-      {/* Split Layout: Map (Right) & List (Left) */}
-      <div className="flex-1 flex overflow-hidden relative">
-         {/* Left Side List */}
-         <div className="w-full overflow-y-auto p-4 shadow-2xl z-10 bg-white dark:bg-gray-950 border-l dark:border-gray-800">
-             <div className="flex justify-between items-center mb-4 px-2">
-                 <h2 className="text-xl font-bold text-gray-900 dark:text-white">Real Estate & Homes For Rent</h2>
-                 <span className="text-gray-500 dark:text-gray-400 text-sm font-semibold bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded-full" data-testid="text-results-count">{filteredProperties.length} results</span>
-             </div>
-             
-             {savedSearches.length > 0 && (
-               <div className="mb-4 border-b dark:border-gray-700 pb-3">
-                 <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2">SAVED SEARCHES</p>
-                 <div className="flex gap-2 flex-wrap">
-                   {savedSearches.map((s, idx) => (
-                     <div key={idx} className="flex items-center gap-1 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-full px-3 py-1 text-xs">
-                       <span className="text-gray-700 dark:text-gray-300">{s.search || "All"}</span>
-                       <button 
-                         onClick={() => loadSearch(s)}
-                         className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-semibold"
-                       >Load</button>
-                       <button 
-                         onClick={() => deleteSearch(idx)}
-                         className="text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 ml-1"
-                       >×</button>
-                     </div>
-                   ))}
-                 </div>
-               </div>
-             )}
-             
-             <div className="mb-4 flex gap-2 px-2 transition-all duration-300">
-                 <span className="text-sm font-semibold text-primary dark:text-blue-400 border-b-2 border-primary dark:border-blue-400 cursor-pointer pb-1 hover:text-primary/80 dark:hover:text-blue-300 transition-colors duration-200" data-testid="tab-agent-listings">Agent Listings</span>
-                 <span className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300 cursor-pointer pb-1 transition-colors duration-200" data-testid="tab-other-listings">Other Listings</span>
-             </div>
+      {/* Full-Width Grid Layout */}
+      <div className="flex-1 overflow-y-auto bg-white dark:bg-gray-950">
+        <div className="max-w-7xl mx-auto w-full px-4 py-6">
+          {/* Header */}
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-1">Rental Properties Available</h2>
+              <p className="text-gray-600 dark:text-gray-400">Browse and apply to homes in your area</p>
+            </div>
+            <span className="text-gray-600 dark:text-gray-400 text-sm font-semibold bg-gray-100 dark:bg-gray-800 px-4 py-2 rounded-lg" data-testid="text-results-count">{filteredProperties.length} results</span>
+          </div>
 
-             {filteredProperties.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {filteredProperties.map((property) => (
-                    <PropertyCard key={property.id} property={property} onQuickView={handleQuickView} />
-                    ))}
-                </div>
-             ) : (
-                <NoResults onReset={resetFilters} />
-             )}
-             
-             <div className="mt-8 text-center text-xs text-gray-400 dark:text-gray-600 py-4 border-t dark:border-gray-800">
-                 Choice Properties Inc. | Updated every 5 minutes.
-             </div>
-         </div>
+          {/* Saved Searches */}
+          {savedSearches.length > 0 && (
+            <div className="mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+              <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-3 uppercase tracking-wide">Saved Searches</p>
+              <div className="flex gap-2 flex-wrap">
+                {savedSearches.map((s, idx) => (
+                  <div key={idx} className="flex items-center gap-2 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg px-4 py-2 text-sm">
+                    <span className="text-gray-700 dark:text-gray-300 font-medium">{s.search || "All Properties"}</span>
+                    <button 
+                      onClick={() => loadSearch(s)}
+                      className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-semibold text-xs"
+                    >Load</button>
+                    <button 
+                      onClick={() => deleteSearch(idx)}
+                      className="text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 ml-1"
+                    >×</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Results */}
+          {filteredProperties.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+              {filteredProperties.map((property) => (
+                <PropertyCard key={property.id} property={property} onQuickView={handleQuickView} />
+              ))}
+            </div>
+          ) : (
+            <NoResults onReset={resetFilters} />
+          )}
+
+          {/* Footer */}
+          <div className="mt-12 text-center text-xs text-gray-400 dark:text-gray-600 py-6 border-t border-gray-200 dark:border-gray-800">
+            Choice Properties Inc. | Updated every 5 minutes.
+          </div>
+        </div>
       </div>
 
       <PropertyQuickView 
