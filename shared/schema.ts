@@ -534,13 +534,25 @@ export const adminSettings = pgTable("admin_settings", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const LEASE_ACTIONS = [
+  "lease_created",
+  "lease_edited",
+  "lease_sent",
+  "lease_accepted",
+  "lease_declined",
+  "lease_signed_tenant",
+  "lease_signed_landlord",
+  "move_in_scheduled"
+] as const;
+
 export const AUDIT_ACTIONS = [
   "create", "update", "delete", "view", "login", "logout", 
   "2fa_enable", "2fa_disable", "2fa_verify", "password_change",
   "role_change", "status_change", "document_upload", "document_verify",
   "application_review", "application_approve", "application_reject",
   "payment_verify_manual", "payment_attempt", "application_info_request",
-  "application_conditional_approve"
+  "application_conditional_approve",
+  ...LEASE_ACTIONS
 ] as const;
 
 // Payment verification audit trail

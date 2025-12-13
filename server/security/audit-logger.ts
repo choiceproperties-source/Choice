@@ -104,6 +104,30 @@ export async function logSecurityEvent(
   });
 }
 
+export async function logLeaseAction(
+  userId: string,
+  applicationId: string,
+  action: string,
+  previousStatus?: string,
+  newStatus?: string,
+  notes?: string,
+  req?: Request
+): Promise<void> {
+  await logAuditEvent({
+    userId,
+    action,
+    resourceType: "lease",
+    resourceId: applicationId,
+    metadata: {
+      previousStatus,
+      newStatus,
+      notes,
+      actionType: action
+    },
+    req,
+  });
+}
+
 export async function getAuditLogs(
   filters: {
     userId?: string;

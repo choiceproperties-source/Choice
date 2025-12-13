@@ -44,7 +44,7 @@ import {
 import { authLimiter, signupLimiter, inquiryLimiter, newsletterLimiter } from "./rate-limit";
 import { cache, CACHE_TTL } from "./cache";
 import { registerSecurityRoutes } from "./security/routes";
-import { logAuditEvent, logPropertyChange, logApplicationChange, logSecurityEvent } from "./security/audit-logger";
+import { logAuditEvent, logPropertyChange, logApplicationChange, logSecurityEvent, logLeaseAction, getAuditLogs } from "./security/audit-logger";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
@@ -2584,6 +2584,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (error) throw error;
 
+      // Log audit event
+      await logLeaseAction(
+        req.user!.id,
+        req.params.applicationId,
+        "lease_created",
+        undefined,
+        "draft",
+        "Lease draft created from template",
+        req
+      );
+
       return res.json(success(data[0], "Lease draft created successfully"));
     } catch (err: any) {
       console.error("[LEASE_DRAFT] Create error:", err);
@@ -2816,6 +2827,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (appError) throw appError;
 
+      // Log audit event
+      await logLeaseAction(
+        req.user!.id,
+        req.params.applicationId,
+        "lease_sent",
+        "draft",
+        "lease_sent",
+        `Lease version ${draft.version} sent to tenant`,
+        req
+      );
+
       // Create notification for tenant (check for duplicates)
       const { data: existingNotif } = await supabase
         .from("application_notifications")
@@ -2922,6 +2944,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (validation.data.moveInDate) {
         updateData.move_in_date = validation.data.moveInDate;
       }
+
+      // Log audit event before update
+      await logLeaseAction(
+        req.user!.id,
+        req.params.applicationId,
+        "lease_accepted",
+        "lease_sent",
+        "lease_accepted",
+        "Tenant accepted lease terms",
+        req
+      );
 
       const { error: appError } = await supabase
         .from("applications")
