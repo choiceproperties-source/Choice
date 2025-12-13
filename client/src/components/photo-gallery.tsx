@@ -1,11 +1,16 @@
 import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { X, ChevronLeft, ChevronRight, Maximize2 } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Maximize2, ImageOff } from "lucide-react";
 import { getThumbnailUrl, getGalleryThumbUrl, getMainImageUrl, getFullscreenImageUrl } from "@/lib/imagekit";
+import { getFallbackImageUrl } from "@/lib/gallery-placeholder";
 
 interface PhotoGalleryProps {
   images: string[];
   title: string;
+}
+
+interface ImageState {
+  [key: number]: 'loading' | 'loaded' | 'error';
 }
 
 export function PhotoGallery({ images, title }: PhotoGalleryProps) {
@@ -14,34 +19,82 @@ export function PhotoGallery({ images, title }: PhotoGalleryProps) {
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const [preloadedImages, setPreloadedImages] = useState<Set<number>>(new Set());
+  const [imageStates, setImageStates] = useState<ImageState>({});
 
-  const mainImage = images[currentImageIndex];
+  const validImages = images.filter(img => img && typeof img === 'string');
+  const mainImage = validImages[currentImageIndex];
   const minSwipeDistance = 50;
+
+  // Handle image error
+  const handleImageError = (index: number) => {
+    setImageStates(prev => ({
+      ...prev,
+      [index]: 'error'
+    }));
+  };
+
+  const handleImageLoad = (index: number) => {
+    setImageStates(prev => ({
+      ...prev,
+      [index]: 'loaded'
+    }));
+  };
 
   // Preload adjacent images for smooth navigation
   useEffect(() => {
-    const nextIndex = (currentImageIndex + 1) % images.length;
-    const prevIndex = (currentImageIndex - 1 + images.length) % images.length;
+    if (validImages.length === 0) return;
+
+    const nextIndex = (currentImageIndex + 1) % validImages.length;
+    const prevIndex = (currentImageIndex - 1 + validImages.length) % validImages.length;
     
     setPreloadedImages(new Set([currentImageIndex, nextIndex, prevIndex]));
 
     // Preload images in the background
     const preloadImage = (url: string) => {
       const img = new Image();
+      img.onload = () => {
+        setImageStates(prev => ({
+          ...prev,
+          [validImages.indexOf(url)]: 'loaded'
+        }));
+      };
+      img.onerror = () => {
+        setImageStates(prev => ({
+          ...prev,
+          [validImages.indexOf(url)]: 'error'
+        }));
+      };
       img.src = url;
     };
 
-    preloadImage(getFullscreenImageUrl(images[nextIndex]));
-    preloadImage(getFullscreenImageUrl(images[prevIndex]));
-  }, [currentImageIndex, images]);
+    preloadImage(getFullscreenImageUrl(validImages[nextIndex]));
+    preloadImage(getFullscreenImageUrl(validImages[prevIndex]));
+  }, [currentImageIndex, validImages]);
 
   const nextImage = () => {
-    setCurrentImageIndex((prev) => (prev + 1) % images.length);
+    if (validImages.length > 0) {
+      setCurrentImageIndex((prev) => (prev + 1) % validImages.length);
+    }
   };
 
   const prevImage = () => {
-    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
+    if (validImages.length > 0) {
+      setCurrentImageIndex((prev) => (prev - 1 + validImages.length) % validImages.length);
+    }
   };
+
+  // Empty state
+  if (validImages.length === 0) {
+    return (
+      <div className="w-full bg-background">
+        <div className="flex flex-col items-center justify-center min-h-[400px] rounded-lg border border-dashed border-muted-foreground/30 bg-muted/30">
+          <ImageOff className="h-16 w-16 text-muted-foreground/40 mb-4" />
+          <h3 className="text-lg font-semibold text-foreground mb-1">{title}</h3>
+          <p className="text-sm text-muted-foreground">No images available</p>
+        </div>
+      </div>
+    );
+  }
 
   const onTouchStart = (e: React.TouchEvent) => {
     setTouchEnd(null);
@@ -103,11 +156,13 @@ export function PhotoGallery({ images, title }: PhotoGalleryProps) {
             {/* Image */}
             <img
               key={currentImageIndex}
-              src={getFullscreenImageUrl(mainImage)}
-              srcSet={`${getFullscreenImageUrl(mainImage)} 1920w`}
+              src={imageStates[currentImageIndex] === 'error' ? getFallbackImageUrl() : getFullscreenImageUrl(mainImage)}
+              srcSet={imageStates[currentImageIndex] === 'error' ? undefined : `${getFullscreenImageUrl(mainImage)} 1920w`}
               alt={`${title} - Photo ${currentImageIndex + 1}`}
               loading="eager"
               decoding="async"
+              onLoad={() => handleImageLoad(currentImageIndex)}
+              onError={() => handleImageError(currentImageIndex)}
               className="max-h-[calc(100vh-160px)] max-w-[90vw] object-contain select-none animate-in fade-in duration-300"
               draggable={false}
             />
@@ -126,7 +181,7 @@ export function PhotoGallery({ images, title }: PhotoGalleryProps) {
 
           {/* Thumbnails */}
           <div className="flex gap-2 p-4 overflow-x-auto bg-black/50 border-t border-white/10 scrollbar-hide">
-            {images.map((img, idx) => (
+            {validImages.map((img, idx) => (
               <button
                 key={idx}
                 onClick={() => setCurrentImageIndex(idx)}
@@ -138,10 +193,11 @@ export function PhotoGallery({ images, title }: PhotoGalleryProps) {
                 data-testid={`thumbnail-fullscreen-${idx}`}
               >
                 <img
-                  src={getThumbnailUrl(img)}
+                  src={imageStates[idx] === 'error' ? getFallbackImageUrl() : getThumbnailUrl(img)}
                   alt={`Thumbnail ${idx + 1}`}
                   loading="lazy"
                   decoding="async"
+                  onError={() => handleImageError(idx)}
                   className="w-20 h-16 object-cover"
                 />
               </button>
@@ -156,29 +212,30 @@ export function PhotoGallery({ images, title }: PhotoGalleryProps) {
         <div className="hidden md:grid grid-cols-4 gap-3 rounded-lg overflow-hidden mb-4">
           {/* Main Large Image - 2 columns */}
           <div
-            className="col-span-2 row-span-2 relative group cursor-pointer overflow-hidden rounded-lg"
+            className="col-span-2 row-span-2 relative group cursor-pointer overflow-hidden rounded-lg bg-muted"
             onClick={() => setIsFullscreen(true)}
             data-testid="gallery-main-image"
           >
             <img
-              src={getGalleryThumbUrl(images[0])}
+              src={imageStates[0] === 'error' ? getFallbackImageUrl() : getGalleryThumbUrl(validImages[0])}
               alt={`${title} - Main`}
               loading="lazy"
               decoding="async"
+              onError={() => handleImageError(0)}
               className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
             />
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
             <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-sm text-white px-3 py-1.5 rounded-md text-sm font-semibold flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
               <Maximize2 className="h-4 w-4" />
-              {images.length} Photos
+              {validImages.length} Photos
             </div>
           </div>
 
           {/* Thumbnail Grid - 2 columns */}
-          {images.slice(1, 5).map((img, idx) => (
+          {validImages.slice(1, 5).map((img, idx) => (
             <div
               key={idx + 1}
-              className="relative group cursor-pointer overflow-hidden rounded-lg h-[120px]"
+              className="relative group cursor-pointer overflow-hidden rounded-lg h-[120px] bg-muted"
               onClick={() => {
                 setCurrentImageIndex(idx + 1);
                 setIsFullscreen(true);
@@ -186,17 +243,18 @@ export function PhotoGallery({ images, title }: PhotoGalleryProps) {
               data-testid={`gallery-thumbnail-${idx + 1}`}
             >
               <img
-                src={getGalleryThumbUrl(img)}
+                src={imageStates[idx + 1] === 'error' ? getFallbackImageUrl() : getGalleryThumbUrl(img)}
                 alt={`${title} - Photo ${idx + 2}`}
                 loading="lazy"
                 decoding="async"
+                onError={() => handleImageError(idx + 1)}
                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
               />
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
-              {idx === 3 && images.length > 5 && (
+              {idx === 3 && validImages.length > 5 && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/60 group-hover:bg-black/70 transition-colors duration-300">
                   <span className="text-white font-bold text-lg">
-                    +{images.length - 5}
+                    +{validImages.length - 5}
                   </span>
                 </div>
               )}
@@ -215,10 +273,12 @@ export function PhotoGallery({ images, title }: PhotoGalleryProps) {
             {/* Image */}
             <img
               key={currentImageIndex}
-              src={getMainImageUrl(mainImage)}
+              src={imageStates[currentImageIndex] === 'error' ? getFallbackImageUrl() : getMainImageUrl(mainImage)}
               alt={`${title} - Photo ${currentImageIndex + 1}`}
               loading="eager"
               decoding="async"
+              onLoad={() => handleImageLoad(currentImageIndex)}
+              onError={() => handleImageError(currentImageIndex)}
               className="w-full h-full object-cover animate-in fade-in duration-300"
             />
 
@@ -226,7 +286,7 @@ export function PhotoGallery({ images, title }: PhotoGalleryProps) {
             <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
             {/* Navigation Buttons */}
-            {images.length > 1 && (
+            {validImages.length > 1 && (
               <>
                 <Button
                   variant="ghost"
@@ -252,7 +312,7 @@ export function PhotoGallery({ images, title }: PhotoGalleryProps) {
             {/* Image Counter & Fullscreen */}
             <div className="absolute bottom-3 left-3 right-3 flex justify-between items-center">
               <span className="bg-black/70 backdrop-blur-sm text-white px-3 py-1.5 rounded-md text-sm font-semibold">
-                {currentImageIndex + 1}/{images.length}
+                {currentImageIndex + 1}/{validImages.length}
               </span>
               <Button
                 variant="ghost"
@@ -268,7 +328,7 @@ export function PhotoGallery({ images, title }: PhotoGalleryProps) {
 
           {/* Mobile Thumbnail Indicators */}
           <div className="flex gap-1 p-3 bg-muted/50 overflow-x-auto scrollbar-hide">
-            {images.map((img, idx) => (
+            {validImages.map((img, idx) => (
               <button
                 key={idx}
                 onClick={() => setCurrentImageIndex(idx)}
@@ -279,7 +339,14 @@ export function PhotoGallery({ images, title }: PhotoGalleryProps) {
                 }`}
                 data-testid={`mobile-thumbnail-${idx}`}
               >
-                <img src={getThumbnailUrl(img)} alt={`Thumbnail ${idx + 1}`} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                <img 
+                  src={imageStates[idx] === 'error' ? getFallbackImageUrl() : getThumbnailUrl(img)} 
+                  alt={`Thumbnail ${idx + 1}`} 
+                  loading="lazy" 
+                  decoding="async"
+                  onError={() => handleImageError(idx)}
+                  className="w-full h-full object-cover" 
+                />
               </button>
             ))}
           </div>
