@@ -106,42 +106,10 @@ export default function Home() {
       <section className="py-24 bg-background">
         <div className="container mx-auto px-4">
           <div className="text-center max-w-3xl mx-auto mb-16" data-aos="fade-up">
-            <h2 className="font-heading text-3xl md:text-5xl font-bold text-primary mb-6">Your Rental Housing Solution</h2>
+            <h2 className="font-heading text-3xl md:text-5xl font-bold text-primary mb-6">Why Choose Choice Properties</h2>
             <p className="text-muted-foreground text-lg">
-              Choice Properties connects renters with quality properties at the right price. Finding your next home is just a few clicks away.
+              We connect renters with verified properties and guide you through every step of the rental process.
             </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
-            <Link href="/properties">
-              <div className="group p-8 rounded-2xl bg-blue-50 dark:bg-slate-800 border-2 border-primary hover:border-primary hover:shadow-xl transition-all duration-300 cursor-pointer">
-                <div className="mb-4">
-                  <HomeIcon className="h-10 w-10 text-primary" />
-                </div>
-                <h3 className="font-heading text-2xl font-bold mb-3 text-primary group-hover:text-primary">Browse Rentals</h3>
-                <p className="text-muted-foreground dark:text-gray-400 leading-relaxed">
-                  Browse thousands of rental properties across the country. Find your perfect home with our easy application process.
-                </p>
-              </div>
-            </Link>
-            <div className="p-8 rounded-2xl bg-blue-50 dark:bg-slate-800 border-2 border-primary">
-              <div className="mb-4">
-                <MapPin className="h-10 w-10 text-primary" />
-              </div>
-              <h3 className="font-heading text-2xl font-bold mb-3 text-primary">Easy Application</h3>
-              <p className="text-muted-foreground dark:text-gray-400 leading-relaxed">
-                Apply to properties directly online. Our streamlined process gets you approved faster so you can move in sooner.
-              </p>
-            </div>
-            <div className="p-8 rounded-2xl bg-blue-50 dark:bg-slate-800 border-2 border-primary">
-              <div className="mb-4">
-                <ShieldCheck className="h-10 w-10 text-primary" />
-              </div>
-              <h3 className="font-heading text-2xl font-bold mb-3 text-primary">Secure & Verified</h3>
-              <p className="text-muted-foreground dark:text-gray-400 leading-relaxed">
-                All properties are verified and legitimate. Your information stays safe with our secure platform.
-              </p>
-            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -231,16 +199,13 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Testimonials */}
-      <Testimonials />
-
       {/* Featured Properties */}
       <section className="py-24 bg-muted/30 dark:bg-slate-800/50">
         <div className="container mx-auto px-4">
           <div className="flex justify-between items-end mb-12" data-aos="fade-up">
             <div>
               <h2 className="font-heading text-3xl md:text-4xl font-bold text-primary mb-2">Featured Properties</h2>
-              <p className="text-muted-foreground text-lg">Hand-picked selections just for you.</p>
+              <p className="text-muted-foreground text-lg">Browse verified rental listings from across the country.</p>
             </div>
             <Link href="/properties">
               <Button variant="link" className="text-secondary font-bold text-lg hidden md:flex group">
