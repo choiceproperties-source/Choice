@@ -429,7 +429,7 @@ export default function RenterDashboard() {
                         </div>
 
                         {/* Payment Attempts */}
-                        {app.payment_attempts && app.payment_attempts.length > 0 && (
+                        {Array.isArray(app.payment_attempts) && app.payment_attempts.length > 0 && (
                           <div className="mt-3 p-3 bg-muted/30 rounded-lg">
                             <p className="text-xs font-medium text-muted-foreground mb-2">
                               Payment Attempts ({app.payment_attempts.length})
@@ -437,10 +437,10 @@ export default function RenterDashboard() {
                             <div className="space-y-1 max-h-20 overflow-y-auto">
                               {app.payment_attempts.slice(-3).map((attempt, idx) => (
                                 <div key={idx} className="flex items-center justify-between text-xs">
-                                  <span className="text-muted-foreground font-mono">{attempt.referenceId}</span>
+                                  <span className="text-muted-foreground font-mono">{attempt.referenceId || 'N/A'}</span>
                                   <div className="flex items-center gap-2">
                                     <span className="text-muted-foreground">
-                                      {new Date(attempt.timestamp).toLocaleDateString()}
+                                      {attempt.timestamp ? new Date(attempt.timestamp).toLocaleDateString() : 'N/A'}
                                     </span>
                                     <Badge 
                                       variant={attempt.status === 'success' ? 'default' : 'destructive'} 
