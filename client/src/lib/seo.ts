@@ -98,6 +98,8 @@ export function getOrganizationStructuredData() {
     '@type': 'RealEstateAgent',
     name: 'Choice Properties Inc.',
     url: 'https://choiceproperties.com',
+    logo: 'https://choiceproperties.com/logo.png',
+    description: 'Your trusted rental housing partner. Browse properties, apply online, and find your perfect home in Troy, MI.',
     address: {
       '@type': 'PostalAddress',
       streetAddress: '2265 Livernois, Suite 500',
@@ -112,6 +114,36 @@ export function getOrganizationStructuredData() {
       'https://www.facebook.com/choiceproperties',
       'https://www.instagram.com/choiceproperties',
       'https://www.twitter.com/choiceproperties'
-    ]
+    ],
+    priceRange: '$$$'
+  };
+}
+
+export function getBreadcrumbStructuredData(items: Array<{ name: string; url: string }>) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: items.map((item, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      name: item.name,
+      item: item.url
+    }))
+  };
+}
+
+export function getSearchActionStructuredData() {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    url: 'https://choiceproperties.com',
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: {
+        '@type': 'EntryPoint',
+        urlTemplate: 'https://choiceproperties.com/properties?search={search_term_string}'
+      },
+      query_input: 'required name=search_term_string'
+    }
   };
 }
