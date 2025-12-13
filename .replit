@@ -42,6 +42,8 @@ VITE_SUPABASE_URL = "https://igkujtqflvocbpsvpqle.supabase.co/"
 VITE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlna3VqdHFmbHZvY2Jwc3ZwcWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5Nzg2NTAsImV4cCI6MjA4MDU1NDY1MH0.BQC1an2v_QM_VL5bfGEYuqROeH0N9-5hHVJijqudqPM"
 SUPABASE_URL = "https://igkujtqflvocbpsvpqle.supabase.co"
 SUPABASE_SERVICE_ROLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlna3VqdHFmbHZvY2Jwc3ZwcWxlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NDk3ODY1MCwiZXhwIjoyMDgwNTU0NjUwfQ.s8RzAdgWNZ7W8d1akIVKQ62FTW_3nNAmeVGRQkI_8BM"
+IMAGEKIT_PUBLIC_KEY = "public_0nFf9f2g4"
+IMAGEKIT_URL_ENDPOINT = "https://ik.imagekit.io/fjmnb748e"
 
 [deployment]
 deploymentTarget = "autoscale"
