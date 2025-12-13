@@ -320,7 +320,10 @@ export const applications = pgTable("applications", {
   leaseDocumentId: uuid("lease_document_id"),
   leaseTemplateId: uuid("lease_template_id"),
   leaseGeneratedAt: timestamp("lease_generated_at"),
+  leaseSentAt: timestamp("lease_sent_at"),
+  leaseSentBy: uuid("lease_sent_by").references(() => users.id),
   leaseAcceptedAt: timestamp("lease_accepted_at"),
+  leaseDeclineReason: text("lease_decline_reason"),
   leaseSignedAt: timestamp("lease_signed_at"),
   moveInDate: timestamp("move_in_date"),
   moveInScheduledAt: timestamp("move_in_scheduled_at"),
@@ -1262,6 +1265,21 @@ export const updateLeaseDraftSchema = z.object({
 export type InsertLeaseDraft = z.infer<typeof insertLeaseDraftSchema>;
 export type UpdateLeaseDraft = z.infer<typeof updateLeaseDraftSchema>;
 export type LeaseDraft = typeof leaseDrafts.$inferSelect;
+
+// Lease send schema
+export const leaseSendSchema = z.object({
+  changeDescription: z.string().default("Lease sent to tenant"),
+});
+
+// Lease accept schema
+export const leaseAcceptSchema = z.object({
+  moveInDate: z.string().datetime().optional(),
+});
+
+// Lease decline schema
+export const leaseDeclineSchema = z.object({
+  reason: z.string().min(1, "Decline reason is required").optional(),
+});
 
 // Geocoding validation schema
 export const geocodeAddressSchema = z.object({

@@ -32,6 +32,9 @@ import {
   insertLeaseTemplateSchema,
   insertLeaseDraftSchema,
   updateLeaseDraftSchema,
+  leaseSendSchema,
+  leaseAcceptSchema,
+  leaseDeclineSchema,
 } from "@shared/schema";
 import { authLimiter, signupLimiter, inquiryLimiter, newsletterLimiter } from "./rate-limit";
 import { cache, CACHE_TTL } from "./cache";
@@ -2740,6 +2743,264 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (err: any) {
       console.error("[LEASE_DRAFT] History error:", err);
       return res.status(500).json(errorResponse("Failed to retrieve history"));
+    }
+  });
+
+  // ===== LEASE DELIVERY & TENANT REVIEW =====
+  // Send lease to tenant
+  app.post("/api/applications/:applicationId/lease-draft/send", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const validation = leaseSendSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error.errors[0].message });
+      }
+
+      const { data: application } = await supabase
+        .from("applications")
+        .select("user_id, property_id, properties(owner_id)")
+        .eq("id", req.params.applicationId)
+        .single();
+
+      if (!application) {
+        return res.status(404).json({ error: "Application not found" });
+      }
+
+      const isPropertyOwner = application.properties?.owner_id === req.user!.id;
+      const isAdmin = req.user!.role === "admin";
+
+      if (!isPropertyOwner && !isAdmin) {
+        return res.status(403).json({ error: "Only landlord/agent can send lease" });
+      }
+
+      // Get current draft
+      const { data: draft } = await supabase
+        .from("lease_drafts")
+        .select("*")
+        .eq("application_id", req.params.applicationId)
+        .order("version", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!draft) {
+        return res.status(404).json({ error: "No lease draft found" });
+      }
+
+      // Update draft status to sent
+      const { error: draftError } = await supabase
+        .from("lease_drafts")
+        .update({ status: "sent", updated_at: new Date().toISOString() })
+        .eq("id", draft.id);
+
+      if (draftError) throw draftError;
+
+      // Update application lease status and timestamps
+      const { error: appError } = await supabase
+        .from("applications")
+        .update({
+          lease_status: "lease_sent",
+          lease_sent_at: new Date().toISOString(),
+          lease_sent_by: req.user!.id,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", req.params.applicationId);
+
+      if (appError) throw appError;
+
+      // Create notification for tenant
+      await supabase
+        .from("application_notifications")
+        .insert([{
+          application_id: req.params.applicationId,
+          user_id: application.user_id,
+          notification_type: "lease_sent",
+          channel: "email",
+          subject: "Your lease is ready for review",
+          content: "The landlord has sent you a lease for review. Please review and respond.",
+          status: "pending"
+        }]);
+
+      return res.json(success({ leaseStatus: "lease_sent" }, "Lease sent to tenant successfully"));
+    } catch (err: any) {
+      console.error("[LEASE] Send error:", err);
+      return res.status(500).json(errorResponse("Failed to send lease"));
+    }
+  });
+
+  // Get lease for tenant review
+  app.get("/api/applications/:applicationId/lease", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data: application } = await supabase
+        .from("applications")
+        .select("user_id, lease_status, properties(owner_id)")
+        .eq("id", req.params.applicationId)
+        .single();
+
+      if (!application) {
+        return res.status(404).json({ error: "Application not found" });
+      }
+
+      const isTenant = application.user_id === req.user!.id;
+      const isPropertyOwner = application.properties?.owner_id === req.user!.id;
+      const isAdmin = req.user!.role === "admin";
+
+      if (!isTenant && !isPropertyOwner && !isAdmin) {
+        return res.status(403).json({ error: "Not authorized to view lease" });
+      }
+
+      const { data: draft, error } = await supabase
+        .from("lease_drafts")
+        .select("*, created_by_user:users(full_name, email)")
+        .eq("application_id", req.params.applicationId)
+        .eq("status", "sent")
+        .order("version", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (error) {
+        return res.status(404).json({ error: "No lease found" });
+      }
+
+      return res.json(success(draft, "Lease retrieved successfully"));
+    } catch (err: any) {
+      console.error("[LEASE] Get error:", err);
+      return res.status(500).json(errorResponse("Failed to retrieve lease"));
+    }
+  });
+
+  // Tenant accepts lease
+  app.post("/api/applications/:applicationId/lease/accept", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const validation = leaseAcceptSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error.errors[0].message });
+      }
+
+      const { data: application } = await supabase
+        .from("applications")
+        .select("user_id, lease_status")
+        .eq("id", req.params.applicationId)
+        .single();
+
+      if (!application) {
+        return res.status(404).json({ error: "Application not found" });
+      }
+
+      if (application.user_id !== req.user!.id) {
+        return res.status(403).json({ error: "Only tenant can accept lease" });
+      }
+
+      if (application.lease_status !== "lease_sent") {
+        return res.status(400).json({ error: "Lease not in correct state for acceptance" });
+      }
+
+      // Update application lease status
+      const updateData: any = {
+        lease_status: "lease_accepted",
+        lease_accepted_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      if (validation.data.moveInDate) {
+        updateData.move_in_date = validation.data.moveInDate;
+      }
+
+      const { error: appError } = await supabase
+        .from("applications")
+        .update(updateData)
+        .eq("id", req.params.applicationId);
+
+      if (appError) throw appError;
+
+      // Create notification for landlord
+      const { data: appData } = await supabase
+        .from("applications")
+        .select("properties(owner_id, users(id))")
+        .eq("id", req.params.applicationId)
+        .single();
+
+      if (appData?.properties?.owner_id) {
+        await supabase
+          .from("application_notifications")
+          .insert([{
+            application_id: req.params.applicationId,
+            user_id: appData.properties.owner_id,
+            notification_type: "lease_accepted",
+            channel: "email",
+            subject: "Lease has been accepted",
+            content: "The tenant has accepted the lease and is ready to move in.",
+            status: "pending"
+          }]);
+      }
+
+      return res.json(success({ leaseStatus: "lease_accepted" }, "Lease accepted successfully"));
+    } catch (err: any) {
+      console.error("[LEASE] Accept error:", err);
+      return res.status(500).json(errorResponse("Failed to accept lease"));
+    }
+  });
+
+  // Tenant declines lease
+  app.post("/api/applications/:applicationId/lease/decline", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const validation = leaseDeclineSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error.errors[0].message });
+      }
+
+      const { data: application } = await supabase
+        .from("applications")
+        .select("user_id, lease_status")
+        .eq("id", req.params.applicationId)
+        .single();
+
+      if (!application) {
+        return res.status(404).json({ error: "Application not found" });
+      }
+
+      if (application.user_id !== req.user!.id) {
+        return res.status(403).json({ error: "Only tenant can decline lease" });
+      }
+
+      if (application.lease_status !== "lease_sent") {
+        return res.status(400).json({ error: "Lease not in correct state for decline" });
+      }
+
+      // Update application lease status
+      const { error: appError } = await supabase
+        .from("applications")
+        .update({
+          lease_status: "lease_declined",
+          lease_decline_reason: validation.data.reason || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", req.params.applicationId);
+
+      if (appError) throw appError;
+
+      // Create notification for landlord
+      const { data: appData } = await supabase
+        .from("applications")
+        .select("properties(owner_id)")
+        .eq("id", req.params.applicationId)
+        .single();
+
+      if (appData?.properties?.owner_id) {
+        await supabase
+          .from("application_notifications")
+          .insert([{
+            application_id: req.params.applicationId,
+            user_id: appData.properties.owner_id,
+            notification_type: "lease_declined",
+            channel: "email",
+            subject: "Lease has been declined",
+            content: `The tenant has declined the lease. Reason: ${validation.data.reason || "Not provided"}`,
+            status: "pending"
+          }]);
+      }
+
+      return res.json(success({ leaseStatus: "lease_declined" }, "Lease declined successfully"));
+    } catch (err: any) {
+      console.error("[LEASE] Decline error:", err);
+      return res.status(500).json(errorResponse("Failed to decline lease"));
     }
   });
 
