@@ -50,8 +50,8 @@ export default function SellerDashboard() {
 
   // Fetch hooks
   const { properties, loading: propsLoading, createProperty, deleteProperty } = useOwnedProperties();
-  const { applications, loading: appsLoading, updateApplicationStatus } = usePropertyApplications();
-  const { inquiries, loading: inquiriesLoading, updateInquiryStatus } = usePropertyInquiries();
+  const { applications, loading: appsLoading, updateStatus } = usePropertyApplications();
+  const { inquiries, loading: inquiriesLoading, updateStatus: updateInquiryStatus } = usePropertyInquiries();
 
   // Redirect if not logged in
   if (!isLoggedIn || !user) {
@@ -403,9 +403,9 @@ export default function SellerDashboard() {
                   <div className="flex justify-between items-start mb-4">
                     <div>
                       <h3 className="font-bold text-lg text-foreground">
-                        Application from {app.userName || 'Applicant'}
+                        Application from Applicant
                       </h3>
-                      <p className="text-sm text-muted-foreground mt-1">{app.userEmail}</p>
+                      <p className="text-sm text-muted-foreground mt-1">applicant@example.com</p>
                     </div>
                     <Badge className={getStatusBadge(app.status)} data-testid={`badge-status-${app.status}`}>
                       {app.status.charAt(0).toUpperCase() + app.status.slice(1)}
@@ -416,13 +416,13 @@ export default function SellerDashboard() {
                     <div>
                       <p className="text-xs text-muted-foreground">Application Fee</p>
                       <p className="font-semibold text-foreground">
-                        ${(app.applicationFee || 0).toLocaleString()}
+                        ${(app.application_fee || 0).toLocaleString()}
                       </p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Submitted</p>
                       <p className="font-semibold text-foreground">
-                        {new Date(app.createdAt).toLocaleDateString()}
+                        {new Date(app.created_at).toLocaleDateString()}
                       </p>
                     </div>
                     <div>
