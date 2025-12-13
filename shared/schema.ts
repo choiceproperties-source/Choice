@@ -118,6 +118,8 @@ export const properties = pgTable("properties", {
   listedAt: timestamp("listed_at"),
   soldAt: timestamp("sold_at"),
   soldPrice: decimal("sold_price", { precision: 12, scale: 2 }),
+  scheduledPublishAt: timestamp("scheduled_publish_at"),
+  addressVerified: boolean("address_verified").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
   deletedAt: timestamp("deleted_at"),
@@ -976,3 +978,50 @@ export const insertPushSubscriptionSchema = createInsertSchema(pushSubscriptions
 
 export type InsertPushSubscription = z.infer<typeof insertPushSubscriptionSchema>;
 export type PushSubscription = typeof pushSubscriptions.$inferSelect;
+
+// Property Templates for quick listing creation
+export const propertyTemplates = pgTable("property_templates", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  description: text("description"),
+  propertyType: text("property_type"),
+  bedrooms: integer("bedrooms"),
+  bathrooms: decimal("bathrooms", { precision: 3, scale: 1 }),
+  squareFeet: integer("square_feet"),
+  amenities: jsonb("amenities").$type<string[]>(),
+  furnished: boolean("furnished").default(false),
+  petsAllowed: boolean("pets_allowed").default(false),
+  leaseTerm: text("lease_term"),
+  utilitiesIncluded: jsonb("utilities_included").$type<string[]>(),
+  defaultPrice: decimal("default_price", { precision: 12, scale: 2 }),
+  isDefault: boolean("is_default").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertPropertyTemplateSchema = createInsertSchema(propertyTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertPropertyTemplate = z.infer<typeof insertPropertyTemplateSchema>;
+export type PropertyTemplate = typeof propertyTemplates.$inferSelect;
+
+// Geocoding validation schema
+export const geocodeAddressSchema = z.object({
+  address: z.string().min(1, "Address is required"),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  zipCode: z.string().optional(),
+});
+
+export type GeocodeAddressInput = z.infer<typeof geocodeAddressSchema>;
+
+// Scheduled publishing schema  
+export const scheduledPublishSchema = z.object({
+  scheduledPublishAt: z.string().datetime().optional().nullable(),
+});
+
+export type ScheduledPublishInput = z.infer<typeof scheduledPublishSchema>;

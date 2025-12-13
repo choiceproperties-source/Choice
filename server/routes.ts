@@ -615,6 +615,234 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== PROPERTY TEMPLATES =====
+  // Get all templates for a user
+  app.get("/api/property-templates", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data, error } = await supabase
+        .from("property_templates")
+        .select("*")
+        .eq("user_id", req.user!.id)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return res.json(success(data, "Templates fetched successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to fetch templates"));
+    }
+  });
+
+  // Create a property template
+  app.post("/api/property-templates", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { name, description, templateData } = req.body;
+      
+      if (!name) {
+        return res.status(400).json(errorResponse("Template name is required"));
+      }
+
+      const { data, error } = await supabase
+        .from("property_templates")
+        .insert({
+          user_id: req.user!.id,
+          name,
+          description: description || null,
+          template_data: templateData || {}
+        })
+        .select();
+
+      if (error) throw error;
+      return res.json(success(data[0], "Template created successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to create template"));
+    }
+  });
+
+  // Update a property template
+  app.patch("/api/property-templates/:id", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      // Verify ownership
+      const { data: template, error: templateError } = await supabase
+        .from("property_templates")
+        .select("user_id")
+        .eq("id", req.params.id)
+        .single();
+
+      if (templateError || !template) {
+        return res.status(404).json(errorResponse("Template not found"));
+      }
+
+      if (template.user_id !== req.user!.id && req.user!.role !== "admin") {
+        return res.status(403).json(errorResponse("Not authorized to edit this template"));
+      }
+
+      const { name, description, templateData } = req.body;
+      const updateData: any = { updated_at: new Date().toISOString() };
+      if (name !== undefined) updateData.name = name;
+      if (description !== undefined) updateData.description = description;
+      if (templateData !== undefined) updateData.template_data = templateData;
+
+      const { data, error } = await supabase
+        .from("property_templates")
+        .update(updateData)
+        .eq("id", req.params.id)
+        .select();
+
+      if (error) throw error;
+      return res.json(success(data[0], "Template updated successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to update template"));
+    }
+  });
+
+  // Delete a property template
+  app.delete("/api/property-templates/:id", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      // Verify ownership
+      const { data: template, error: templateError } = await supabase
+        .from("property_templates")
+        .select("user_id")
+        .eq("id", req.params.id)
+        .single();
+
+      if (templateError || !template) {
+        return res.status(404).json(errorResponse("Template not found"));
+      }
+
+      if (template.user_id !== req.user!.id && req.user!.role !== "admin") {
+        return res.status(403).json(errorResponse("Not authorized to delete this template"));
+      }
+
+      const { error } = await supabase
+        .from("property_templates")
+        .delete()
+        .eq("id", req.params.id);
+
+      if (error) throw error;
+      return res.json(success(null, "Template deleted successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to delete template"));
+    }
+  });
+
+  // ===== ADDRESS VERIFICATION (GEOCODING) =====
+  // Geocode an address using OpenStreetMap Nominatim API
+  app.post("/api/geocode", async (req, res) => {
+    try {
+      const { address, city, state, zipCode } = req.body;
+      
+      if (!address) {
+        return res.status(400).json(errorResponse("Address is required"));
+      }
+
+      const fullAddress = [address, city, state, zipCode].filter(Boolean).join(", ");
+      
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullAddress)}&limit=1`,
+        {
+          headers: {
+            'User-Agent': 'ChoiceProperties/1.0'
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to geocode address");
+      }
+
+      const results = await response.json();
+      
+      if (!results || results.length === 0) {
+        return res.json(success({
+          verified: false,
+          message: "Address could not be verified"
+        }, "Address verification complete"));
+      }
+
+      const result = results[0];
+      return res.json(success({
+        verified: true,
+        latitude: parseFloat(result.lat),
+        longitude: parseFloat(result.lon),
+        displayName: result.display_name,
+        message: "Address verified successfully"
+      }, "Address verified successfully"));
+    } catch (err: any) {
+      console.error("Geocoding error:", err);
+      return res.status(500).json(errorResponse("Failed to verify address"));
+    }
+  });
+
+  // Update property with verified address
+  app.patch("/api/properties/:id/verify-address", authenticateToken, requireOwnership("property"), async (req: AuthenticatedRequest, res) => {
+    try {
+      const { latitude, longitude, addressVerified } = req.body;
+      
+      const updateData: any = { 
+        address_verified: addressVerified ?? true,
+        updated_at: new Date().toISOString() 
+      };
+      
+      if (latitude !== undefined) updateData.latitude = latitude;
+      if (longitude !== undefined) updateData.longitude = longitude;
+
+      const { data, error } = await supabase
+        .from("properties")
+        .update(updateData)
+        .eq("id", req.params.id)
+        .select();
+
+      if (error) throw error;
+      
+      cache.invalidate(`property:${req.params.id}`);
+      
+      return res.json(success(data[0], "Address verified successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to verify address"));
+    }
+  });
+
+  // ===== SCHEDULED PUBLISHING =====
+  // Schedule a property for future publishing
+  app.patch("/api/properties/:id/schedule-publish", authenticateToken, requireOwnership("property"), async (req: AuthenticatedRequest, res) => {
+    try {
+      const { scheduledPublishAt } = req.body;
+      
+      const updateData: any = { 
+        updated_at: new Date().toISOString() 
+      };
+
+      if (scheduledPublishAt) {
+        const scheduledDate = new Date(scheduledPublishAt);
+        if (scheduledDate <= new Date()) {
+          return res.status(400).json(errorResponse("Scheduled date must be in the future"));
+        }
+        updateData.scheduled_publish_at = scheduledDate.toISOString();
+        updateData.listing_status = "coming_soon";
+      } else {
+        // Clear scheduled publish
+        updateData.scheduled_publish_at = null;
+      }
+
+      const { data, error } = await supabase
+        .from("properties")
+        .update(updateData)
+        .eq("id", req.params.id)
+        .select();
+
+      if (error) throw error;
+      
+      cache.invalidate(`property:${req.params.id}`);
+      cache.invalidate("properties:");
+      
+      return res.json(success(data[0], scheduledPublishAt 
+        ? "Property scheduled for publishing" 
+        : "Scheduled publish cleared"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to schedule publish"));
+    }
+  });
+
   // ===== APPLICATIONS =====
   // Mock payment processing endpoint
   app.post("/api/payments/process", authenticateToken, async (req: AuthenticatedRequest, res) => {

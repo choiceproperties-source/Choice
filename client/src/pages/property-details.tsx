@@ -7,12 +7,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import type { Property, Review, Owner } from "@/lib/types";
 import { formatPrice, parseDecimal } from "@/lib/types";
+import { useAuth } from "@/lib/auth-context";
+import { PropertyManagement } from "@/components/property-management";
 import { 
   Share2, Heart, Mail, Phone, Star, MapPin, Bed, Bath, Maximize, 
   Calendar, Home, PawPrint, Sofa, ChevronDown, ChevronUp, X,
-  ChevronLeft, ChevronRight, Grid3X3, Building2
+  ChevronLeft, ChevronRight, Grid3X3, Building2, Settings
 } from "lucide-react";
 import { useFavorites } from "@/hooks/use-favorites";
 import { useNearbyPlaces } from "@/hooks/use-nearby-places";
@@ -40,6 +43,7 @@ const imageMap: Record<string, string> = {
 export default function PropertyDetails() {
   const [match, params] = useRoute("/property/:id");
   const id = params?.id;
+  const { user } = useAuth();
   const { isFavorited, toggleFavorite } = useFavorites();
   const [showFullGallery, setShowFullGallery] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -48,6 +52,7 @@ export default function PropertyDetails() {
     facts: true,
     amenities: false,
     location: false,
+    management: false,
   });
 
   const { data: propertyData, isLoading } = useQuery<{ property: Property; owner: Owner | null }>({
@@ -496,6 +501,33 @@ export default function PropertyDetails() {
                 </div>
               )}
             </div>
+
+            {/* Property Management Section - Only visible to owners/agents */}
+            {user && (user.id === (property.owner_id || property.ownerId) || user.id === (property.listing_agent_id || property.listingAgentId) || user.role === 'admin') && (
+              <div className="border-t pt-6">
+                <button
+                  onClick={() => toggleSection('management')}
+                  className="flex items-center justify-between w-full text-left"
+                  data-testid="section-management-toggle"
+                >
+                  <div className="flex items-center gap-2">
+                    <Settings className="h-5 w-5 text-primary" />
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">Property Management</h2>
+                  </div>
+                  {expandedSections.management ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+                </button>
+                {expandedSections.management && (
+                  <div className="mt-4">
+                    <PropertyManagement 
+                      property={property as any} 
+                      onUpdate={() => {
+                        // Refetch property data after updates
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Right Column - Contact Sidebar */}
