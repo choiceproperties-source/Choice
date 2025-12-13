@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Bed, Bath, Maximize, Heart, CheckCircle2, Share2 } from "lucide-react";
+import { Bed, Bath, Maximize, Heart, CheckCircle2, Share2, Image as ImageIcon } from "lucide-react";
 import type { Property } from "@/lib/types";
 import placeholderExterior from "@assets/generated_images/modern_luxury_home_exterior_with_blue_sky.png";
 import placeholderLiving from "@assets/generated_images/bright_modern_living_room_interior.png";
@@ -17,16 +17,63 @@ const imageMap: Record<string, string> = {
   "placeholder-bedroom": placeholderBedroom,
 };
 
+interface PropertyPhoto {
+  id: string;
+  category: string;
+  isPrivate: boolean;
+  imageUrls: {
+    thumbnail: string;
+    gallery: string;
+    original: string;
+  };
+}
+
 interface PropertyCardProps {
   property: Property;
   onQuickView?: (property: Property) => void;
 }
 
 export function PropertyCard({ property, onQuickView }: PropertyCardProps) {
-  const mainImage = property.images?.[0] ? (imageMap[property.images[0]] || placeholderExterior) : placeholderExterior;
+  const [primaryPhoto, setPrimaryPhoto] = useState<PropertyPhoto | null>(null);
+  const [photoCount, setPhotoCount] = useState(0);
+  const [isLoadingPhotos, setIsLoadingPhotos] = useState(true);
+  const fallbackImage = property.images?.[0] ? (imageMap[property.images[0]] || placeholderExterior) : placeholderExterior;
+  const mainImage = primaryPhoto?.imageUrls.thumbnail || fallbackImage;
   const [isFavorited, setIsFavorited] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+
+  useEffect(() => {
+    // Fetch primary photo from property
+    const fetchPhotos = async () => {
+      try {
+        const response = await fetch(`/api/images/property/${property.id}`);
+        if (response.ok) {
+          const result = await response.json();
+          const photos = result.data || [];
+          setPhotoCount(photos.length);
+          
+          // Find primary photo (orderIndex = 0, or first photo)
+          const primary = photos[0] || null;
+          if (primary) {
+            setPrimaryPhoto(primary);
+          }
+        } else {
+          // API not available or photos table doesn't exist yet
+          // Gracefully fallback to placeholder
+          setPhotoCount(0);
+        }
+      } catch (err) {
+        // Network error or API failure - use fallback
+        console.log("Photos API not available, using placeholder image");
+        setPhotoCount(0);
+      } finally {
+        setIsLoadingPhotos(false);
+      }
+    };
+
+    fetchPhotos();
+  }, [property.id]);
 
   useEffect(() => {
     const favorites = JSON.parse(localStorage.getItem("choiceProperties_favorites") || "[]") as string[];
@@ -93,6 +140,12 @@ export function PropertyCard({ property, onQuickView }: PropertyCardProps) {
           <Badge className="bg-white/90 dark:bg-card text-primary font-bold text-xs uppercase tracking-wider shadow-sm" data-testid="badge-property-type">
             {property.property_type || 'Property'}
           </Badge>
+          {photoCount > 0 && (
+            <Badge className="bg-blue-500/90 text-white font-bold text-xs flex items-center gap-1 shadow-md" data-testid="badge-photo-count">
+              <ImageIcon className="h-3 w-3" />
+              {photoCount}
+            </Badge>
+          )}
         </div>
 
         {/* Action buttons with enhanced visibility */}

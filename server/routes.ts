@@ -6832,8 +6832,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { data: photos, error } = await supabase
         .from("photos")
-        .select("id, imagekit_file_id, thumbnail_url, category, created_at, is_private, uploader_id, property_id")
+        .select("id, imagekit_file_id, thumbnail_url, category, created_at, is_private, uploader_id, property_id, order_index")
         .eq("property_id", req.params.propertyId)
+        .order("order_index", { ascending: true })
         .order("created_at", { ascending: false });
 
       if (error) throw error;
