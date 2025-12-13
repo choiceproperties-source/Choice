@@ -1155,6 +1155,242 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== DRAFT AUTO-SAVE ENDPOINT =====
+  // Save draft application data (auto-save) - only for draft status applications
+  app.patch("/api/applications/:id/draft", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { step, personalInfo, rentalHistory, employment, references, disclosures, documents, customAnswers } = req.body;
+
+      // Get current application and verify ownership
+      const { data: application, error: fetchError } = await supabase
+        .from("applications")
+        .select("user_id, status")
+        .eq("id", req.params.id)
+        .single();
+
+      if (fetchError || !application) {
+        return res.status(404).json(errorResponse("Application not found"));
+      }
+
+      // Only the applicant can save their draft
+      if (application.user_id !== req.user!.id) {
+        return res.status(403).json({ error: "Not authorized to edit this application" });
+      }
+
+      // Only allow saving drafts for applications in draft status
+      if (application.status !== "draft") {
+        return res.status(400).json({ error: "Cannot modify a submitted application. Only draft applications can be edited." });
+      }
+
+      // Build update object with only provided fields
+      const updateData: any = { updated_at: new Date().toISOString() };
+      
+      if (step !== undefined) {
+        updateData.step = step;
+        updateData.last_saved_step = step;
+      }
+      if (personalInfo !== undefined) updateData.personal_info = personalInfo;
+      if (rentalHistory !== undefined) updateData.rental_history = rentalHistory;
+      if (employment !== undefined) updateData.employment = employment;
+      if (references !== undefined) updateData.references = references;
+      if (disclosures !== undefined) updateData.disclosures = disclosures;
+      if (documents !== undefined) updateData.documents = documents;
+      if (customAnswers !== undefined) updateData.custom_answers = customAnswers;
+
+      const { data, error } = await supabase
+        .from("applications")
+        .update(updateData)
+        .eq("id", req.params.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return res.json(success(data, "Draft saved successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to save draft"));
+    }
+  });
+
+  // Create or get draft application for a property
+  app.post("/api/applications/:propertyId/draft", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const propertyId = req.params.propertyId;
+
+      // Check if user already has an application for this property
+      const { data: existing, error: checkError } = await supabase
+        .from("applications")
+        .select("*")
+        .eq("user_id", req.user!.id)
+        .eq("property_id", propertyId)
+        .single();
+      
+      if (existing) {
+        // Return existing application
+        return res.json(success(existing, "Existing application found"));
+      }
+
+      // Create new draft application
+      const { data, error } = await supabase
+        .from("applications")
+        .insert([{
+          property_id: propertyId,
+          user_id: req.user!.id,
+          status: "draft",
+          step: 0,
+          last_saved_step: 0
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+      return res.json(success(data, "Draft application created"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to create draft application"));
+    }
+  });
+
+  // ===== PROPERTY CUSTOM QUESTIONS =====
+  // Get custom questions for a property (public - for application form)
+  app.get("/api/properties/:propertyId/questions", async (req, res) => {
+    try {
+      const { data, error } = await supabase
+        .from("property_questions")
+        .select("*")
+        .eq("property_id", req.params.propertyId)
+        .eq("is_active", true)
+        .order("display_order", { ascending: true });
+
+      if (error) throw error;
+      return res.json(success(data || [], "Property questions fetched successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to fetch property questions"));
+    }
+  });
+
+  // Get all questions for a property (including inactive - for property owner management)
+  app.get("/api/properties/:propertyId/questions/all", authenticateToken, requireOwnership("property"), async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data, error } = await supabase
+        .from("property_questions")
+        .select("*")
+        .eq("property_id", req.params.propertyId)
+        .order("display_order", { ascending: true });
+
+      if (error) throw error;
+      return res.json(success(data || [], "All property questions fetched successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to fetch property questions"));
+    }
+  });
+
+  // Create a custom question for a property
+  app.post("/api/properties/:propertyId/questions", authenticateToken, requireOwnership("property"), async (req: AuthenticatedRequest, res) => {
+    try {
+      const { question, questionType = "text", options, required = false, displayOrder = 0 } = req.body;
+
+      if (!question || question.trim() === "") {
+        return res.status(400).json(errorResponse("Question text is required"));
+      }
+
+      const { data, error } = await supabase
+        .from("property_questions")
+        .insert([{
+          property_id: req.params.propertyId,
+          question: question.trim(),
+          question_type: questionType,
+          options: options || null,
+          required,
+          display_order: displayOrder,
+          is_active: true
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+      return res.json(success(data, "Question created successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to create question"));
+    }
+  });
+
+  // Update a custom question
+  app.patch("/api/properties/:propertyId/questions/:questionId", authenticateToken, requireOwnership("property"), async (req: AuthenticatedRequest, res) => {
+    try {
+      const { question, questionType, options, required, displayOrder, isActive } = req.body;
+
+      const updateData: any = { updated_at: new Date().toISOString() };
+      if (question !== undefined) updateData.question = question.trim();
+      if (questionType !== undefined) updateData.question_type = questionType;
+      if (options !== undefined) updateData.options = options;
+      if (required !== undefined) updateData.required = required;
+      if (displayOrder !== undefined) updateData.display_order = displayOrder;
+      if (isActive !== undefined) updateData.is_active = isActive;
+
+      const { data, error } = await supabase
+        .from("property_questions")
+        .update(updateData)
+        .eq("id", req.params.questionId)
+        .eq("property_id", req.params.propertyId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return res.json(success(data, "Question updated successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to update question"));
+    }
+  });
+
+  // Delete a custom question
+  app.delete("/api/properties/:propertyId/questions/:questionId", authenticateToken, requireOwnership("property"), async (req: AuthenticatedRequest, res) => {
+    try {
+      const { error } = await supabase
+        .from("property_questions")
+        .delete()
+        .eq("id", req.params.questionId)
+        .eq("property_id", req.params.propertyId);
+
+      if (error) throw error;
+      return res.json(success(null, "Question deleted successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to delete question"));
+    }
+  });
+
+  // Reorder questions for a property
+  app.patch("/api/properties/:propertyId/questions/reorder", authenticateToken, requireOwnership("property"), async (req: AuthenticatedRequest, res) => {
+    try {
+      const { questionIds } = req.body; // Array of question IDs in new order
+
+      if (!Array.isArray(questionIds)) {
+        return res.status(400).json(errorResponse("questionIds must be an array"));
+      }
+
+      // Update display_order for each question
+      const updates = questionIds.map((id: string, index: number) => 
+        supabase
+          .from("property_questions")
+          .update({ display_order: index, updated_at: new Date().toISOString() })
+          .eq("id", id)
+          .eq("property_id", req.params.propertyId)
+      );
+
+      await Promise.all(updates);
+
+      // Fetch updated questions
+      const { data, error } = await supabase
+        .from("property_questions")
+        .select("*")
+        .eq("property_id", req.params.propertyId)
+        .order("display_order", { ascending: true });
+
+      if (error) throw error;
+      return res.json(success(data, "Questions reordered successfully"));
+    } catch (err: any) {
+      return res.status(500).json(errorResponse("Failed to reorder questions"));
+    }
+  });
+
   // Get application with full details (co-applicants, comments, notifications)
   app.get("/api/applications/:id/full", authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
