@@ -2642,7 +2642,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { data: application } = await supabase
         .from("applications")
-        .select("properties(owner_id)")
+        .select("properties(owner_id), lease_status")
         .eq("id", req.params.applicationId)
         .single();
 
@@ -2655,6 +2655,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!isPropertyOwner && !isAdmin) {
         return res.status(403).json({ error: "Only landlord/agent can edit lease drafts" });
+      }
+
+      // Prevent edits after lease acceptance
+      if (application.lease_status === "lease_accepted") {
+        return res.status(400).json({ error: "Cannot edit accepted lease" });
       }
 
       // Get current draft
@@ -2913,7 +2918,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create notification for landlord
       const { data: appData } = await supabase
         .from("applications")
-        .select("properties(owner_id, users(id))")
+        .select("properties(owner_id, users(id)), conversation_id")
         .eq("id", req.params.applicationId)
         .single();
 
@@ -2928,6 +2933,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
             subject: "Lease has been accepted",
             content: "The tenant has accepted the lease and is ready to move in.",
             status: "pending"
+          }]);
+      }
+
+      // Create system message in conversation
+      if (appData?.conversation_id) {
+        await supabase
+          .from("messages")
+          .insert([{
+            conversation_id: appData.conversation_id,
+            sender_id: req.user!.id,
+            content: "Lease accepted by tenant.",
+            message_type: "system"
           }]);
       }
 
