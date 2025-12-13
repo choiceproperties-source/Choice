@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { X, ChevronLeft, ChevronRight, Maximize2, ImageOff, Upload, Trash2, GripVertical } from "lucide-react";
 import { getThumbnailUrl, getGalleryThumbUrl, getMainImageUrl, getFullscreenImageUrl } from "@/lib/imagekit";
 import { getFallbackImageUrl } from "@/lib/gallery-placeholder";
+import { ImageSkeleton } from "@/components/image-skeleton";
 import { useToast } from "@/hooks/use-toast";
 
 interface PhotoGalleryProps {
@@ -144,29 +145,32 @@ export function PhotoGallery({ images, title, propertyId, canEdit = false, onIma
     if (isRightSwipe) prevImage();
   };
 
+  const isImageLoading = imageStates[currentImageIndex] === 'loading';
+  const isImageError = imageStates[currentImageIndex] === 'error';
+
   return (
     <>
       {/* Fullscreen Modal */}
       {isFullscreen && (
         <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-sm flex flex-col" style={{ touchAction: 'none' }}>
-          {/* Sticky Header - Optimized for Mobile */}
-          <div className="sticky top-0 flex justify-between items-center p-2 md:p-4 border-b border-white/10 bg-black/80 backdrop-blur-sm z-20">
-            <span className="text-white text-xs md:text-lg font-semibold select-none">
+          {/* Sticky Header - Fixed Height to Prevent Shift */}
+          <div className="sticky top-0 h-16 md:h-14 flex justify-between items-center px-2 md:px-4 border-b border-white/10 bg-black/80 backdrop-blur-sm z-20 flex-shrink-0">
+            <span className="text-white text-sm md:text-base font-semibold select-none">
               {currentImageIndex + 1} / {validImages.length}
             </span>
             <Button
               variant="ghost"
               size="icon"
-              className="text-white hover:bg-white/20 h-10 w-10 md:h-9 md:w-9 flex-shrink-0 md:size-9"
+              className="text-white hover:bg-white/20"
               onClick={() => setIsFullscreen(false)}
               data-testid="button-close-fullscreen"
               aria-label="Close gallery"
             >
-              <X className="h-6 w-6" />
+              <X className="h-5 w-5 md:h-6 md:w-6" />
             </Button>
           </div>
 
-          {/* Main Image - Full swipe area */}
+          {/* Main Image - Full swipe area with Fixed Dimensions */}
           <div
             className="flex-1 flex items-center justify-center relative overflow-hidden w-full"
             onTouchStart={onTouchStart}
@@ -175,73 +179,79 @@ export function PhotoGallery({ images, title, propertyId, canEdit = false, onIma
             style={{ WebkitUserSelect: 'none', userSelect: 'none', WebkitTouchCallout: 'none' }}
             data-testid="gallery-swipe-area"
           >
-            {/* Previous Button - Larger on Mobile */}
+            {/* Previous Button */}
             <Button
               variant="ghost"
               size="icon"
-              className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 h-14 w-14 md:h-12 md:w-12 z-10 transition-all hidden md:flex"
+              className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 h-12 w-12 z-10 hidden md:flex transition-colors duration-250"
               onClick={prevImage}
               data-testid="button-prev-fullscreen"
               aria-label="Previous image"
             >
-              <ChevronLeft className="h-8 w-8" />
+              <ChevronLeft className="h-7 w-7 md:h-8 md:w-8" />
             </Button>
 
-            {/* Image - Prevent zoom */}
-            <img
-              key={currentImageIndex}
-              src={imageStates[currentImageIndex] === 'error' ? getFallbackImageUrl() : getFullscreenImageUrl(mainImage)}
-              srcSet={imageStates[currentImageIndex] === 'error' ? undefined : `${getFullscreenImageUrl(mainImage)} 1920w`}
-              alt={`${title} - Photo ${currentImageIndex + 1}`}
-              loading="eager"
-              decoding="async"
-              onLoad={() => handleImageLoad(currentImageIndex)}
-              onError={() => handleImageError(currentImageIndex)}
-              onDoubleClick={(e) => e.preventDefault()}
-              className="max-h-[calc(100vh-80px)] max-w-[95vw] md:max-w-[90vw] object-contain select-none animate-in fade-in duration-300"
-              style={{ WebkitUserSelect: 'none', touchAction: 'manipulation' }}
-              draggable={false}
-            />
+            {/* Image Container with Fixed Aspect */}
+            <div className="relative w-full h-full flex items-center justify-center">
+              {isImageLoading && !isImageError && (
+                <ImageSkeleton width="100%" height="100%" className="absolute" />
+              )}
+              <img
+                key={currentImageIndex}
+                src={isImageError ? getFallbackImageUrl() : getFullscreenImageUrl(mainImage)}
+                alt={`${title} - Photo ${currentImageIndex + 1}`}
+                loading="eager"
+                decoding="async"
+                onLoad={() => handleImageLoad(currentImageIndex)}
+                onError={() => handleImageError(currentImageIndex)}
+                onDoubleClick={(e) => e.preventDefault()}
+                className={`max-h-[calc(100vh-56px)] md:max-h-[calc(100vh-56px)] max-w-[95vw] md:max-w-[90vw] object-contain select-none transition-opacity duration-250 ${
+                  isImageLoading ? 'opacity-0' : 'opacity-100 animate-in fade-in'
+                }`}
+                style={{ WebkitUserSelect: 'none', touchAction: 'manipulation' }}
+                draggable={false}
+              />
+            </div>
 
             {/* Action Buttons for Editors */}
             {canEdit && (
-              <div className="absolute top-12 right-2 md:top-16 md:right-4 flex gap-2 z-20">
+              <div className="absolute top-14 md:top-16 right-2 md:right-4 flex gap-2 z-20">
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="bg-red-500/80 hover:bg-red-600 text-white h-9 w-9 md:h-10 md:w-10"
+                  className="bg-red-500/80 hover:bg-red-600 text-white h-9 w-9 transition-colors duration-250"
                   onClick={() => handleDeleteImage(currentImageIndex)}
                   disabled={isDeleting}
                   data-testid="button-delete-photo"
                   aria-label="Delete photo"
                 >
-                  <Trash2 className="h-4 w-4 md:h-5 md:w-5" />
+                  <Trash2 className="h-5 w-5" />
                 </Button>
               </div>
             )}
 
-            {/* Next Button - Larger on Mobile */}
+            {/* Next Button */}
             <Button
               variant="ghost"
               size="icon"
-              className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 h-14 w-14 md:h-12 md:w-12 z-10 transition-all hidden md:flex"
+              className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 h-12 w-12 z-10 hidden md:flex transition-colors duration-250"
               onClick={nextImage}
               data-testid="button-next-fullscreen"
               aria-label="Next image"
             >
-              <ChevronRight className="h-8 w-8" />
+              <ChevronRight className="h-7 w-7 md:h-8 md:w-8" />
             </Button>
           </div>
 
-          {/* Thumbnails */}
-          <div className="flex gap-2 p-4 overflow-x-auto bg-black/50 border-t border-white/10 scrollbar-hide">
+          {/* Thumbnails - Fixed Height */}
+          <div className="h-20 flex gap-2 px-4 py-3 overflow-x-auto bg-black/50 border-t border-white/10 scrollbar-hide flex-shrink-0">
             {validImages.map((img, idx) => (
               <button
                 key={idx}
                 onClick={() => setCurrentImageIndex(idx)}
-                className={`flex-shrink-0 transition-all duration-200 rounded-md overflow-hidden ${
+                className={`flex-shrink-0 w-16 h-16 rounded-md overflow-hidden transition-all duration-250 ${
                   idx === currentImageIndex
-                    ? "ring-2 ring-white scale-105"
+                    ? "ring-2 ring-white ring-offset-2 ring-offset-black/50"
                     : "opacity-60 hover:opacity-100"
                 }`}
                 data-testid={`thumbnail-fullscreen-${idx}`}
@@ -252,7 +262,7 @@ export function PhotoGallery({ images, title, propertyId, canEdit = false, onIma
                   loading="lazy"
                   decoding="async"
                   onError={() => handleImageError(idx)}
-                  className="w-20 h-16 object-cover"
+                  className="w-full h-full object-cover"
                 />
               </button>
             ))}
@@ -264,26 +274,29 @@ export function PhotoGallery({ images, title, propertyId, canEdit = false, onIma
       <div className="w-full bg-background">
         {/* Desktop Grid Layout */}
         <div className="hidden md:grid grid-cols-4 gap-3 rounded-lg overflow-hidden mb-4">
-          {/* Main Large Image - 2 columns */}
+          {/* Main Large Image - 2 columns - Fixed Aspect Ratio */}
           <div
-            className="col-span-2 row-span-2 relative group cursor-pointer overflow-hidden rounded-lg bg-muted"
+            className="col-span-2 row-span-2 relative group cursor-pointer overflow-hidden rounded-lg bg-muted aspect-square"
             onClick={() => setIsFullscreen(true)}
             data-testid="gallery-main-image"
           >
+            {imageStates[0] === 'loading' && (
+              <ImageSkeleton width="100%" height="100%" className="absolute inset-0" />
+            )}
             <img
               src={imageStates[0] === 'error' ? getFallbackImageUrl() : getGalleryThumbUrl(validImages[0])}
               alt={`${title} - Main`}
               loading="lazy"
               decoding="async"
               onError={() => handleImageError(0)}
-              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+              className="w-full h-full object-cover transition-all duration-250 group-hover:brightness-110"
             />
-            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-250" />
             {canEdit && (
               <Button
                 variant="ghost"
                 size="icon"
-                className="absolute top-2 right-2 bg-red-500/80 hover:bg-red-600 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute top-2 right-2 bg-red-500/80 hover:bg-red-600 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-250"
                 onClick={(e) => {
                   e.stopPropagation();
                   handleDeleteImage(0);
@@ -294,13 +307,13 @@ export function PhotoGallery({ images, title, propertyId, canEdit = false, onIma
                 <Trash2 className="h-4 w-4" />
               </Button>
             )}
-            <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-sm text-white px-3 py-1.5 rounded-md text-sm font-semibold flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+            <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-sm text-white px-3 py-1.5 rounded-md text-sm font-semibold flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-250">
               <Maximize2 className="h-4 w-4" />
               {validImages.length} Photos
             </div>
           </div>
 
-          {/* Thumbnail Grid - 2 columns */}
+          {/* Thumbnail Grid - Fixed Heights */}
           {validImages.slice(1, 5).map((img, idx) => (
             <div
               key={idx + 1}
@@ -311,20 +324,23 @@ export function PhotoGallery({ images, title, propertyId, canEdit = false, onIma
               }}
               data-testid={`gallery-thumbnail-${idx + 1}`}
             >
+              {imageStates[idx + 1] === 'loading' && (
+                <ImageSkeleton width="100%" height="100%" className="absolute inset-0" />
+              )}
               <img
                 src={imageStates[idx + 1] === 'error' ? getFallbackImageUrl() : getGalleryThumbUrl(img)}
                 alt={`${title} - Photo ${idx + 2}`}
                 loading="lazy"
                 decoding="async"
                 onError={() => handleImageError(idx + 1)}
-                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                className="w-full h-full object-cover transition-all duration-250 group-hover:brightness-110"
               />
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-250" />
               {canEdit && (
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="absolute top-1 right-1 bg-red-500/80 hover:bg-red-600 text-white opacity-0 group-hover:opacity-100 transition-opacity h-7 w-7"
+                  className="absolute top-1 right-1 bg-red-500/80 hover:bg-red-600 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-250 h-7 w-7"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleDeleteImage(idx + 1);
@@ -336,7 +352,7 @@ export function PhotoGallery({ images, title, propertyId, canEdit = false, onIma
                 </Button>
               )}
               {idx === 3 && validImages.length > 5 && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/60 group-hover:bg-black/70 transition-colors duration-300">
+                <div className="absolute inset-0 flex items-center justify-center bg-black/60 group-hover:bg-black/70 transition-colors duration-250">
                   <span className="text-white font-bold text-lg">
                     +{validImages.length - 5}
                   </span>
@@ -346,7 +362,7 @@ export function PhotoGallery({ images, title, propertyId, canEdit = false, onIma
           ))}
         </div>
 
-        {/* Mobile Carousel - Optimized for one-hand use */}
+        {/* Mobile Carousel - Fixed Height to Prevent Shift */}
         <div className="md:hidden relative group rounded-lg overflow-hidden mb-4">
           <div
             className="relative h-96 bg-muted w-full"
@@ -356,31 +372,37 @@ export function PhotoGallery({ images, title, propertyId, canEdit = false, onIma
             style={{ touchAction: 'manipulation' }}
             data-testid="mobile-carousel-swipe"
           >
+            {isImageLoading && !isImageError && (
+              <ImageSkeleton width="100%" height="100%" className="absolute inset-0" />
+            )}
+            
             {/* Image - Prevent zoom */}
             <img
               key={currentImageIndex}
-              src={imageStates[currentImageIndex] === 'error' ? getFallbackImageUrl() : getMainImageUrl(mainImage)}
+              src={isImageError ? getFallbackImageUrl() : getMainImageUrl(mainImage)}
               alt={`${title} - Photo ${currentImageIndex + 1}`}
               loading="eager"
               decoding="async"
               onLoad={() => handleImageLoad(currentImageIndex)}
               onError={() => handleImageError(currentImageIndex)}
               onDoubleClick={(e) => e.preventDefault()}
-              className="w-full h-full object-cover animate-in fade-in duration-300"
+              className={`w-full h-full object-cover transition-opacity duration-250 ${
+                isImageLoading ? 'opacity-0' : 'opacity-100 animate-in fade-in'
+              }`}
               style={{ WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
               draggable={false}
             />
 
             {/* Overlay Controls */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-250" />
 
-            {/* Navigation Buttons - Larger touch targets */}
+            {/* Navigation Buttons - Fixed Size */}
             {validImages.length > 1 && (
               <>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="absolute left-2 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 h-12 w-12"
+                  className="absolute left-2 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 h-12 w-12 transition-colors duration-250"
                   onClick={prevImage}
                   data-testid="button-prev-mobile"
                   aria-label="Previous image"
@@ -390,7 +412,7 @@ export function PhotoGallery({ images, title, propertyId, canEdit = false, onIma
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 h-12 w-12"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 h-12 w-12 transition-colors duration-250"
                   onClick={nextImage}
                   data-testid="button-next-mobile"
                   aria-label="Next image"
@@ -400,32 +422,32 @@ export function PhotoGallery({ images, title, propertyId, canEdit = false, onIma
               </>
             )}
 
-            {/* Image Counter & Fullscreen */}
-            <div className="absolute bottom-3 left-3 right-3 flex justify-between items-center">
-              <span className="bg-black/70 backdrop-blur-sm text-white px-3 py-1.5 rounded-md text-sm font-semibold">
+            {/* Image Counter & Fullscreen - Fixed Size */}
+            <div className="absolute bottom-3 left-3 right-3 flex justify-between items-center gap-2">
+              <span className="bg-black/70 backdrop-blur-sm text-white px-3 py-1.5 rounded-md text-sm font-semibold flex-shrink-0">
                 {currentImageIndex + 1}/{validImages.length}
               </span>
               <Button
                 variant="ghost"
                 size="icon"
-                className="bg-black/70 hover:bg-black/90 text-white"
+                className="bg-black/70 hover:bg-black/90 text-white flex-shrink-0 h-10 w-10 transition-colors duration-250"
                 onClick={() => setIsFullscreen(true)}
                 data-testid="button-fullscreen-mobile"
               >
-                <Maximize2 className="h-4 w-4" />
+                <Maximize2 className="h-5 w-5" />
               </Button>
             </div>
           </div>
 
-          {/* Mobile Thumbnail Indicators */}
-          <div className="flex gap-1 p-3 bg-muted/50 overflow-x-auto scrollbar-hide">
+          {/* Mobile Thumbnail Indicators - Fixed Height */}
+          <div className="h-16 flex gap-1 p-2 bg-muted/50 overflow-x-auto scrollbar-hide">
             {validImages.map((img, idx) => (
               <button
                 key={idx}
                 onClick={() => setCurrentImageIndex(idx)}
-                className={`flex-shrink-0 h-12 w-12 rounded transition-all duration-200 overflow-hidden ${
+                className={`flex-shrink-0 h-12 w-12 rounded transition-all duration-250 overflow-hidden ${
                   idx === currentImageIndex
-                    ? "ring-2 ring-primary"
+                    ? "ring-2 ring-primary ring-offset-1"
                     : "opacity-50 hover:opacity-75"
                 }`}
                 data-testid={`mobile-thumbnail-${idx}`}
