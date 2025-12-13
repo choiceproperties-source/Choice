@@ -47,6 +47,8 @@ import {
   leaseCounstersignSchema,
   moveInPrepareSchema,
   moveInChecklistUpdateSchema,
+  insertPhotoSchema,
+  PHOTO_CATEGORIES,
 } from "@shared/schema";
 import { authLimiter, signupLimiter, inquiryLimiter, newsletterLimiter } from "./rate-limit";
 import { cache, CACHE_TTL } from "./cache";
@@ -6657,6 +6659,130 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (err: any) {
       console.error("[IMAGEKIT] Upload token error:", err);
       return res.status(500).json(errorResponse("Failed to generate upload token"));
+    }
+  });
+
+  // Save photo metadata to database
+  app.post("/api/photos", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const validation = insertPhotoSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error.errors[0].message });
+      }
+
+      const { imageKitFileId, url, thumbnailUrl, category, propertyId, maintenanceRequestId, metadata } = validation.data;
+
+      // Validate category
+      if (!PHOTO_CATEGORIES.includes(category as any)) {
+        return res.status(400).json({ error: "Invalid photo category" });
+      }
+
+      // If propertyId provided, verify property exists and user has access
+      if (propertyId) {
+        const { data: property, error: propError } = await supabase
+          .from("properties")
+          .select("owner_id, listing_agent_id")
+          .eq("id", propertyId)
+          .single();
+
+        if (propError || !property) {
+          return res.status(404).json({ error: "Property not found" });
+        }
+
+        // Verify user has access to property (owner, agent, or admin)
+        const hasAccess = 
+          property.owner_id === req.user!.id ||
+          property.listing_agent_id === req.user!.id ||
+          req.user!.role === "admin" ||
+          req.user!.role === "property_manager";
+
+        if (!hasAccess) {
+          await logSecurityEvent(
+            req.user!.id,
+            "unauthorized_access",
+            false,
+            { reason: "Unauthorized photo upload for property", propertyId },
+            req
+          );
+          return res.status(403).json({ error: "You do not have access to this property" });
+        }
+      }
+
+      // If maintenanceRequestId provided, validate it exists (future-proofing)
+      if (maintenanceRequestId) {
+        // For now, we'll skip validation as maintenance_requests table may not exist yet
+        // This can be enabled once maintenance request tracking is implemented
+      }
+
+      // Insert photo metadata
+      const { data, error } = await supabase
+        .from("photos")
+        .insert([{
+          imagekit_file_id: imageKitFileId,
+          url,
+          thumbnail_url: thumbnailUrl,
+          category,
+          uploader_id: req.user!.id,
+          property_id: propertyId || null,
+          maintenance_request_id: maintenanceRequestId || null,
+          metadata: metadata,
+        }])
+        .select();
+
+      if (error) throw error;
+
+      // Log the action
+      await logSecurityEvent(
+        req.user!.id,
+        "file_upload",
+        true,
+        { photoId: data[0].id, category, propertyId },
+        req
+      );
+
+      return res.json(success(data[0], "Photo metadata saved successfully"));
+    } catch (err: any) {
+      console.error("[PHOTOS] Save metadata error:", err);
+      return res.status(500).json(errorResponse("Failed to save photo metadata"));
+    }
+  });
+
+  // Get photos for a property
+  app.get("/api/photos/property/:propertyId", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      // Verify access to property
+      const { data: property, error: propError } = await supabase
+        .from("properties")
+        .select("owner_id, listing_agent_id")
+        .eq("id", req.params.propertyId)
+        .single();
+
+      if (propError || !property) {
+        return res.status(404).json({ error: "Property not found" });
+      }
+
+      const hasAccess = 
+        property.owner_id === req.user!.id ||
+        property.listing_agent_id === req.user!.id ||
+        req.user!.role === "admin" ||
+        req.user!.role === "property_manager";
+
+      if (!hasAccess) {
+        return res.status(403).json({ error: "You do not have access to this property" });
+      }
+
+      const { data, error } = await supabase
+        .from("photos")
+        .select("*")
+        .eq("property_id", req.params.propertyId)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      return res.json(success(data, "Photos fetched successfully"));
+    } catch (err: any) {
+      console.error("[PHOTOS] Fetch error:", err);
+      return res.status(500).json(errorResponse("Failed to fetch photos"));
     }
   });
 

@@ -1526,3 +1526,38 @@ export const insertPropertyManagerAssignmentSchema = createInsertSchema(property
 
 export type InsertPropertyManagerAssignment = z.infer<typeof insertPropertyManagerAssignmentSchema>;
 export type PropertyManagerAssignment = typeof propertyManagerAssignments.$inferSelect;
+
+// Photo categories for different upload contexts
+export const PHOTO_CATEGORIES = [
+  "property",
+  "maintenance",
+  "inspection",
+  "documentation",
+  "other"
+] as const;
+
+export type PhotoCategory = typeof PHOTO_CATEGORIES[number];
+
+// Photos table - stores image metadata from ImageKit uploads
+export const photos = pgTable("photos", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  imageKitFileId: text("imagekit_file_id").notNull(),
+  url: text("url").notNull(),
+  thumbnailUrl: text("thumbnail_url"),
+  category: text("category").notNull().$type<PhotoCategory>(),
+  uploaderId: uuid("uploader_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  propertyId: uuid("property_id").references(() => properties.id, { onDelete: "cascade" }),
+  maintenanceRequestId: uuid("maintenance_request_id"),
+  metadata: jsonb("metadata").$type<Record<string, any>>(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertPhotoSchema = createInsertSchema(photos).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertPhoto = z.infer<typeof insertPhotoSchema>;
+export type Photo = typeof photos.$inferSelect;
