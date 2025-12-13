@@ -47,6 +47,7 @@ const AgentProfile = lazy(() => import("@/pages/agent-profile"));
 const Messages = lazy(() => import("@/pages/messages"));
 const TenantLeaseDashboard = lazy(() => import("@/pages/tenant-lease-dashboard"));
 const LandlordLeaseDashboard = lazy(() => import("@/pages/landlord-lease-dashboard"));
+const TenantPaymentsDashboard = lazy(() => import("@/pages/tenant-payments-dashboard"));
 
 function LoadingFallback() {
   return (
@@ -247,6 +248,13 @@ function Router() {
         <ReactSuspense fallback={<LoadingFallback />}>
           <ProtectedRoute requiredRoles={['landlord', 'admin']}>
             <LandlordLeaseDashboard />
+          </ProtectedRoute>
+        </ReactSuspense>
+      </Route>
+      <Route path="/tenant-payments">
+        <ReactSuspense fallback={<LoadingFallback />}>
+          <ProtectedRoute requiredRoles={['renter']}>
+            <TenantPaymentsDashboard />
           </ProtectedRoute>
         </ReactSuspense>
       </Route>
