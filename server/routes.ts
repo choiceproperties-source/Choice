@@ -5692,15 +5692,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Verify a payment (landlord/admin only)
+  // Verify a payment manually (landlord/admin only)
   app.post("/api/payments/:paymentId/verify", authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
       const paymentId = req.params.paymentId;
+      const { amount, method, dateReceived } = req.body;
+
+      // Validate required fields
+      if (!amount || !method || !dateReceived) {
+        return res.status(400).json({ error: "Amount, method, and date received are required" });
+      }
 
       // Get payment with lease info
       const { data: payment } = await supabase
         .from("payments")
-        .select("*, leases(landlord_id, application_id)")
+        .select("*, leases(landlord_id, application_id, tenant_id)")
         .eq("id", paymentId)
         .single();
 
@@ -5719,14 +5725,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Payment already verified" });
       }
 
-      // Update payment status to verified
+      // Update payment status to verified with manual verification details
       const { error } = await supabase
         .from("payments")
         .update({
           status: "verified",
           verified_by: req.user!.id,
           verified_at: new Date().toISOString(),
-          paid_at: payment.paid_at || new Date().toISOString(),
+          paid_at: new Date(dateReceived).toISOString(),
+          manual_payment_method: method,
+          amount: parseFloat(amount),
           updated_at: new Date().toISOString()
         })
         .eq("id", paymentId);
@@ -5740,12 +5748,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         resourceType: "payment",
         resourceId: paymentId,
         previousData: { status: payment.status },
-        newData: { status: "verified" },
-        ipAddress: req.ip,
-        userAgent: req.get("User-Agent")
+        newData: { status: "verified", method, amount, dateReceived }
       });
 
-      return res.json(success({ status: "verified" }, "Payment verified successfully"));
+      return res.json(success(
+        { status: "verified", message: "Payment verified." },
+        "Payment verified successfully"
+      ));
     } catch (err: any) {
       console.error("[PAYMENTS] Verify error:", err);
       return res.status(500).json(errorResponse("Failed to verify payment"));
