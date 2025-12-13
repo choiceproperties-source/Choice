@@ -1923,21 +1923,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ===== PROPERTY WITH OWNER =====
   app.get("/api/properties/:id/full", async (req, res) => {
     try {
-      const { data, error } = await supabase
+      // Fetch property
+      const { data: propertyData, error: propertyError } = await supabase
         .from("properties")
-        .select(`
-          *,
-          owner:owner_id (
-            id, full_name, email, phone, profile_image, bio
-          )
-        `)
+        .select("*")
         .eq("id", req.params.id)
         .single();
 
-      if (error) throw error;
-      
-      return res.json(success(data, "Property with owner fetched successfully"));
+      if (propertyError) {
+        console.error("[PROPERTY] Supabase property error:", propertyError);
+        throw propertyError;
+      }
+
+      // Fetch owner if owner_id exists
+      let ownerData = null;
+      if (propertyData?.owner_id) {
+        const { data: owner, error: ownerError } = await supabase
+          .from("users")
+          .select("id, full_name, email, phone, profile_image, bio")
+          .eq("id", propertyData.owner_id)
+          .single();
+
+        if (ownerError) {
+          console.error("[PROPERTY] Supabase owner error:", ownerError);
+          // Don't throw - owner is optional
+        } else {
+          ownerData = owner;
+        }
+      }
+
+      const result = { ...propertyData, owner: ownerData };
+      return res.json(success(result, "Property with owner fetched successfully"));
     } catch (err: any) {
+      console.error("[PROPERTY] Error fetching property:", err);
       return res.status(500).json(errorResponse("Failed to fetch property"));
     }
   });

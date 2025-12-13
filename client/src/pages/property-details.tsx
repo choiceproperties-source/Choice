@@ -5,6 +5,7 @@ import { Footer } from "@/components/layout/footer";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import type { Property, PropertyWithOwner, Review, Owner } from "@/lib/types";
 import { formatPrice, parseDecimal } from "@/lib/types";
@@ -255,176 +256,175 @@ export default function PropertyDetails() {
 
       <div className="container mx-auto px-4 max-w-[1600px] py-8 pb-32 md:pb-8">
         <div className="space-y-8">
+          <Separator />
 
-            <Separator />
-
-            {/* Rental Terms Section */}
-            {(property.lease_term || (property.utilities_included && property.utilities_included.length > 0) || property.furnished !== undefined || property.pets_allowed !== undefined) && (
-              <div data-testid="section-rental-terms">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Rental Terms</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {property.lease_term && (
-                    <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
-                      <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Lease Term</h3>
-                      <p className="text-gray-900 dark:text-white">{property.lease_term}</p>
-                    </div>
-                  )}
-                  
-                  {property.utilities_included && property.utilities_included.length > 0 && (
-                    <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
-                      <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Utilities Included</h3>
-                      <ul className="space-y-1">
-                        {property.utilities_included.map((utility, idx) => (
-                          <li key={idx} className="text-gray-900 dark:text-white">• {utility}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {property.furnished !== undefined && (
-                    <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
-                      <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Furnished</h3>
-                      <p className="text-gray-900 dark:text-white">{property.furnished ? 'Yes - Furnished' : 'No - Unfurnished'}</p>
-                    </div>
-                  )}
-
-                  {property.pets_allowed !== undefined && (
-                    <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
-                      <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Pets</h3>
-                      <p className="text-gray-900 dark:text-white">{property.pets_allowed ? 'Allowed' : 'Not Allowed'}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Description Section */}
-            <div data-testid="section-overview">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Overview</h2>
-              <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-lg">{property.description || 'No description available.'}</p>
-            </div>
-
-            {/* Amenities Section */}
-            <div data-testid="section-amenities">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Amenities</h2>
-              <AmenitiesGrid amenities={property.amenities as string[] | undefined} />
-            </div>
-
-            <Separator />
-
-            {/* Reviews Section */}
-            {reviews && reviews.length > 0 && (
-              <>
-                <div>
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Reviews</h2>
-                    <div className="flex items-center gap-2">
-                      <div className="flex gap-1">
-                        {[1, 2, 3, 4, 5].map(i => (
-                          <Star
-                            key={i}
-                            className={`h-5 w-5 ${i <= Math.round(averageRating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
-                          />
-                        ))}
-                      </div>
-                      <span className="text-sm text-gray-600 dark:text-gray-400">({reviews.length} reviews)</span>
-                    </div>
+          {/* Rental Terms Section */}
+          {(property.lease_term || (property.utilities_included && property.utilities_included.length > 0) || property.furnished !== undefined || property.pets_allowed !== undefined) && (
+            <div data-testid="section-rental-terms">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Rental Terms</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {property.lease_term && (
+                  <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
+                    <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Lease Term</h3>
+                    <p className="text-gray-900 dark:text-white">{property.lease_term}</p>
                   </div>
-                  <div className="space-y-4">
-                    {reviews.slice(0, 3).map((review) => (
-                      <Card key={review.id} className="border-gray-200 dark:border-gray-700">
-                        <CardContent className="p-4">
-                          <div className="flex items-start gap-3 mb-2">
-                            <div className="flex-1">
-                              <div className="flex gap-1 mb-1">
-                                {[1, 2, 3, 4, 5].map(i => (
-                                  <Star
-                                    key={i}
-                                    className={`h-4 w-4 ${i <= (review.rating || 0) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300 dark:text-gray-600'}`}
-                                  />
-                                ))}
-                              </div>
-                              <p className="font-bold text-gray-900 dark:text-white">{review.title || 'Review'}</p>
-                              {review.users && (
-                                <p className="text-sm text-gray-600 dark:text-gray-400">{review.users.full_name || 'Anonymous'}</p>
-                              )}
+                )}
+                
+                {property.utilities_included && property.utilities_included.length > 0 && (
+                  <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
+                    <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Utilities Included</h3>
+                    <ul className="space-y-1">
+                      {property.utilities_included.map((utility, idx) => (
+                        <li key={idx} className="text-gray-900 dark:text-white">• {utility}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {property.furnished !== undefined && (
+                  <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
+                    <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Furnished</h3>
+                    <p className="text-gray-900 dark:text-white">{property.furnished ? 'Yes - Furnished' : 'No - Unfurnished'}</p>
+                  </div>
+                )}
+
+                {property.pets_allowed !== undefined && (
+                  <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
+                    <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Pets</h3>
+                    <p className="text-gray-900 dark:text-white">{property.pets_allowed ? 'Allowed' : 'Not Allowed'}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Description Section */}
+          <div data-testid="section-overview">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Overview</h2>
+            <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-lg">{property.description || 'No description available.'}</p>
+          </div>
+
+          {/* Amenities Section */}
+          <div data-testid="section-amenities">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Amenities</h2>
+            <AmenitiesGrid amenities={property.amenities as string[] | undefined} />
+          </div>
+
+          <Separator />
+
+          {/* Reviews Section */}
+          {reviews && reviews.length > 0 && (
+            <>
+              <div>
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Reviews</h2>
+                  <div className="flex items-center gap-2">
+                    <div className="flex gap-1">
+                      {[1, 2, 3, 4, 5].map(i => (
+                        <Star
+                          key={i}
+                          className={`h-5 w-5 ${i <= Math.round(averageRating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">({reviews.length} reviews)</span>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  {reviews.slice(0, 3).map((review) => (
+                    <Card key={review.id} className="border-gray-200 dark:border-gray-700">
+                      <CardContent className="p-4">
+                        <div className="flex items-start gap-3 mb-2">
+                          <div className="flex-1">
+                            <div className="flex gap-1 mb-1">
+                              {[1, 2, 3, 4, 5].map(i => (
+                                <Star
+                                  key={i}
+                                  className={`h-4 w-4 ${i <= (review.rating || 0) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300 dark:text-gray-600'}`}
+                                />
+                              ))}
                             </div>
+                            <p className="font-bold text-gray-900 dark:text-white">{review.title || 'Review'}</p>
+                            {review.users && (
+                              <p className="text-sm text-gray-600 dark:text-gray-400">{review.users.full_name || 'Anonymous'}</p>
+                            )}
                           </div>
-                          {review.comment && (
-                            <p className="text-gray-700 dark:text-gray-300 text-sm">{review.comment}</p>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
+                        </div>
+                        {review.comment && (
+                          <p className="text-gray-700 dark:text-gray-300 text-sm">{review.comment}</p>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
-                <Separator />
-              </>
-            )}
-
-            {/* Location & Nearby Places Section */}
-            <div data-testid="section-location-nearby">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Location & Nearby Places</h2>
-              
-              {/* Map */}
-              <div className="mb-8">
-                <MapSection 
-                  center={position} 
-                  title={property.title} 
-                  address={property.address}
-                />
               </div>
+              <Separator />
+            </>
+          )}
 
-              {/* Nearby Places */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Nearby Places</h3>
-                <NearbyPlaces places={nearbyPlaces} />
-              </div>
+          {/* Location & Nearby Places Section */}
+          <div data-testid="section-location-nearby">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Location & Nearby Places</h2>
+            
+            {/* Map */}
+            <div className="mb-8">
+              <MapSection 
+                center={position} 
+                title={property.title} 
+                address={property.address}
+              />
             </div>
 
-            {/* Property Owner/Manager */}
-            {owner && (
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">Property Manager</h2>
-                <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 hover:border-primary/50">
-                  <CardContent className="p-6">
-                    <div className="flex items-start gap-4">
-                      <Avatar className="h-16 w-16">
-                        <AvatarImage src={owner.profile_image || undefined} alt={owner.full_name || 'Manager'} />
-                        <AvatarFallback>{owner.full_name?.charAt(0) || 'M'}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="text-xl font-bold text-gray-900">{owner.full_name || 'Property Manager'}</h3>
-                        </div>
-                        <p className="text-gray-600 text-sm mb-3">{owner.bio || 'Professional property manager'}</p>
-                        <div className="flex flex-wrap gap-4 text-sm">
+            {/* Nearby Places */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Nearby Places</h3>
+              <NearbyPlaces places={nearbyPlaces} />
+            </div>
+          </div>
+
+          {/* Property Owner/Manager */}
+          {owner && (
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Property Manager</h2>
+              <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 hover:border-primary/50">
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-4">
+                    <Avatar className="h-16 w-16">
+                      <AvatarImage src={owner.profile_image || undefined} alt={owner.full_name || 'Manager'} />
+                      <AvatarFallback>{owner.full_name?.charAt(0) || 'M'}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">{owner.full_name || 'Property Manager'}</h3>
+                      </div>
+                      <p className="text-gray-600 dark:text-gray-400 text-sm mb-3">{owner.bio || 'Professional property manager'}</p>
+                      <div className="flex flex-wrap gap-4 text-sm">
+                        <a
+                          href={`mailto:${owner.email}`}
+                          className="flex items-center gap-1 text-primary hover:underline"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Mail className="h-4 w-4" /> {owner.email}
+                        </a>
+                        {owner.phone && (
                           <a
-                            href={`mailto:${owner.email}`}
+                            href={`tel:${owner.phone}`}
                             className="flex items-center gap-1 text-primary hover:underline"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <Mail className="h-4 w-4" /> {owner.email}
+                            <Phone className="h-4 w-4" /> {owner.phone}
                           </a>
-                          {owner.phone && (
-                            <a
-                              href={`tel:${owner.phone}`}
-                              className="flex items-center gap-1 text-primary hover:underline"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <Phone className="h-4 w-4" /> {owner.phone}
-                            </a>
-                          )}
-                        </div>
+                        )}
                       </div>
-                      <Button variant="outline" className="border-primary text-primary hover:bg-primary/5">
-                        View Profile
-                      </Button>
                     </div>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
+                    <Button variant="outline" className="border-primary text-primary hover:bg-primary/5">
+                      View Profile
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </div>
       </div>
 
