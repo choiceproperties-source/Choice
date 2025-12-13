@@ -82,3 +82,63 @@ export function getImageKitURLEndpoint(): string {
   // Ensure endpoint doesn't have trailing slash
   return endpoint.replace(/\/$/, '');
 }
+
+/**
+ * Generate a signed URL for private image access
+ * Uses HMAC-SHA256 signature to ensure only authorized users can access
+ */
+export function generateSignedImageURL(
+  imageKitFileId: string,
+  urlEndpoint: string,
+  privateKey: string,
+  expiresIn: number = 3600 // 1 hour default
+): string {
+  const crypto = require('crypto');
+  
+  const baseURL = `${urlEndpoint}/${imageKitFileId}`;
+  const transformations = 'q-90,f-auto';
+  const timestamp = Math.floor(Date.now() / 1000);
+  const expiration = timestamp + expiresIn;
+  
+  // Create signature: HMAC(privateKey, path + expiration)
+  const pathWithTr = `/${imageKitFileId}?tr=${transformations}`;
+  const signatureString = `${pathWithTr}${expiration}`;
+  const signature = crypto
+    .createHmac('sha256', privateKey)
+    .update(signatureString)
+    .digest('hex');
+  
+  return `${baseURL}?tr=${transformations}&ik-t=${expiration}&ik-s=${signature}`;
+}
+
+/**
+ * Validate if a user should have access to a private image
+ * Returns true if user is the uploader, property owner, agent, admin, or property manager
+ */
+export interface ImageAccessCheckParams {
+  userId: string;
+  userRole: string;
+  uploaderId: string;
+  propertyId?: string;
+  propertyOwnerId?: string;
+  listingAgentId?: string;
+}
+
+export function canAccessPrivateImage(params: ImageAccessCheckParams): boolean {
+  // Always allow if admin
+  if (params.userRole === 'admin') return true;
+  
+  // Allow uploader
+  if (params.userId === params.uploaderId) return true;
+  
+  // Allow property owner or agent
+  if (params.propertyId) {
+    if (params.userId === params.propertyOwnerId) return true;
+    if (params.userId === params.listingAgentId) return true;
+  }
+  
+  // Allow property managers
+  if (params.userRole === 'property_manager') return true;
+  
+  return false;
+}

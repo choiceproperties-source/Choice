@@ -1548,6 +1548,7 @@ export const photos = pgTable("photos", {
   uploaderId: uuid("uploader_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
   propertyId: uuid("property_id").references(() => properties.id, { onDelete: "cascade" }),
   maintenanceRequestId: uuid("maintenance_request_id"),
+  isPrivate: boolean("is_private").default(false),
   metadata: jsonb("metadata").$type<Record<string, any>>(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

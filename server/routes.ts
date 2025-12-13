@@ -16,6 +16,7 @@ import {
   sendDepositRequiredNotification,
   sendRentDueSoonNotification
 } from "./notification-service";
+import { generateSignedImageURL, canAccessPrivateImage } from "./image-transform";
 import {
   signupSchema,
   loginSchema,
@@ -6786,12 +6787,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get optimized images for property (public - no auth required)
+  // Get optimized images for property (public - no auth required, respects privacy)
   app.get("/api/images/property/:propertyId", optionalAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const { data: photos, error } = await supabase
         .from("photos")
-        .select("id, imagekit_file_id, thumbnail_url, category, created_at")
+        .select("id, imagekit_file_id, thumbnail_url, category, created_at, is_private, uploader_id, property_id")
         .eq("property_id", req.params.propertyId)
         .order("created_at", { ascending: false });
 
@@ -6803,10 +6804,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json(errorResponse("ImageKit not configured"));
       }
 
-      const optimizedPhotos = photos.map((photo) => ({
+      // Filter by privacy - only show public images or if user is authorized
+      const visiblePhotos = photos.filter((photo) => {
+        if (!photo.is_private) return true; // Public images always visible
+        
+        // Private images: only show if authorized
+        if (!req.user) return false;
+        
+        return canAccessPrivateImage({
+          userId: req.user.id,
+          userRole: req.user.role,
+          uploaderId: photo.uploader_id,
+          propertyId: photo.property_id,
+        });
+      });
+
+      const optimizedPhotos = visiblePhotos.map((photo) => ({
         id: photo.id,
         category: photo.category,
         createdAt: photo.created_at,
+        isPrivate: photo.is_private,
         imageUrls: {
           // Thumbnail: 300x200, 75% quality
           thumbnail: `${urlEndpoint}/${photo.imagekit_file_id}?tr=w-300,h-200,q-75,f-auto`,
@@ -6821,6 +6838,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (err: any) {
       console.error("[IMAGES] Fetch optimized error:", err);
       return res.status(500).json(errorResponse("Failed to fetch images"));
+    }
+  });
+
+  // Generate signed URL for private image access
+  app.post("/api/images/signed", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { photoId, expiresIn = 3600 } = req.body;
+
+      if (!photoId) {
+        return res.status(400).json(errorResponse("photoId is required"));
+      }
+
+      const { data: photo, error: photoError } = await supabase
+        .from("photos")
+        .select("id, imagekit_file_id, is_private, uploader_id, property_id")
+        .eq("id", photoId)
+        .single();
+
+      if (photoError || !photo) {
+        return res.status(404).json(errorResponse("Photo not found"));
+      }
+
+      // Check if user has access to this image
+      if (photo.is_private) {
+        const { data: property } = photo.property_id 
+          ? await supabase
+              .from("properties")
+              .select("owner_id, listing_agent_id")
+              .eq("id", photo.property_id)
+              .single()
+          : { data: null };
+
+        const hasAccess = canAccessPrivateImage({
+          userId: req.user!.id,
+          userRole: req.user!.role,
+          uploaderId: photo.uploader_id,
+          propertyId: photo.property_id,
+          propertyOwnerId: property?.owner_id,
+          listingAgentId: property?.listing_agent_id,
+        });
+
+        if (!hasAccess) {
+          await logSecurityEvent(
+            req.user!.id,
+            "unauthorized_access",
+            false,
+            { reason: "Attempted unauthorized access to private image", photoId },
+            req
+          );
+          return res.status(403).json(errorResponse("You do not have access to this image"));
+        }
+      }
+
+      // Generate signed URL
+      const urlEndpoint = process.env.IMAGEKIT_URL_ENDPOINT || "";
+      const privateKey = process.env.IMAGEKIT_PRIVATE_KEY || "";
+
+      if (!urlEndpoint || !privateKey) {
+        return res.status(500).json(errorResponse("ImageKit not configured"));
+      }
+
+      const signedUrl = generateSignedImageURL(
+        photo.imagekit_file_id,
+        urlEndpoint,
+        privateKey,
+        expiresIn
+      );
+
+      // Log the action
+      await logSecurityEvent(
+        req.user!.id,
+        "signed_url_generated",
+        true,
+        { photoId, isPrivate: photo.is_private },
+        req
+      );
+
+      return res.json(success({ url: signedUrl, expiresIn }, "Signed URL generated"));
+    } catch (err: any) {
+      console.error("[IMAGES] Signed URL error:", err);
+      return res.status(500).json(errorResponse("Failed to generate signed URL"));
     }
   });
 
