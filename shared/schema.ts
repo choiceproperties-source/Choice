@@ -360,6 +360,40 @@ export const agentReviews = pgTable("agent_reviews", {
   reviewerAgentUnique: unique().on(table.reviewerId, table.agentId),
 }));
 
+// Conversations for messaging between users (related to properties or applications)
+export const conversations = pgTable("conversations", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  propertyId: uuid("property_id").references(() => properties.id, { onDelete: "set null" }),
+  applicationId: uuid("application_id").references(() => applications.id, { onDelete: "set null" }),
+  subject: text("subject"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Participants in a conversation
+export const conversationParticipants = pgTable("conversation_participants", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  conversationId: uuid("conversation_id").references(() => conversations.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+  lastReadAt: timestamp("last_read_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  conversationUserUnique: unique().on(table.conversationId, table.userId),
+}));
+
+// Messages within conversations
+export const messages = pgTable("messages", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  conversationId: uuid("conversation_id").references(() => conversations.id, { onDelete: "cascade" }),
+  senderId: uuid("sender_id").references(() => users.id, { onDelete: "cascade" }),
+  content: text("content").notNull(),
+  messageType: text("message_type").default("text"), // text, system, attachment
+  attachments: jsonb("attachments").$type<string[]>(),
+  readAt: timestamp("read_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 export const insertAgencySchema = createInsertSchema(agencies).omit({
   id: true,
   createdAt: true,
@@ -475,6 +509,25 @@ export const insertAgentReviewSchema = createInsertSchema(agentReviews).omit({
   updatedAt: true,
 });
 
+export const insertConversationSchema = createInsertSchema(conversations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertConversationParticipantSchema = createInsertSchema(conversationParticipants).omit({
+  id: true,
+  createdAt: true,
+  lastReadAt: true,
+});
+
+export const insertMessageSchema = createInsertSchema(messages).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  readAt: true,
+});
+
 export type InsertAgency = z.infer<typeof insertAgencySchema>;
 export type Agency = typeof agencies.$inferSelect;
 
@@ -527,6 +580,15 @@ export type TransactionStatus = typeof TRANSACTION_STATUSES[number];
 
 export type InsertAgentReview = z.infer<typeof insertAgentReviewSchema>;
 export type AgentReview = typeof agentReviews.$inferSelect;
+
+export type InsertConversation = z.infer<typeof insertConversationSchema>;
+export type Conversation = typeof conversations.$inferSelect;
+
+export type InsertConversationParticipant = z.infer<typeof insertConversationParticipantSchema>;
+export type ConversationParticipant = typeof conversationParticipants.$inferSelect;
+
+export type InsertMessage = z.infer<typeof insertMessageSchema>;
+export type Message = typeof messages.$inferSelect;
 
 export const signupSchema = z.object({
   email: z.string().email("Invalid email address"),
