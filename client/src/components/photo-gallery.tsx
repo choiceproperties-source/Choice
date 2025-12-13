@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { X, ChevronLeft, ChevronRight, Maximize2 } from "lucide-react";
+import { getThumbnailUrl, getGalleryThumbUrl, getMainImageUrl, getFullscreenImageUrl } from "@/lib/imagekit";
 
 interface PhotoGalleryProps {
   images: string[];
@@ -12,9 +13,27 @@ export function PhotoGallery({ images, title }: PhotoGalleryProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const [preloadedImages, setPreloadedImages] = useState<Set<number>>(new Set());
 
   const mainImage = images[currentImageIndex];
   const minSwipeDistance = 50;
+
+  // Preload adjacent images for smooth navigation
+  useEffect(() => {
+    const nextIndex = (currentImageIndex + 1) % images.length;
+    const prevIndex = (currentImageIndex - 1 + images.length) % images.length;
+    
+    setPreloadedImages(new Set([currentImageIndex, nextIndex, prevIndex]));
+
+    // Preload images in the background
+    const preloadImage = (url: string) => {
+      const img = new Image();
+      img.src = url;
+    };
+
+    preloadImage(getFullscreenImageUrl(images[nextIndex]));
+    preloadImage(getFullscreenImageUrl(images[prevIndex]));
+  }, [currentImageIndex, images]);
 
   const nextImage = () => {
     setCurrentImageIndex((prev) => (prev + 1) % images.length);
@@ -84,9 +103,10 @@ export function PhotoGallery({ images, title }: PhotoGalleryProps) {
             {/* Image */}
             <img
               key={currentImageIndex}
-              src={mainImage}
+              src={getFullscreenImageUrl(mainImage)}
+              srcSet={`${getFullscreenImageUrl(mainImage)} 1920w`}
               alt={`${title} - Photo ${currentImageIndex + 1}`}
-              loading="lazy"
+              loading="eager"
               decoding="async"
               className="max-h-[calc(100vh-160px)] max-w-[90vw] object-contain select-none animate-in fade-in duration-300"
               draggable={false}
@@ -118,7 +138,7 @@ export function PhotoGallery({ images, title }: PhotoGalleryProps) {
                 data-testid={`thumbnail-fullscreen-${idx}`}
               >
                 <img
-                  src={img}
+                  src={getThumbnailUrl(img)}
                   alt={`Thumbnail ${idx + 1}`}
                   loading="lazy"
                   decoding="async"
@@ -141,7 +161,7 @@ export function PhotoGallery({ images, title }: PhotoGalleryProps) {
             data-testid="gallery-main-image"
           >
             <img
-              src={images[0]}
+              src={getGalleryThumbUrl(images[0])}
               alt={`${title} - Main`}
               loading="lazy"
               decoding="async"
@@ -166,7 +186,7 @@ export function PhotoGallery({ images, title }: PhotoGalleryProps) {
               data-testid={`gallery-thumbnail-${idx + 1}`}
             >
               <img
-                src={img}
+                src={getGalleryThumbUrl(img)}
                 alt={`${title} - Photo ${idx + 2}`}
                 loading="lazy"
                 decoding="async"
@@ -195,9 +215,9 @@ export function PhotoGallery({ images, title }: PhotoGalleryProps) {
             {/* Image */}
             <img
               key={currentImageIndex}
-              src={mainImage}
+              src={getMainImageUrl(mainImage)}
               alt={`${title} - Photo ${currentImageIndex + 1}`}
-              loading="lazy"
+              loading="eager"
               decoding="async"
               className="w-full h-full object-cover animate-in fade-in duration-300"
             />
@@ -259,7 +279,7 @@ export function PhotoGallery({ images, title }: PhotoGalleryProps) {
                 }`}
                 data-testid={`mobile-thumbnail-${idx}`}
               >
-                <img src={img} alt={`Thumbnail ${idx + 1}`} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                <img src={getThumbnailUrl(img)} alt={`Thumbnail ${idx + 1}`} loading="lazy" decoding="async" className="w-full h-full object-cover" />
               </button>
             ))}
           </div>
