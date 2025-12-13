@@ -2816,18 +2816,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (appError) throw appError;
 
-      // Create notification for tenant
-      await supabase
+      // Create notification for tenant (check for duplicates)
+      const { data: existingNotif } = await supabase
         .from("application_notifications")
-        .insert([{
-          application_id: req.params.applicationId,
-          user_id: application.user_id,
-          notification_type: "lease_sent",
-          channel: "email",
-          subject: "Your lease is ready for review",
-          content: "The landlord has sent you a lease for review. Please review and respond.",
-          status: "pending"
-        }]);
+        .select("id")
+        .eq("application_id", req.params.applicationId)
+        .eq("notification_type", "lease_sent")
+        .limit(1)
+        .single();
+
+      if (!existingNotif) {
+        await supabase
+          .from("application_notifications")
+          .insert([{
+            application_id: req.params.applicationId,
+            user_id: application.user_id,
+            notification_type: "lease_sent",
+            channel: "email",
+            subject: "Your lease is ready for review",
+            content: "The landlord has sent you a lease for review. Please review and respond.",
+            status: "pending"
+          }]);
+      }
 
       return res.json(success({ leaseStatus: "lease_sent" }, "Lease sent to tenant successfully"));
     } catch (err: any) {
@@ -2920,7 +2930,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (appError) throw appError;
 
-      // Create notification for landlord
+      // Create notification for landlord (check for duplicates)
       const { data: appData } = await supabase
         .from("applications")
         .select("properties(owner_id, users(id)), conversation_id")
@@ -2928,17 +2938,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .single();
 
       if (appData?.properties?.owner_id) {
-        await supabase
+        const { data: existingLandlordNotif } = await supabase
           .from("application_notifications")
-          .insert([{
-            application_id: req.params.applicationId,
-            user_id: appData.properties.owner_id,
-            notification_type: "lease_accepted",
-            channel: "email",
-            subject: "Lease has been accepted",
-            content: "The tenant has accepted the lease and is ready to move in.",
-            status: "pending"
-          }]);
+          .select("id")
+          .eq("application_id", req.params.applicationId)
+          .eq("notification_type", "lease_accepted")
+          .limit(1)
+          .single();
+
+        if (!existingLandlordNotif) {
+          await supabase
+            .from("application_notifications")
+            .insert([{
+              application_id: req.params.applicationId,
+              user_id: appData.properties.owner_id,
+              notification_type: "lease_accepted",
+              channel: "email",
+              subject: "Lease has been accepted",
+              content: "The tenant has accepted the lease and is ready to move in.",
+              status: "pending"
+            }]);
+        }
       }
 
       // Create system message in conversation
@@ -3059,7 +3079,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .update({ lease_signed_at: new Date().toISOString() })
         .eq("id", req.params.applicationId);
 
-      // Notify landlord of signature
+      // Notify landlord of signature (check for duplicates)
       const { data: appData } = await supabase
         .from("applications")
         .select("properties(owner_id)")
@@ -3067,17 +3087,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .single();
 
       if (appData?.properties?.owner_id) {
-        await supabase
+        const { data: existingSignNotif } = await supabase
           .from("application_notifications")
-          .insert([{
-            application_id: req.params.applicationId,
-            user_id: appData.properties.owner_id,
-            notification_type: "lease_signed_tenant",
-            channel: "email",
-            subject: "Tenant has signed the lease",
-            content: "The tenant has digitally signed the lease.",
-            status: "pending"
-          }]);
+          .select("id")
+          .eq("application_id", req.params.applicationId)
+          .eq("notification_type", "lease_signed_tenant")
+          .limit(1)
+          .single();
+
+        if (!existingSignNotif) {
+          await supabase
+            .from("application_notifications")
+            .insert([{
+              application_id: req.params.applicationId,
+              user_id: appData.properties.owner_id,
+              notification_type: "lease_signed_tenant",
+              channel: "email",
+              subject: "Tenant has signed the lease",
+              content: "The tenant has digitally signed the lease.",
+              status: "pending"
+            }]);
+        }
       }
 
       return res.json(success(sig[0], "Lease signed successfully"));
@@ -3231,7 +3261,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (error) throw error;
 
-      // Notify tenant of move-in details
+      // Notify tenant of move-in details (check for duplicates)
       const { data: appData } = await supabase
         .from("applications")
         .select("user_id")
@@ -3239,17 +3269,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .single();
 
       if (appData?.user_id) {
-        await supabase
+        const { data: existingMoveInNotif } = await supabase
           .from("application_notifications")
-          .insert([{
-            application_id: req.params.applicationId,
-            user_id: appData.user_id,
-            notification_type: "move_in_ready",
-            channel: "email",
-            subject: "Move-in details ready",
-            content: "Your landlord has provided move-in instructions and next steps.",
-            status: "pending"
-          }]);
+          .select("id")
+          .eq("application_id", req.params.applicationId)
+          .eq("notification_type", "move_in_ready")
+          .limit(1)
+          .single();
+
+        if (!existingMoveInNotif) {
+          await supabase
+            .from("application_notifications")
+            .insert([{
+              application_id: req.params.applicationId,
+              user_id: appData.user_id,
+              notification_type: "move_in_ready",
+              channel: "email",
+              subject: "Move-in details ready",
+              content: "Your landlord has provided move-in instructions and next steps.",
+              status: "pending"
+            }]);
+        }
       }
 
       return res.json(success(data[0], "Move-in details saved successfully"));
@@ -3376,7 +3416,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (appError) throw appError;
 
-      // Create notification for landlord
+      // Create notification for landlord (check for duplicates)
       const { data: appData } = await supabase
         .from("applications")
         .select("properties(owner_id)")
@@ -3384,17 +3424,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .single();
 
       if (appData?.properties?.owner_id) {
-        await supabase
+        const { data: existingDeclineNotif } = await supabase
           .from("application_notifications")
-          .insert([{
-            application_id: req.params.applicationId,
-            user_id: appData.properties.owner_id,
-            notification_type: "lease_declined",
-            channel: "email",
-            subject: "Lease has been declined",
-            content: `The tenant has declined the lease. Reason: ${validation.data.reason || "Not provided"}`,
-            status: "pending"
-          }]);
+          .select("id")
+          .eq("application_id", req.params.applicationId)
+          .eq("notification_type", "lease_declined")
+          .limit(1)
+          .single();
+
+        if (!existingDeclineNotif) {
+          await supabase
+            .from("application_notifications")
+            .insert([{
+              application_id: req.params.applicationId,
+              user_id: appData.properties.owner_id,
+              notification_type: "lease_declined",
+              channel: "email",
+              subject: "Lease has been declined",
+              content: `The tenant has declined the lease. Reason: ${validation.data.reason || "Not provided"}`,
+              status: "pending"
+            }]);
+        }
       }
 
       return res.json(success({ leaseStatus: "lease_declined" }, "Lease declined successfully"));
