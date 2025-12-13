@@ -148,42 +148,46 @@ export function PhotoGallery({ images, title, propertyId, canEdit = false, onIma
     <>
       {/* Fullscreen Modal */}
       {isFullscreen && (
-        <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-sm flex flex-col">
-          {/* Header */}
-          <div className="flex justify-between items-center p-4 border-b border-white/10">
-            <span className="text-white text-lg font-semibold">
-              {currentImageIndex + 1} / {images.length}
+        <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-sm flex flex-col" style={{ touchAction: 'none' }}>
+          {/* Sticky Header - Optimized for Mobile */}
+          <div className="sticky top-0 flex justify-between items-center p-2 md:p-4 border-b border-white/10 bg-black/80 backdrop-blur-sm z-20">
+            <span className="text-white text-xs md:text-lg font-semibold select-none">
+              {currentImageIndex + 1} / {validImages.length}
             </span>
             <Button
               variant="ghost"
               size="icon"
-              className="text-white hover:bg-white/20"
+              className="text-white hover:bg-white/20 h-10 w-10 md:h-9 md:w-9 flex-shrink-0 md:size-9"
               onClick={() => setIsFullscreen(false)}
               data-testid="button-close-fullscreen"
+              aria-label="Close gallery"
             >
               <X className="h-6 w-6" />
             </Button>
           </div>
 
-          {/* Main Image */}
+          {/* Main Image - Full swipe area */}
           <div
-            className="flex-1 flex items-center justify-center relative overflow-hidden"
+            className="flex-1 flex items-center justify-center relative overflow-hidden w-full"
             onTouchStart={onTouchStart}
             onTouchMove={onTouchMove}
             onTouchEnd={onTouchEnd}
+            style={{ WebkitUserSelect: 'none', userSelect: 'none', WebkitTouchCallout: 'none' }}
+            data-testid="gallery-swipe-area"
           >
-            {/* Previous Button */}
+            {/* Previous Button - Larger on Mobile */}
             <Button
               variant="ghost"
               size="icon"
-              className="absolute left-4 text-white hover:bg-white/20 h-12 w-12 z-10 transition-all"
+              className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 h-14 w-14 md:h-12 md:w-12 z-10 transition-all hidden md:flex"
               onClick={prevImage}
               data-testid="button-prev-fullscreen"
+              aria-label="Previous image"
             >
               <ChevronLeft className="h-8 w-8" />
             </Button>
 
-            {/* Image */}
+            {/* Image - Prevent zoom */}
             <img
               key={currentImageIndex}
               src={imageStates[currentImageIndex] === 'error' ? getFallbackImageUrl() : getFullscreenImageUrl(mainImage)}
@@ -193,33 +197,37 @@ export function PhotoGallery({ images, title, propertyId, canEdit = false, onIma
               decoding="async"
               onLoad={() => handleImageLoad(currentImageIndex)}
               onError={() => handleImageError(currentImageIndex)}
-              className="max-h-[calc(100vh-160px)] max-w-[90vw] object-contain select-none animate-in fade-in duration-300"
+              onDoubleClick={(e) => e.preventDefault()}
+              className="max-h-[calc(100vh-80px)] max-w-[95vw] md:max-w-[90vw] object-contain select-none animate-in fade-in duration-300"
+              style={{ WebkitUserSelect: 'none', touchAction: 'manipulation' }}
               draggable={false}
             />
 
             {/* Action Buttons for Editors */}
             {canEdit && (
-              <div className="absolute top-16 right-4 flex gap-2 z-20">
+              <div className="absolute top-12 right-2 md:top-16 md:right-4 flex gap-2 z-20">
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="bg-red-500/80 hover:bg-red-600 text-white"
+                  className="bg-red-500/80 hover:bg-red-600 text-white h-9 w-9 md:h-10 md:w-10"
                   onClick={() => handleDeleteImage(currentImageIndex)}
                   disabled={isDeleting}
                   data-testid="button-delete-photo"
+                  aria-label="Delete photo"
                 >
-                  <Trash2 className="h-5 w-5" />
+                  <Trash2 className="h-4 w-4 md:h-5 md:w-5" />
                 </Button>
               </div>
             )}
 
-            {/* Next Button */}
+            {/* Next Button - Larger on Mobile */}
             <Button
               variant="ghost"
               size="icon"
-              className="absolute right-4 text-white hover:bg-white/20 h-12 w-12 z-10 transition-all"
+              className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 h-14 w-14 md:h-12 md:w-12 z-10 transition-all hidden md:flex"
               onClick={nextImage}
               data-testid="button-next-fullscreen"
+              aria-label="Next image"
             >
               <ChevronRight className="h-8 w-8" />
             </Button>
@@ -338,15 +346,17 @@ export function PhotoGallery({ images, title, propertyId, canEdit = false, onIma
           ))}
         </div>
 
-        {/* Mobile Carousel */}
+        {/* Mobile Carousel - Optimized for one-hand use */}
         <div className="md:hidden relative group rounded-lg overflow-hidden mb-4">
           <div
-            className="relative h-80 bg-muted"
+            className="relative h-96 bg-muted w-full"
             onTouchStart={onTouchStart}
             onTouchMove={onTouchMove}
             onTouchEnd={onTouchEnd}
+            style={{ touchAction: 'manipulation' }}
+            data-testid="mobile-carousel-swipe"
           >
-            {/* Image */}
+            {/* Image - Prevent zoom */}
             <img
               key={currentImageIndex}
               src={imageStates[currentImageIndex] === 'error' ? getFallbackImageUrl() : getMainImageUrl(mainImage)}
@@ -355,30 +365,35 @@ export function PhotoGallery({ images, title, propertyId, canEdit = false, onIma
               decoding="async"
               onLoad={() => handleImageLoad(currentImageIndex)}
               onError={() => handleImageError(currentImageIndex)}
+              onDoubleClick={(e) => e.preventDefault()}
               className="w-full h-full object-cover animate-in fade-in duration-300"
+              style={{ WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
+              draggable={false}
             />
 
             {/* Overlay Controls */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-            {/* Navigation Buttons */}
+            {/* Navigation Buttons - Larger touch targets */}
             {validImages.length > 1 && (
               <>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="absolute left-2 top-1/2 -translate-y-1/2 text-white hover:bg-white/20"
+                  className="absolute left-2 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 h-12 w-12"
                   onClick={prevImage}
                   data-testid="button-prev-mobile"
+                  aria-label="Previous image"
                 >
                   <ChevronLeft className="h-6 w-6" />
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-white hover:bg-white/20"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 h-12 w-12"
                   onClick={nextImage}
                   data-testid="button-next-mobile"
+                  aria-label="Next image"
                 >
                   <ChevronRight className="h-6 w-6" />
                 </Button>

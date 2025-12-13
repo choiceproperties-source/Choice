@@ -6,6 +6,11 @@ import { logImageAudit, type ImageAuditLog } from "./image-audit";
  * Handles cleanup of remote images when archives locally
  */
 export async function deleteImageKitFile(fileId: string): Promise<void> {
+  if (!imagekit) {
+    console.warn(`[IMAGEKIT] ImageKit not configured, skipping file deletion: ${fileId}`);
+    return;
+  }
+  
   try {
     await imagekit.deleteFile(fileId);
     console.log(`[IMAGEKIT] Deleted file: ${fileId}`);

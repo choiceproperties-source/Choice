@@ -6630,6 +6630,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Generate signed upload token for secure direct uploads to ImageKit
   app.post("/api/imagekit/upload-token", authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
+      if (!imagekit) {
+        return res.status(503).json(errorResponse("ImageKit is not configured"));
+      }
+
       const { category = "general" } = req.body;
 
       // Verify user has upload permissions
