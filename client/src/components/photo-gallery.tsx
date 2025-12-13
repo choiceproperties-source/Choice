@@ -1,29 +1,59 @@
 import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { X, ChevronLeft, ChevronRight, Maximize2, ImageOff } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Maximize2, ImageOff, Upload, Trash2, GripVertical } from "lucide-react";
 import { getThumbnailUrl, getGalleryThumbUrl, getMainImageUrl, getFullscreenImageUrl } from "@/lib/imagekit";
 import { getFallbackImageUrl } from "@/lib/gallery-placeholder";
+import { useToast } from "@/hooks/use-toast";
 
 interface PhotoGalleryProps {
   images: string[];
   title: string;
+  propertyId?: string;
+  canEdit?: boolean;
+  onImagesChange?: (images: string[]) => void;
 }
 
 interface ImageState {
   [key: number]: 'loading' | 'loaded' | 'error';
 }
 
-export function PhotoGallery({ images, title }: PhotoGalleryProps) {
+export function PhotoGallery({ images, title, propertyId, canEdit = false, onImagesChange }: PhotoGalleryProps) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const [preloadedImages, setPreloadedImages] = useState<Set<number>>(new Set());
   const [imageStates, setImageStates] = useState<ImageState>({});
+  const [isDeleting, setIsDeleting] = useState(false);
+  const { toast } = useToast();
 
   const validImages = images.filter(img => img && typeof img === 'string');
   const mainImage = validImages[currentImageIndex];
   const minSwipeDistance = 50;
+
+  const handleDeleteImage = async (index: number) => {
+    if (!propertyId || !canEdit) return;
+    
+    setIsDeleting(true);
+    try {
+      const newImages = validImages.filter((_, i) => i !== index);
+      await fetch(`/api/properties/${propertyId}/photos`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ images: newImages })
+      });
+      
+      onImagesChange?.(newImages);
+      if (currentImageIndex >= newImages.length) {
+        setCurrentImageIndex(Math.max(0, newImages.length - 1));
+      }
+      toast({ description: 'Photo deleted successfully' });
+    } catch (err) {
+      toast({ description: 'Failed to delete photo', variant: 'destructive' });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   // Handle image error
   const handleImageError = (index: number) => {
@@ -167,6 +197,22 @@ export function PhotoGallery({ images, title }: PhotoGalleryProps) {
               draggable={false}
             />
 
+            {/* Action Buttons for Editors */}
+            {canEdit && (
+              <div className="absolute top-16 right-4 flex gap-2 z-20">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="bg-red-500/80 hover:bg-red-600 text-white"
+                  onClick={() => handleDeleteImage(currentImageIndex)}
+                  disabled={isDeleting}
+                  data-testid="button-delete-photo"
+                >
+                  <Trash2 className="h-5 w-5" />
+                </Button>
+              </div>
+            )}
+
             {/* Next Button */}
             <Button
               variant="ghost"
@@ -225,6 +271,21 @@ export function PhotoGallery({ images, title }: PhotoGalleryProps) {
               className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
             />
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
+            {canEdit && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute top-2 right-2 bg-red-500/80 hover:bg-red-600 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteImage(0);
+                }}
+                disabled={isDeleting}
+                data-testid="button-delete-main-photo"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
             <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-sm text-white px-3 py-1.5 rounded-md text-sm font-semibold flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
               <Maximize2 className="h-4 w-4" />
               {validImages.length} Photos
@@ -251,6 +312,21 @@ export function PhotoGallery({ images, title }: PhotoGalleryProps) {
                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
               />
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
+              {canEdit && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute top-1 right-1 bg-red-500/80 hover:bg-red-600 text-white opacity-0 group-hover:opacity-100 transition-opacity h-7 w-7"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteImage(idx + 1);
+                  }}
+                  disabled={isDeleting}
+                  data-testid={`button-delete-photo-${idx + 1}`}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              )}
               {idx === 3 && validImages.length > 5 && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/60 group-hover:bg-black/70 transition-colors duration-300">
                   <span className="text-white font-bold text-lg">
