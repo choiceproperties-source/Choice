@@ -1,7 +1,7 @@
 # Choice Properties - Full Stack Real Estate Application
 
 ## Project Overview
-A full-stack real estate platform built with React, Express, and Supabase. The application allows users to browse properties, submit applications, manage inquiries, and connect with real estate agents.
+A full-stack real estate platform built with React, Express, and Supabase. The application allows users to browse properties, submit applications, manage inquiries, and complete full lease workflows with digital signatures and move-in coordination.
 
 ## Tech Stack
 - **Frontend:** React 19, Vite, TailwindCSS, Shadcn UI
@@ -20,8 +20,12 @@ project/
 │   ├── src/
 │   │   ├── components/    # React components
 │   │   │   ├── ui/       # Shadcn UI components
+│   │   │   ├── timeline.tsx    # Lease timeline component
 │   │   │   └── ...       # Feature components
 │   │   ├── pages/        # Page components
+│   │   │   ├── tenant-lease-dashboard.tsx
+│   │   │   ├── landlord-lease-dashboard.tsx
+│   │   │   └── ...
 │   │   ├── hooks/        # Custom React hooks
 │   │   ├── lib/          # Utilities and services
 │   │   ├── data/         # Mock data
@@ -60,6 +64,29 @@ project/
 - Save favorite properties
 - Submit rental applications
 
+### Lease Management (NEW)
+- **Lease Preparation:** Landlord creates lease documents
+- **Lease Delivery:** Send lease to tenant for review
+- **Lease Acceptance:** Tenant accepts/declines lease terms
+- **Digital Signatures:** Both parties sign lease electronically
+- **Move-In Preparation:** Set key pickup, access codes, utilities, checklist
+- **Lease Dashboards:** Real-time status tracking for both parties
+
+### Lease Dashboards (NEW)
+**Tenant Lease Dashboard** (`/tenant-lease-dashboard`):
+- Visual lease status timeline
+- Download signed lease documents
+- Move-in readiness information
+- Interactive move-in checklist
+- Access codes and key pickup details
+
+**Landlord Lease Dashboard** (`/landlord-lease-dashboard`):
+- Lease pipeline overview with stats
+- Applications grouped by status
+- Tenant information and contact
+- Visual timeline for each lease
+- Quick action buttons
+
 ### Inquiries & Reviews
 - Submit inquiries about properties
 - View and manage property reviews (1-5 stars)
@@ -95,13 +122,23 @@ Optional:
 1. **users** - User accounts with roles (user, agent, admin)
 2. **properties** - Property listings with details and amenities
 3. **applications** - Rental applications with multi-step process
-4. **inquiries** - Contact inquiries about properties
-5. **reviews** - User reviews for properties
-6. **favorites** - Saved properties per user
-7. **requirements** - User property search criteria
-8. **saved_searches** - Saved property searches
-9. **newsletter_subscribers** - Email newsletter subscriptions
-10. **contact_messages** - General contact form submissions
+4. **leaseSignatures** - Digital signature tracking for leases
+5. **inquiries** - Contact inquiries about properties
+6. **reviews** - User reviews for properties
+7. **favorites** - Saved properties per user
+8. **requirements** - User property search criteria
+9. **saved_searches** - Saved property searches
+10. **newsletter_subscribers** - Email newsletter subscriptions
+11. **contact_messages** - General contact form submissions
+
+### Lease-Related Fields in Applications Table
+- `leaseStatus` - Current lease stage (draft, lease_preparation, lease_sent, lease_accepted, lease_signed, move_in_ready, completed)
+- `leaseVersion` - Lease document version number
+- `leaseSentAt` - When lease was sent to tenant
+- `leaseAcceptedAt` - When tenant accepted lease
+- `leaseSignedAt` - When both parties signed
+- `moveInDate` - Scheduled move-in date
+- `moveInInstructions` - Key pickup, access codes, utilities, checklist
 
 ### Security
 - All tables have Row Level Security (RLS) enabled
@@ -138,12 +175,30 @@ npm run seed        # Run database seeding script
 
 ## API Documentation
 
-See `API_DOCUMENTATION.md` for complete API reference including:
-- Authentication endpoints
-- Property CRUD operations
-- Inquiry submissions
-- Review management
-- Favorites management
+### Lease Endpoints
+
+**Lease Preparation (4)**
+- `POST /api/applications/:applicationId/lease-draft` - Create/update draft lease
+- `GET /api/applications/:applicationId/lease-draft` - Get draft lease
+- `PATCH /api/applications/:applicationId/lease-draft` - Update draft (blocked after acceptance)
+- `GET /api/applications/:applicationId/lease-draft/history` - Get version history
+
+**Lease Delivery (4)**
+- `POST /api/applications/:applicationId/lease-draft/send` - Send lease to tenant
+- `GET /api/applications/:applicationId/lease` - Get tenant's lease
+- `POST /api/applications/:applicationId/lease/accept` - Tenant accepts lease
+- `POST /api/applications/:applicationId/lease/decline` - Tenant declines lease
+
+**Digital Signatures (4)**
+- `PATCH /api/applications/:applicationId/lease-draft/signature-enable` - Enable signatures
+- `POST /api/applications/:applicationId/lease/sign` - Sign lease electronically
+- `POST /api/applications/:applicationId/lease/countersign` - Countersign lease
+- `GET /api/applications/:applicationId/lease/signatures` - Get signature records
+
+**Move-In Preparation (3)**
+- `POST /api/applications/:applicationId/move-in/prepare` - Set move-in details
+- `GET /api/applications/:applicationId/move-in/instructions` - Get move-in info
+- `PATCH /api/applications/:applicationId/move-in/checklist` - Update checklist
 
 ## Development Guidelines
 
@@ -153,6 +208,7 @@ See `API_DOCUMENTATION.md` for complete API reference including:
 - Use Shadcn UI components for consistent styling
 - Use React Hook Form for form management
 - Add `data-testid` to interactive elements
+- Timeline component at `client/src/components/timeline.tsx`
 
 ### Backend
 - Keep routes thin - use storage service layer
@@ -176,18 +232,26 @@ The project is configured for Replit deployment:
 
 ## User Roles
 
-### User (Default)
+### User (Renter)
 - Browse properties
 - Submit rental applications
 - View and submit reviews
 - Save favorite properties
 - Track saved searches
+- **Access:** `/tenant-lease-dashboard` - Track lease status
 
 ### Agent
 - Manage property listings
 - View inquiries about properties
 - View property requirements from other users
 - Manage application status
+
+### Landlord
+- Create and manage leases
+- Send lease documents
+- Review tenant signatures
+- Set move-in details
+- **Access:** `/landlord-lease-dashboard` - Monitor lease pipeline
 
 ### Admin
 - Access admin panel
@@ -198,34 +262,20 @@ The project is configured for Replit deployment:
 
 ## Recent Changes (December 13, 2025)
 
-### Communication & Engagement System
+### Phase 7: Lease Dashboards & Timeline
+✅ Timeline component created with status indicators
+✅ Tenant Lease Dashboard with visual timeline
+✅ Landlord Lease Dashboard with pipeline view
+✅ Move-in readiness information display
+✅ Interactive checklist functionality
+✅ Real-time data fetching with React Query
+✅ Role-based access control
+
+### Phase 6: Move-In Preparation
 ✅ User notification preferences table added with preference controls
 ✅ Property notifications table added for property-related events
 ✅ Support for email, in-app, and SMS notification channels
 ✅ Notification types: new applications, status updates, property saved, lease reminders
-✅ Read/unread tracking for in-app messages
-✅ User preference controls: notification frequency (instant, daily, weekly)
-
-### Database Schema Updates
-✅ `userNotificationPreferences` - Controls notification channels and frequency per user
-✅ `propertyNotifications` - Tracks property-related notification events
-✅ Both tables integrate with existing SendGrid email service
-
-## Previous Changes (December 10, 2025)
-
-### Setup & Configuration
-✅ Supabase authentication configured
-✅ Database schema created with 7 tables
-✅ Row Level Security policies implemented
-✅ User sync trigger configured
-✅ Storage buckets created (property-images, profile-images, documents)
-✅ `.env.example` file added
-✅ API documentation created
-
-### Project Organization
-✅ Removed unnecessary files (AUTO_GUIDE, netlify.toml, etc.)
-✅ Cleaned up temporary assets
-✅ Organized project structure
 
 ## Useful Commands
 
@@ -260,11 +310,13 @@ npm run seed
 - Rate limiting is enabled in production to prevent abuse
 - All sensitive data is encrypted and requires authentication
 - Email notifications use SendGrid (optional)
+- Lease workflow includes complete digital signature support
+- Dashboards provide real-time progress tracking
 
 ## Next Steps
 
-1. Test the signup/login functionality
-2. Create sample property listings
-3. Test property browsing and filtering
-4. Set up email notifications (optional)
+1. Test lease dashboard functionality
+2. Verify real-time updates with React Query
+3. Test move-in instruction display
+4. Create sample leases and track through pipeline
 5. Deploy to production when ready
