@@ -117,24 +117,6 @@ export default function PropertyDetails() {
     return () => { removeStructuredData('property'); };
   }, [property, bedrooms, bathrooms, sqft]);
 
-  useEffect(() => {
-    if (!showFullGallery) return;
-
-    const handleEscapeKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setShowFullGallery(false);
-      }
-    };
-
-    document.addEventListener('keydown', handleEscapeKey);
-    document.body.style.overflow = 'hidden';
-
-    return () => {
-      document.removeEventListener('keydown', handleEscapeKey);
-      document.body.style.overflow = 'unset';
-    };
-  }, [showFullGallery]);
-
   if (!match) return <NotFound />;
 
   if (isLoading || !property) {
@@ -167,9 +149,77 @@ export default function PropertyDetails() {
   const nextImage = () => setCurrentImageIndex((prev) => (prev + 1) % allImages.length);
   const prevImage = () => setCurrentImageIndex((prev) => (prev - 1 + allImages.length) % allImages.length);
 
+  // Preload adjacent images when modal is open
+  const getPrevImageIndex = () => (currentImageIndex - 1 + allImages.length) % allImages.length;
+  const getNextImageIndex = () => (currentImageIndex + 1) % allImages.length;
+
+  // Keyboard navigation and touch swipe support
+  useEffect(() => {
+    if (!showFullGallery) return;
+
+    let touchStartX = 0;
+    let touchEndX = 0;
+
+    const handleKeydown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowFullGallery(false);
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        setCurrentImageIndex((prev) => (prev + 1) % allImages.length);
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setCurrentImageIndex((prev) => (prev - 1 + allImages.length) % allImages.length);
+      }
+    };
+
+    const handleTouchStart = (e: TouchEvent) => {
+      touchStartX = e.changedTouches[0].screenX;
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      touchEndX = e.changedTouches[0].screenX;
+      handleSwipe();
+    };
+
+    const handleSwipe = () => {
+      const swipeThreshold = 50;
+      const diff = touchStartX - touchEndX;
+
+      if (Math.abs(diff) > swipeThreshold) {
+        if (diff > 0) {
+          // Swiped left, show next image
+          setCurrentImageIndex((prev) => (prev + 1) % allImages.length);
+        } else {
+          // Swiped right, show previous image
+          setCurrentImageIndex((prev) => (prev - 1 + allImages.length) % allImages.length);
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeydown);
+    document.addEventListener('touchstart', handleTouchStart);
+    document.addEventListener('touchend', handleTouchEnd);
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.removeEventListener('keydown', handleKeydown);
+      document.removeEventListener('touchstart', handleTouchStart);
+      document.removeEventListener('touchend', handleTouchEnd);
+      document.body.style.overflow = 'unset';
+    };
+  }, [showFullGallery, allImages.length]);
+
   return (
     <div className="min-h-screen bg-white dark:bg-gray-950 flex flex-col">
       <Navbar />
+
+      {/* Image Preload Links - Hidden, improves navigation performance */}
+      {showFullGallery && (
+        <>
+          <link rel="preload" as="image" href={allImages[getNextImageIndex()]} />
+          <link rel="preload" as="image" href={allImages[getPrevImageIndex()]} />
+        </>
+      )}
 
       {/* Fullscreen Gallery Modal */}
       {showFullGallery && (
@@ -207,9 +257,10 @@ export default function PropertyDetails() {
               <ChevronLeft className="h-8 w-8" />
             </Button>
             <img
+              key={currentImageIndex}
               src={allImages[currentImageIndex]}
               alt={`${property.title} - Photo ${currentImageIndex + 1}`}
-              className="max-h-[80vh] max-w-[90vw] object-contain"
+              className="max-h-[80vh] max-w-[90vw] object-contain animate-in fade-in duration-300"
             />
             <Button
               variant="ghost"
