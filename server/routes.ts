@@ -6834,6 +6834,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get optimized images for property (public - no auth required, respects privacy)
   app.get("/api/images/property/:propertyId", optionalAuth, async (req: AuthenticatedRequest, res) => {
     try {
+      // If ImageKit isn't configured, return empty array gracefully
+      const urlEndpoint = process.env.IMAGEKIT_URL_ENDPOINT || "";
+      if (!urlEndpoint) {
+        return res.json(success([], "No optimized images available (ImageKit not configured)"));
+      }
+
       const { data: photos, error } = await supabase
         .from("photos")
         .select("id, imagekit_file_id, thumbnail_url, category, created_at, is_private, uploader_id, property_id, order_index")
@@ -6841,16 +6847,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .order("order_index", { ascending: true })
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
-
-      // Transform photo data to include optimized URLs
-      const urlEndpoint = process.env.IMAGEKIT_URL_ENDPOINT || "";
-      if (!urlEndpoint) {
-        return res.status(500).json(errorResponse("ImageKit not configured"));
+      if (error) {
+        // Handle schema cache miss gracefully - table may not be in PostgREST cache yet
+        if (error.code === 'PGRST205') {
+          console.log("[IMAGES] Photos table not in Supabase schema cache yet. Returning empty array.");
+          return res.json(success([], "Photos table not available yet"));
+        }
+        throw error;
       }
 
       // Filter by privacy - only show public images or if user is authorized
-      const visiblePhotos = photos.filter((photo) => {
+      const visiblePhotos = (photos || []).filter((photo) => {
         if (!photo.is_private) return true; // Public images always visible
         
         // Private images: only show if authorized
