@@ -36,7 +36,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { 
   Trash2, Edit2, Plus, Home, Users, Star, FileText, MessageSquare, Shield, 
   Check, X, LogOut, LayoutDashboard, Search, BarChart3, Menu, Eye, Filter,
-  CheckCircle, XCircle, Clock, Mail, Phone, Calendar, DollarSign, MapPin
+  CheckCircle, XCircle, Clock, Mail, Phone, Calendar, DollarSign, MapPin,
+  AlertTriangle, Flag, FileCheck, Scale
 } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useToast } from '@/hooks/use-toast';
@@ -46,7 +47,11 @@ import {
   createUser, deleteUser, updateApplication, updateInquiryStatus,
   getSavedSearches, deleteSavedSearch,
   getManagedPersonas, createManagedPersona, updateManagedPersona, deleteManagedPersona,
-  getAdminSettings, saveAdminSetting
+  getAdminSettings, saveAdminSetting,
+  getContentReports, updateContentReport,
+  getDisputes, updateDispute, addDisputeMessage, getDisputeMessages,
+  getDocumentVerifications, updateDocumentVerification,
+  flagPropertyListing
 } from '@/lib/supabase-service';
 import { UserCog, Settings } from 'lucide-react';
 
@@ -110,6 +115,39 @@ interface Persona {
   is_managed_profile: boolean; managed_by?: string;
 }
 
+interface ContentReport {
+  id: string; reporter_id?: string; property_id?: string; review_id?: string;
+  report_type: string; description?: string; status: string; priority: string;
+  assigned_to?: string; resolution?: string; resolved_at?: string; resolved_by?: string;
+  created_at: string; updated_at?: string;
+  reporter?: { id: string; full_name: string; email: string };
+  property?: { id: string; title: string; address: string };
+  review?: { id: string; comment: string; rating: number };
+  assigned?: { id: string; full_name: string };
+}
+
+interface Dispute {
+  id: string; initiator_id?: string; respondent_id?: string; property_id?: string;
+  application_id?: string; dispute_type: string; subject: string; description: string;
+  status: string; priority: string; assigned_to?: string; resolution?: string;
+  resolved_at?: string; resolved_by?: string; created_at: string; updated_at?: string;
+  initiator?: { id: string; full_name: string; email: string };
+  respondent?: { id: string; full_name: string; email: string };
+  property?: { id: string; title: string };
+  application?: { id: string; status: string };
+  assigned?: { id: string; full_name: string };
+}
+
+interface DocumentVerification {
+  id: string; user_id?: string; application_id?: string; file_id?: string;
+  document_type: string; status: string; rejection_reason?: string; notes?: string;
+  verified_at?: string; verified_by?: string; created_at: string; updated_at?: string;
+  user?: { id: string; full_name: string; email: string };
+  application?: { id: string; status: string };
+  file?: { id: string; filename: string; original_name: string; mime_type: string };
+  verifier?: { id: string; full_name: string };
+}
+
 export default function Admin() {
   const { user, logout } = useAuth();
   const { toast } = useToast();
@@ -126,6 +164,9 @@ export default function Admin() {
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [adminSettings, setAdminSettings] = useState<Record<string, string>>({});
+  const [contentReports, setContentReports] = useState<ContentReport[]>([]);
+  const [disputes, setDisputes] = useState<Dispute[]>([]);
+  const [documentVerifications, setDocumentVerifications] = useState<DocumentVerification[]>([]);
 
   // Modal states
   const [showAddProperty, setShowAddProperty] = useState(false);
@@ -151,6 +192,13 @@ export default function Admin() {
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
   const [selectedInquiry, setSelectedInquiry] = useState<Inquiry | null>(null);
   const [selectedSearch, setSelectedSearch] = useState<SavedSearch | null>(null);
+  const [selectedReport, setSelectedReport] = useState<ContentReport | null>(null);
+  const [selectedDispute, setSelectedDispute] = useState<Dispute | null>(null);
+  const [selectedDocument, setSelectedDocument] = useState<DocumentVerification | null>(null);
+  const [showReportDetails, setShowReportDetails] = useState(false);
+  const [showDisputeDetails, setShowDisputeDetails] = useState(false);
+  const [showDocumentDetails, setShowDocumentDetails] = useState(false);
+  const [moderationTab, setModerationTab] = useState<'reports' | 'disputes' | 'documents'>('reports');
 
   // Filter states
   const [propertyFilter, setPropertyFilter] = useState({ status: 'all', city: '', minPrice: '', maxPrice: '' });
@@ -176,9 +224,9 @@ export default function Admin() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [props, usersData, reviewsData, inqsData, appsData, searchesData, personasData, settingsData] = await Promise.all([
+      const [props, usersData, reviewsData, inqsData, appsData, searchesData, personasData, settingsData, reportsData, disputesData, docsData] = await Promise.all([
         getProperties(), getAllUsers(), getAllReviews(), getInquiries(), getApplications(), getSavedSearches(),
-        getManagedPersonas(), getAdminSettings()
+        getManagedPersonas(), getAdminSettings(), getContentReports(), getDisputes(), getDocumentVerifications()
       ]);
       setProperties(props as any[]);
       setUsers(usersData);
@@ -188,6 +236,9 @@ export default function Admin() {
       setSavedSearches(searchesData || []);
       setPersonas(personasData || []);
       setAdminSettings(settingsData || {});
+      setContentReports(reportsData || []);
+      setDisputes(disputesData || []);
+      setDocumentVerifications(docsData || []);
     } catch (error) {
       toast({ title: 'Failed to load data', variant: 'destructive' });
     } finally {
@@ -488,6 +539,7 @@ export default function Admin() {
     { id: 'inquiries', label: 'Inquiries', icon: MessageSquare },
     { id: 'saved-searches', label: 'Saved Searches', icon: Search },
     { id: 'personas', label: 'Personas', icon: UserCog },
+    { id: 'moderation', label: 'Moderation', icon: AlertTriangle },
     { id: 'settings', label: 'Settings', icon: Settings },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
   ];
@@ -1247,6 +1299,222 @@ export default function Admin() {
                     </Card>
                   ))}
                 </div>
+              )}
+            </div>
+          )}
+
+          {/* Moderation Section */}
+          {activeSection === 'moderation' && !loading && (
+            <div className="space-y-6">
+              {/* Moderation Stats */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-destructive/10 rounded-lg">
+                        <Flag className="h-6 w-6 text-destructive" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Content Reports</p>
+                        <p className="text-2xl font-bold" data-testid="stat-reports">{contentReports.length}</p>
+                        <p className="text-xs text-muted-foreground">{contentReports.filter(r => r.status === 'pending').length} pending</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-yellow-500/10 rounded-lg">
+                        <Scale className="h-6 w-6 text-yellow-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Disputes</p>
+                        <p className="text-2xl font-bold" data-testid="stat-disputes">{disputes.length}</p>
+                        <p className="text-xs text-muted-foreground">{disputes.filter(d => d.status === 'open').length} open</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-blue-500/10 rounded-lg">
+                        <FileCheck className="h-6 w-6 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Doc Verifications</p>
+                        <p className="text-2xl font-bold" data-testid="stat-verifications">{documentVerifications.length}</p>
+                        <p className="text-xs text-muted-foreground">{documentVerifications.filter(d => d.status === 'pending').length} pending</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Moderation Tabs */}
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  variant={moderationTab === 'reports' ? 'default' : 'outline'}
+                  onClick={() => setModerationTab('reports')}
+                  data-testid="tab-reports"
+                >
+                  <Flag className="h-4 w-4 mr-2" />
+                  Flagged Content ({contentReports.length})
+                </Button>
+                <Button
+                  variant={moderationTab === 'disputes' ? 'default' : 'outline'}
+                  onClick={() => setModerationTab('disputes')}
+                  data-testid="tab-disputes"
+                >
+                  <Scale className="h-4 w-4 mr-2" />
+                  Disputes ({disputes.length})
+                </Button>
+                <Button
+                  variant={moderationTab === 'documents' ? 'default' : 'outline'}
+                  onClick={() => setModerationTab('documents')}
+                  data-testid="tab-documents"
+                >
+                  <FileCheck className="h-4 w-4 mr-2" />
+                  Document Verification ({documentVerifications.length})
+                </Button>
+              </div>
+
+              {/* Content Reports Tab */}
+              {moderationTab === 'reports' && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Content Reports</CardTitle>
+                    <CardDescription>Review flagged listings and reviews</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {contentReports.length === 0 ? (
+                      <p className="text-muted-foreground text-center py-8">No content reports</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {contentReports.map((report) => (
+                          <div key={report.id} className="flex items-start justify-between gap-4 p-4 bg-muted/50 rounded-lg" data-testid={`report-${report.id}`}>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Badge variant={report.status === 'pending' ? 'destructive' : report.status === 'reviewed' ? 'secondary' : 'outline'}>
+                                  {report.status}
+                                </Badge>
+                                <Badge variant="outline">{report.report_type}</Badge>
+                                <Badge variant="outline">{report.priority}</Badge>
+                              </div>
+                              <p className="font-medium mt-2">{report.property?.title || report.review?.comment?.substring(0, 50) || 'Unknown content'}</p>
+                              <p className="text-sm text-muted-foreground mt-1">{report.description || 'No description'}</p>
+                              <p className="text-xs text-muted-foreground mt-2">
+                                Reported by: {report.reporter?.full_name || 'Unknown'} on {new Date(report.created_at).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => { setSelectedReport(report); setShowReportDetails(true); }}
+                              data-testid={`button-view-report-${report.id}`}
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              Review
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Disputes Tab */}
+              {moderationTab === 'disputes' && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Disputes</CardTitle>
+                    <CardDescription>Manage user disputes and conflicts</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {disputes.length === 0 ? (
+                      <p className="text-muted-foreground text-center py-8">No disputes</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {disputes.map((dispute) => (
+                          <div key={dispute.id} className="flex items-start justify-between gap-4 p-4 bg-muted/50 rounded-lg" data-testid={`dispute-${dispute.id}`}>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Badge variant={dispute.status === 'open' ? 'destructive' : dispute.status === 'in_progress' ? 'secondary' : 'outline'}>
+                                  {dispute.status}
+                                </Badge>
+                                <Badge variant="outline">{dispute.dispute_type}</Badge>
+                                <Badge variant="outline">{dispute.priority}</Badge>
+                              </div>
+                              <p className="font-medium mt-2">{dispute.subject}</p>
+                              <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{dispute.description}</p>
+                              <p className="text-xs text-muted-foreground mt-2">
+                                {dispute.initiator?.full_name || 'Unknown'} vs {dispute.respondent?.full_name || 'Unknown'} | {new Date(dispute.created_at).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => { setSelectedDispute(dispute); setShowDisputeDetails(true); }}
+                              data-testid={`button-view-dispute-${dispute.id}`}
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              View
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Document Verification Tab */}
+              {moderationTab === 'documents' && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Document Verification</CardTitle>
+                    <CardDescription>Verify user-submitted documents</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {documentVerifications.length === 0 ? (
+                      <p className="text-muted-foreground text-center py-8">No documents pending verification</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {documentVerifications.map((doc) => (
+                          <div key={doc.id} className="flex items-start justify-between gap-4 p-4 bg-muted/50 rounded-lg" data-testid={`document-${doc.id}`}>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Badge variant={doc.status === 'pending' ? 'secondary' : doc.status === 'verified' ? 'default' : 'destructive'}>
+                                  {doc.status}
+                                </Badge>
+                                <Badge variant="outline">{doc.document_type}</Badge>
+                              </div>
+                              <p className="font-medium mt-2">{doc.file?.original_name || doc.file?.filename || 'Unknown file'}</p>
+                              <p className="text-sm text-muted-foreground mt-1">
+                                User: {doc.user?.full_name || 'Unknown'}
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Submitted: {new Date(doc.created_at).toLocaleDateString()}
+                                {doc.verified_at && ` | Verified: ${new Date(doc.verified_at).toLocaleDateString()}`}
+                              </p>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => { setSelectedDocument(doc); setShowDocumentDetails(true); }}
+                              data-testid={`button-view-document-${doc.id}`}
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              Review
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               )}
             </div>
           )}
