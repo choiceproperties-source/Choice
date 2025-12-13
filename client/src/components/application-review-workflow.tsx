@@ -10,7 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { CheckCircle, XCircle, Clock, AlertCircle, FileText, MessageSquare, History, ThumbsUp, ThumbsDown, HelpCircle } from "lucide-react";
+import { CheckCircle, XCircle, Clock, AlertCircle, FileText, MessageSquare, History, ThumbsUp, ThumbsDown, HelpCircle, AlertTriangle, Plus, Trash2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
 
 interface ApplicationReviewWorkflowProps {
@@ -45,10 +46,17 @@ export function ApplicationReviewWorkflow({
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [infoRequestDialogOpen, setInfoRequestDialogOpen] = useState(false);
+  const [conditionalDialogOpen, setConditionalDialogOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [infoRequestReason, setInfoRequestReason] = useState("");
-  const [conditionalRequirements, setConditionalRequirements] = useState("");
+  const [conditionalReason, setConditionalReason] = useState("");
+  const [conditionalRequirements, setConditionalRequirements] = useState<Array<{
+    type: 'document' | 'information' | 'verification';
+    description: string;
+    required: boolean;
+  }>>([]);
   const [dueDate, setDueDate] = useState("");
+  const [conditionalDueDate, setConditionalDueDate] = useState("");
 
   const reviewActionMutation = useMutation({
     mutationFn: async (actionData: { action: string; reason?: string; conditionalRequirements?: string; dueDate?: string }) => {
@@ -74,6 +82,10 @@ export function ApplicationReviewWorkflow({
       setApproveDialogOpen(false);
       setRejectDialogOpen(false);
       setInfoRequestDialogOpen(false);
+      setConditionalDialogOpen(false);
+      setConditionalRequirements([]);
+      setConditionalReason("");
+      setConditionalDueDate("");
       onActionComplete?.();
     },
     onError: (error: any) => {
@@ -91,7 +103,25 @@ export function ApplicationReviewWorkflow({
   const canApprove = ["submitted", "under_review", "info_requested"].includes(currentStatus);
   const canReject = ["submitted", "under_review", "info_requested"].includes(currentStatus);
   const canRequestInfo = ["submitted", "under_review"].includes(currentStatus);
+  const canConditionalApprove = ["submitted", "under_review", "info_requested"].includes(currentStatus);
   const isFinalized = ["approved", "rejected", "withdrawn"].includes(currentStatus);
+
+  const addRequirement = () => {
+    setConditionalRequirements([
+      ...conditionalRequirements,
+      { type: 'document', description: '', required: true }
+    ]);
+  };
+
+  const removeRequirement = (index: number) => {
+    setConditionalRequirements(conditionalRequirements.filter((_, i) => i !== index));
+  };
+
+  const updateRequirement = (index: number, field: string, value: any) => {
+    const updated = [...conditionalRequirements];
+    updated[index] = { ...updated[index], [field]: value };
+    setConditionalRequirements(updated);
+  };
 
   return (
     <Card>
