@@ -229,16 +229,16 @@ export default function TenantPaymentsDashboard() {
                 </Card>
               </div>
 
-              {/* Overdue Alerts */}
+              {/* Overdue Alert - Professional & Calm */}
               {overduePayments.length > 0 && (
-                <div className="p-4 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg flex gap-3">
-                  <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                <div className="p-4 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg flex gap-3">
+                  <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="font-semibold text-red-900 dark:text-red-200">
-                      {overduePayments.length} Overdue Payment{overduePayments.length > 1 ? 's' : ''}
+                    <p className="font-semibold text-amber-900 dark:text-amber-200">
+                      {overduePayments.length} Payment{overduePayments.length > 1 ? 's' : ''} Due
                     </p>
-                    <p className="text-sm text-red-800 dark:text-red-300">
-                      Please submit your payment as soon as possible.
+                    <p className="text-sm text-amber-800 dark:text-amber-300">
+                      You have ${overduePayments.reduce((s, p) => s + p.amount, 0).toFixed(2)} in payments that are overdue. Please address these at your earliest convenience.
                     </p>
                   </div>
                 </div>
@@ -292,17 +292,17 @@ export default function TenantPaymentsDashboard() {
                 </div>
               )}
 
-              {/* Overdue Payments */}
+              {/* Overdue Payments - Calm Professional Display */}
               {overduePayments.length > 0 && (
                 <div>
-                  <h2 className="text-xl font-bold mb-4">Overdue Payments</h2>
+                  <h2 className="text-xl font-bold mb-4">Payments Requiring Attention</h2>
                   <div className="space-y-3">
                     {overduePayments.map((payment) => (
-                      <Card key={payment.id} className="p-4 border-red-200 dark:border-red-800">
+                      <Card key={payment.id} className="p-4">
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-2">
-                              <h3 className="font-semibold text-red-900 dark:text-red-100">
+                              <h3 className="font-semibold">
                                 {payment.type === 'rent' ? 'Monthly Rent' : 'Security Deposit'}
                               </h3>
                               <Badge className={getStatusColor(payment.status)}>
@@ -312,15 +312,15 @@ export default function TenantPaymentsDashboard() {
                                 </span>
                               </Badge>
                             </div>
-                            <p className="text-sm text-red-800 dark:text-red-300 mb-2">
-                              Was due: {format(new Date(payment.dueDate), 'MMMM dd, yyyy')}
+                            <p className="text-sm text-muted-foreground mb-2">
+                              Due date: {format(new Date(payment.dueDate), 'MMMM dd, yyyy')}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              Ref: {payment.referenceId}
+                              Reference: {payment.referenceId}
                             </p>
                           </div>
                           <div className="text-right">
-                            <p className="text-2xl font-bold text-red-600 dark:text-red-400">${payment.amount.toFixed(2)}</p>
+                            <p className="text-2xl font-bold">${payment.amount.toFixed(2)}</p>
                             <Button
                               size="sm"
                               className="mt-2"

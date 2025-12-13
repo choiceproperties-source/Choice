@@ -5622,7 +5622,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (error) throw error;
 
-      return res.json(success(payments || [], "Payments retrieved successfully"));
+      // Mark overdue payments (past due date and not verified/paid)
+      const now = new Date();
+      const enrichedPayments = (payments || []).map((p: any) => {
+        const dueDate = new Date(p.due_date);
+        const isOverdue = p.status === 'pending' && dueDate < now;
+        return {
+          ...p,
+          status: isOverdue ? 'overdue' : p.status
+        };
+      });
+
+      return res.json(success(enrichedPayments, "Payments retrieved successfully"));
     } catch (err: any) {
       console.error("[PAYMENTS] Get error:", err);
       return res.status(500).json(errorResponse("Failed to retrieve payments"));

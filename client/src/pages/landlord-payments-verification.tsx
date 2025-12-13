@@ -200,6 +200,7 @@ export default function LandlordPaymentsVerification() {
   }
 
   const pendingPayments = allPayments.filter((p) => p.status === 'paid' || p.status === 'pending');
+  const overduePayments = allPayments.filter((p) => p.status === 'overdue');
   const verifiedPayments = allPayments.filter((p) => p.status === 'verified');
 
   return (
@@ -224,6 +225,148 @@ export default function LandlordPaymentsVerification() {
             </Card>
           ) : (
             <div className="space-y-8">
+              {/* Overdue Rent Section */}
+              {overduePayments.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-4">
+                    <h2 className="text-xl font-bold">Overdue Rent</h2>
+                    <Badge variant="destructive">{overduePayments.length}</Badge>
+                  </div>
+                  <div className="space-y-3">
+                    {overduePayments.map((payment) => (
+                      <Card key={payment.id} className="p-4 border-amber-200 dark:border-amber-800">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <h3 className="font-semibold">
+                                {payment.type === 'rent' ? 'Monthly Rent' : 'Security Deposit'}
+                              </h3>
+                              <Badge className="bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-400">
+                                <span className="inline-flex items-center gap-1">
+                                  <AlertTriangle className="w-3 h-3" />
+                                  Overdue
+                                </span>
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground mb-1">
+                              {payment.propertyTitle}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              Was due: {format(new Date(payment.dueDate), 'MMMM dd, yyyy')}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-2xl font-bold">${payment.amount.toFixed(2)}</p>
+                            <Dialog
+                              open={openDialogs[payment.id] || false}
+                              onOpenChange={(open) =>
+                                setOpenDialogs({ ...openDialogs, [payment.id]: open })
+                              }
+                            >
+                              <DialogTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  className="mt-2"
+                                  data-testid={`button-verify-overdue-${payment.id}`}
+                                >
+                                  Verify
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent>
+                                <DialogHeader>
+                                  <DialogTitle>Verify Overdue Payment</DialogTitle>
+                                  <DialogDescription>
+                                    {payment.type === 'rent' ? 'Monthly Rent' : 'Security Deposit'} - ${payment.amount.toFixed(2)}
+                                  </DialogDescription>
+                                </DialogHeader>
+                                <div className="space-y-4">
+                                  <div>
+                                    <Label htmlFor={`amount-${payment.id}`}>Amount</Label>
+                                    <Input
+                                      id={`amount-${payment.id}`}
+                                      type="number"
+                                      placeholder="0.00"
+                                      step="0.01"
+                                      value={verificationData[payment.id]?.amount || ''}
+                                      onChange={(e) =>
+                                        setVerificationData({
+                                          ...verificationData,
+                                          [payment.id]: {
+                                            ...verificationData[payment.id],
+                                            amount: e.target.value,
+                                          },
+                                        })
+                                      }
+                                      data-testid={`input-amount-overdue-${payment.id}`}
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label htmlFor={`method-${payment.id}`}>Payment Method</Label>
+                                    <Select
+                                      value={verificationData[payment.id]?.method || ''}
+                                      onValueChange={(value) =>
+                                        setVerificationData({
+                                          ...verificationData,
+                                          [payment.id]: {
+                                            ...verificationData[payment.id],
+                                            method: value,
+                                          },
+                                        })
+                                      }
+                                    >
+                                      <SelectTrigger
+                                        id={`method-${payment.id}`}
+                                        data-testid={`select-method-overdue-${payment.id}`}
+                                      >
+                                        <SelectValue placeholder="Select method" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="cash">Cash</SelectItem>
+                                        <SelectItem value="check">Check</SelectItem>
+                                        <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                                        <SelectItem value="wire_transfer">Wire Transfer</SelectItem>
+                                        <SelectItem value="money_order">Money Order</SelectItem>
+                                        <SelectItem value="other">Other</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div>
+                                    <Label htmlFor={`date-${payment.id}`}>Date Received</Label>
+                                    <Input
+                                      id={`date-${payment.id}`}
+                                      type="date"
+                                      value={verificationData[payment.id]?.dateReceived || ''}
+                                      onChange={(e) =>
+                                        setVerificationData({
+                                          ...verificationData,
+                                          [payment.id]: {
+                                            ...verificationData[payment.id],
+                                            dateReceived: e.target.value,
+                                          },
+                                        })
+                                      }
+                                      data-testid={`input-date-overdue-${payment.id}`}
+                                    />
+                                  </div>
+                                  <Button
+                                    onClick={() => handleVerify(payment.id)}
+                                    disabled={verifyMutation.isPending}
+                                    className="w-full"
+                                    data-testid={`button-confirm-overdue-${payment.id}`}
+                                  >
+                                    {verifyMutation.isPending ? 'Verifying...' : 'Confirm Verification'}
+                                  </Button>
+                                </div>
+                              </DialogContent>
+                            </Dialog>
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {pendingPayments.length > 0 && (
                 <div>
                   <h2 className="text-xl font-bold mb-4">Awaiting Verification</h2>
