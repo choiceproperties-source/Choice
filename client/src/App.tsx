@@ -23,9 +23,6 @@ const Privacy = lazy(() => import("@/pages/privacy"));
 const Terms = lazy(() => import("@/pages/terms"));
 const OwnerProfile = lazy(() => import("@/pages/owner-profile"));
 const Applications = lazy(() => import("@/pages/applications"));
-const Buy = lazy(() => import("@/pages/buy"));
-const Sell = lazy(() => import("@/pages/sell"));
-const MortgageCalculator = lazy(() => import("@/pages/mortgage-calculator"));
 const Login = lazy(() => import("@/pages/login"));
 const Signup = lazy(() => import("@/pages/signup"));
 const ForgotPassword = lazy(() => import("@/pages/forgot-password"));
@@ -33,15 +30,9 @@ const ResetPassword = lazy(() => import("@/pages/reset-password"));
 const AuthCallback = lazy(() => import("@/pages/auth-callback"));
 const VerifyEmail = lazy(() => import("@/pages/verify-email"));
 const SelectRole = lazy(() => import("@/pages/select-role"));
-const Agents = lazy(() => import("@/pages/agents"));
 const FAQ = lazy(() => import("@/pages/faq"));
 const Admin = lazy(() => import("@/pages/admin"));
 const RenterDashboard = lazy(() => import("@/pages/renter-dashboard"));
-const SellerDashboard = lazy(() => import("@/pages/seller-dashboard"));
-const BuyerDashboard = lazy(() => import("@/pages/buyer-dashboard"));
-const PropertyRequirements = lazy(() => import("@/pages/property-requirements"));
-const AgentDashboard = lazy(() => import("@/pages/agent-dashboard"));
-const AgencyDashboard = lazy(() => import("@/pages/agency-dashboard"));
 const ApplicationDetail = lazy(() => import("@/pages/application-detail"));
 const TenantProfile = lazy(() => import("@/pages/tenant-profile"));
 const LandlordDashboard = lazy(() => import("@/pages/landlord-dashboard"));
@@ -86,21 +77,6 @@ function Router() {
           </ProtectedRoute>
         </ReactSuspense>
       </Route>
-      <Route path="/buy">
-        <ReactSuspense fallback={<LoadingFallback />}>
-          <Buy />
-        </ReactSuspense>
-      </Route>
-      <Route path="/sell">
-        <ReactSuspense fallback={<LoadingFallback />}>
-          <Sell />
-        </ReactSuspense>
-      </Route>
-      <Route path="/mortgage-calculator">
-        <ReactSuspense fallback={<LoadingFallback />}>
-          <MortgageCalculator />
-        </ReactSuspense>
-      </Route>
       <Route path="/login">
         <ReactSuspense fallback={<LoadingFallback />}>
           <Login />
@@ -136,11 +112,6 @@ function Router() {
           <SelectRole />
         </ReactSuspense>
       </Route>
-      <Route path="/agents">
-        <ReactSuspense fallback={<LoadingFallback />}>
-          <Agents />
-        </ReactSuspense>
-      </Route>
       <Route path="/faq">
         <ReactSuspense fallback={<LoadingFallback />}>
           <FAQ />
@@ -157,20 +128,6 @@ function Router() {
         <ReactSuspense fallback={<LoadingFallback />}>
           <ProtectedRoute>
             <RenterDashboard />
-          </ProtectedRoute>
-        </ReactSuspense>
-      </Route>
-      <Route path="/seller-dashboard">
-        <ReactSuspense fallback={<LoadingFallback />}>
-          <ProtectedRoute>
-            <SellerDashboard />
-          </ProtectedRoute>
-        </ReactSuspense>
-      </Route>
-      <Route path="/buyer-dashboard">
-        <ReactSuspense fallback={<LoadingFallback />}>
-          <ProtectedRoute>
-            <BuyerDashboard />
           </ProtectedRoute>
         </ReactSuspense>
       </Route>
@@ -194,28 +151,9 @@ function Router() {
           <Terms />
         </ReactSuspense>
       </Route>
-      <Route path="/property-requirements">
-        <ReactSuspense fallback={<LoadingFallback />}>
-          <PropertyRequirements />
-        </ReactSuspense>
-      </Route>
-      <Route path="/agent-dashboard">
-        <ReactSuspense fallback={<LoadingFallback />}>
-          <ProtectedRoute requiredRoles={['agent', 'admin']}>
-            <AgentDashboard />
-          </ProtectedRoute>
-        </ReactSuspense>
-      </Route>
-      <Route path="/agency-dashboard">
-        <ReactSuspense fallback={<LoadingFallback />}>
-          <ProtectedRoute requiredRoles={['agent', 'admin', 'property_manager']}>
-            <AgencyDashboard />
-          </ProtectedRoute>
-        </ReactSuspense>
-      </Route>
       <Route path="/tenant-profile">
         <ReactSuspense fallback={<LoadingFallback />}>
-          <ProtectedRoute requiredRoles={['renter', 'buyer']}>
+          <ProtectedRoute requiredRoles={['renter']}>
             <TenantProfile />
           </ProtectedRoute>
         </ReactSuspense>
