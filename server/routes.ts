@@ -26,6 +26,9 @@ import {
   insertAgentReviewSchema,
   insertPaymentVerificationSchema,
   PAYMENT_VERIFICATION_METHODS,
+  leaseStatusUpdateSchema,
+  LEASE_STATUS_TRANSITIONS,
+  LEASE_STATUSES,
 } from "@shared/schema";
 import { authLimiter, signupLimiter, inquiryLimiter, newsletterLimiter } from "./rate-limit";
 import { cache, CACHE_TTL } from "./cache";
@@ -2431,6 +2434,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.json(success(null, "Invitation resent successfully"));
     } catch (err: any) {
       return res.status(500).json(errorResponse("Failed to resend invitation"));
+    }
+  });
+
+  // ===== LEASE STATUS MANAGEMENT =====
+  // Update lease status with role-based validation
+  app.patch("/api/applications/:applicationId/lease-status", authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const validation = leaseStatusUpdateSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error.errors[0].message });
+      }
+
+      const { leaseStatus, leaseDocumentUrl, leaseVersion, moveInDate } = validation.data;
+
+      // Get application and property to check authorization
+      const { data: application, error: appError } = await supabase
+        .from("applications")
+        .select("*, properties(owner_id)")
+        .eq("id", req.params.applicationId)
+        .single();
+
+      if (appError || !application) {
+        return res.status(404).json({ error: "Application not found" });
+      }
+
+      // Only landlord/agent (property owner) or admin can update lease status
+      const isPropertyOwner = application.properties?.owner_id === req.user!.id;
+      const isAdmin = req.user!.role === "admin";
+
+      if (!isPropertyOwner && !isAdmin) {
+        return res.status(403).json({ error: "Only landlord/agent can update lease status" });
+      }
+
+      // Validate status transition
+      const currentStatus = application.lease_status || "lease_preparation";
+      const allowedTransitions = LEASE_STATUS_TRANSITIONS[currentStatus] || [];
+
+      if (!allowedTransitions.includes(leaseStatus)) {
+        return res.status(400).json({
+          error: `Invalid lease status transition from '${currentStatus}' to '${leaseStatus}'. Allowed transitions: ${allowedTransitions.join(", ") || "none"}`
+        });
+      }
+
+      // Update application with new lease status
+      const updateData: any = {
+        lease_status: leaseStatus,
+        updated_at: new Date().toISOString()
+      };
+
+      if (leaseDocumentUrl) updateData.lease_document_url = leaseDocumentUrl;
+      if (leaseVersion) updateData.lease_version = leaseVersion;
+      if (moveInDate) updateData.move_in_date = moveInDate;
+
+      // Set acceptance timestamp if status is lease_accepted
+      if (leaseStatus === "lease_accepted") {
+        updateData.lease_accepted_at = new Date().toISOString();
+      }
+
+      // Set signed timestamp if status is lease_signed (if needed in future)
+      if (leaseStatus === "completed") {
+        updateData.lease_signed_at = new Date().toISOString();
+      }
+
+      const { data, error } = await supabase
+        .from("applications")
+        .update(updateData)
+        .eq("id", req.params.applicationId)
+        .select();
+
+      if (error) throw error;
+
+      return res.json(success(data[0], "Lease status updated successfully"));
+    } catch (err: any) {
+      console.error("[LEASE] Status update error:", err);
+      return res.status(500).json(errorResponse("Failed to update lease status"));
     }
   });
 

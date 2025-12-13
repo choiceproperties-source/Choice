@@ -168,15 +168,25 @@ export const APPLICATION_STATUSES = [
   "withdrawn"
 ] as const;
 
-// Lease preparation statuses for post-approval workflow
+// Lease lifecycle statuses for post-approval workflow
 export const LEASE_STATUSES = [
-  "not_started",
-  "preparing",
-  "ready_for_signature",
-  "pending_signature",
-  "signed",
-  "active"
+  "lease_preparation",
+  "lease_sent",
+  "lease_accepted",
+  "lease_declined",
+  "move_in_ready",
+  "completed"
 ] as const;
+
+// Valid lease status transitions (from -> to)
+export const LEASE_STATUS_TRANSITIONS: Record<string, string[]> = {
+  "lease_preparation": ["lease_sent", "lease_declined"],
+  "lease_sent": ["lease_accepted", "lease_declined", "lease_sent"],
+  "lease_accepted": ["move_in_ready"],
+  "lease_declined": ["lease_preparation"],
+  "move_in_ready": ["completed"],
+  "completed": []
+} as const;
 
 // Payment verification methods for manual verification
 export const PAYMENT_VERIFICATION_METHODS = [
@@ -304,10 +314,13 @@ export const applications = pgTable("applications", {
     verifiedBy?: string;
   }>>(),
   // Lease preparation tracking
-  leaseStatus: text("lease_status").default("not_started"),
+  leaseStatus: text("lease_status").default("lease_preparation"),
+  leaseVersion: integer("lease_version").default(1),
+  leaseDocumentUrl: text("lease_document_url"),
   leaseDocumentId: uuid("lease_document_id"),
   leaseTemplateId: uuid("lease_template_id"),
   leaseGeneratedAt: timestamp("lease_generated_at"),
+  leaseAcceptedAt: timestamp("lease_accepted_at"),
   leaseSignedAt: timestamp("lease_signed_at"),
   moveInDate: timestamp("move_in_date"),
   moveInScheduledAt: timestamp("move_in_scheduled_at"),
@@ -866,6 +879,18 @@ export type PropertyQuestion = typeof propertyQuestions.$inferSelect;
 
 export type InsertApplication = z.infer<typeof insertApplicationSchema>;
 export type Application = typeof applications.$inferSelect;
+export type LeaseStatus = typeof LEASE_STATUSES[number];
+
+// Lease status update schema with validation
+export const leaseStatusUpdateSchema = z.object({
+  leaseStatus: z.enum([...LEASE_STATUSES] as [string, ...string[]]),
+  leaseDocumentUrl: z.string().url().optional(),
+  leaseVersion: z.number().int().positive().optional(),
+  moveInDate: z.string().datetime().optional(),
+  notes: z.string().optional(),
+});
+
+export type LeaseStatusUpdate = z.infer<typeof leaseStatusUpdateSchema>;
 
 export type InsertCoApplicant = z.infer<typeof insertCoApplicantSchema>;
 export type CoApplicant = typeof coApplicants.$inferSelect;
