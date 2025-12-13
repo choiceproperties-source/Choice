@@ -1,13 +1,54 @@
 import { Request, Response, NextFunction } from "express";
 import { supabase } from "./supabase";
 import { cache, CACHE_TTL } from "./cache";
+import { logSecurityEvent } from "./security/audit-logger";
 
 export interface AuthenticatedRequest extends Request {
   user?: {
     id: string;
     email: string;
     role: string;
+    twoFactorEnabled?: boolean;
+    twoFactorVerified?: boolean;
   };
+}
+
+export const ROLE_HIERARCHY: Record<string, number> = {
+  admin: 100,
+  owner: 80,
+  agent: 70,
+  landlord: 60,
+  property_manager: 60,
+  buyer: 20,
+  renter: 10,
+  guest: 0,
+};
+
+export const PROPERTY_EDIT_ROLES = ["admin", "owner", "agent", "landlord", "property_manager"];
+export const APPLICATION_REVIEW_ROLES = ["admin", "owner", "agent", "landlord", "property_manager"];
+export const SENSITIVE_DATA_ROLES = ["admin", "owner", "agent", "landlord", "property_manager"];
+export const ADMIN_ONLY_ROLES = ["admin"];
+
+export function hasHigherOrEqualRole(userRole: string, requiredRole: string): boolean {
+  const userLevel = ROLE_HIERARCHY[userRole] || 0;
+  const requiredLevel = ROLE_HIERARCHY[requiredRole] || 0;
+  return userLevel >= requiredLevel;
+}
+
+export function canEditProperties(role: string): boolean {
+  return PROPERTY_EDIT_ROLES.includes(role);
+}
+
+export function canReviewApplications(role: string): boolean {
+  return APPLICATION_REVIEW_ROLES.includes(role);
+}
+
+export function canAccessSensitiveData(role: string): boolean {
+  return SENSITIVE_DATA_ROLES.includes(role);
+}
+
+export function isAdminOnly(role: string): boolean {
+  return ADMIN_ONLY_ROLES.includes(role);
 }
 
 export async function authenticateToken(
@@ -202,5 +243,85 @@ export function requireOwnership(resourceType: "property" | "application" | "rev
     } catch (error) {
       return res.status(500).json({ error: "Failed to verify ownership" });
     }
+  };
+}
+
+export function requirePropertyEditAccess() {
+  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+
+    if (!canEditProperties(req.user.role)) {
+      logSecurityEvent(req.user.id, "login", false, { 
+        reason: "Unauthorized property edit attempt", 
+        role: req.user.role 
+      }, req);
+      return res.status(403).json({ 
+        error: "You don't have permission to edit properties. Only landlords, property managers, agents, and admins can edit properties." 
+      });
+    }
+
+    next();
+  };
+}
+
+export function requireApplicationReviewAccess() {
+  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+
+    if (!canReviewApplications(req.user.role)) {
+      logSecurityEvent(req.user.id, "login", false, { 
+        reason: "Unauthorized application review attempt", 
+        role: req.user.role 
+      }, req);
+      return res.status(403).json({ 
+        error: "You don't have permission to review applications. Only property owners, landlords, agents, and admins can review applications." 
+      });
+    }
+
+    next();
+  };
+}
+
+export function preventTenantPropertyEdit() {
+  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+
+    const tenantRoles = ["renter", "buyer"];
+    if (tenantRoles.includes(req.user.role)) {
+      logSecurityEvent(req.user.id, "login", false, { 
+        reason: "Tenant attempted to edit property", 
+        role: req.user.role,
+        path: req.path,
+        method: req.method
+      }, req);
+      return res.status(403).json({ 
+        error: "Tenants cannot modify property listings. Please contact the property owner or agent." 
+      });
+    }
+
+    next();
+  };
+}
+
+export function require2FAVerified() {
+  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+
+    if (req.user.twoFactorEnabled && !req.user.twoFactorVerified) {
+      return res.status(403).json({ 
+        error: "Two-factor authentication required",
+        requiresTwoFactor: true 
+      });
+    }
+
+    next();
   };
 }

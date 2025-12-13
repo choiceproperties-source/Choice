@@ -49,6 +49,12 @@ export const users = pgTable("users", {
   managedBy: uuid("managed_by"),
   displayEmail: text("display_email"),
   displayPhone: text("display_phone"),
+  twoFactorEnabled: boolean("two_factor_enabled").default(false),
+  twoFactorSecret: text("two_factor_secret"),
+  twoFactorBackupCodes: jsonb("two_factor_backup_codes").$type<string[]>(),
+  lastLoginAt: timestamp("last_login_at"),
+  failedLoginAttempts: integer("failed_login_attempts").default(0),
+  lockedUntil: timestamp("locked_until"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
   deletedAt: timestamp("deleted_at"),
@@ -312,14 +318,101 @@ export const adminSettings = pgTable("admin_settings", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const AUDIT_ACTIONS = [
+  "create", "update", "delete", "view", "login", "logout", 
+  "2fa_enable", "2fa_disable", "2fa_verify", "password_change",
+  "role_change", "status_change", "document_upload", "document_verify",
+  "application_review", "application_approve", "application_reject"
+] as const;
+
+export const auditLogs = pgTable("audit_logs", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+  action: text("action").notNull(),
+  resourceType: text("resource_type").notNull(),
+  resourceId: uuid("resource_id"),
+  previousData: jsonb("previous_data"),
+  newData: jsonb("new_data"),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  metadata: jsonb("metadata").$type<Record<string, any>>(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const sensitiveData = pgTable("sensitive_data", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+  applicationId: uuid("application_id").references(() => applications.id, { onDelete: "cascade" }),
+  dataType: text("data_type").notNull(),
+  encryptedValue: text("encrypted_value").notNull(),
+  encryptionKeyId: text("encryption_key_id"),
+  accessedBy: jsonb("accessed_by").$type<Array<{ userId: string; accessedAt: string; reason: string }>>(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const ALLOWED_FILE_TYPES = [
+  "image/jpeg", "image/png", "image/gif", "image/webp",
+  "application/pdf",
+  "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+] as const;
+
+export const MAX_FILE_SIZE = 10 * 1024 * 1024;
+
+export const uploadedFiles = pgTable("uploaded_files", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+  applicationId: uuid("application_id").references(() => applications.id, { onDelete: "cascade" }),
+  filename: text("filename").notNull(),
+  originalName: text("original_name").notNull(),
+  mimeType: text("mime_type").notNull(),
+  fileSize: integer("file_size").notNull(),
+  storagePath: text("storage_path").notNull(),
+  checksum: text("checksum"),
+  isVerified: boolean("is_verified").default(false),
+  verifiedBy: uuid("verified_by").references(() => users.id),
+  verifiedAt: timestamp("verified_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const insertAdminSettingsSchema = createInsertSchema(adminSettings).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
 });
 
+export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertSensitiveDataSchema = createInsertSchema(sensitiveData).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertUploadedFileSchema = createInsertSchema(uploadedFiles).omit({
+  id: true,
+  createdAt: true,
+  isVerified: true,
+  verifiedBy: true,
+  verifiedAt: true,
+});
+
 export type InsertAdminSettings = z.infer<typeof insertAdminSettingsSchema>;
 export type AdminSettings = typeof adminSettings.$inferSelect;
+
+export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type AuditAction = typeof AUDIT_ACTIONS[number];
+
+export type InsertSensitiveData = z.infer<typeof insertSensitiveDataSchema>;
+export type SensitiveData = typeof sensitiveData.$inferSelect;
+
+export type InsertUploadedFile = z.infer<typeof insertUploadedFileSchema>;
+export type UploadedFile = typeof uploadedFiles.$inferSelect;
+export type AllowedFileType = typeof ALLOWED_FILE_TYPES[number];
 
 export const TRANSACTION_TYPES = ["sale", "lease", "referral"] as const;
 export const TRANSACTION_STATUSES = ["pending", "in_progress", "completed", "cancelled"] as const;

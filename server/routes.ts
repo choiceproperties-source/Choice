@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { supabase } from "./supabase";
-import { authenticateToken, optionalAuth, requireRole, requireOwnership, type AuthenticatedRequest } from "./auth-middleware";
+import { authenticateToken, optionalAuth, requireRole, requireOwnership, preventTenantPropertyEdit, type AuthenticatedRequest } from "./auth-middleware";
 import { success, error as errorResponse } from "./response";
 import {
   sendEmail,
@@ -26,9 +26,14 @@ import {
 } from "@shared/schema";
 import { authLimiter, signupLimiter, inquiryLimiter, newsletterLimiter } from "./rate-limit";
 import { cache, CACHE_TTL } from "./cache";
+import { registerSecurityRoutes } from "./security/routes";
+import { logAuditEvent, logPropertyChange, logApplicationChange, logSecurityEvent } from "./security/audit-logger";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
+
+  // Register security routes (2FA, audit logs, encryption, file validation)
+  registerSecurityRoutes(app);
 
   // ===== AUTHENTICATION =====
   app.post("/api/auth/signup", signupLimiter, async (req, res) => {
