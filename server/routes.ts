@@ -56,6 +56,7 @@ import { authLimiter, signupLimiter, inquiryLimiter, newsletterLimiter } from ".
 import { cache, CACHE_TTL } from "./cache";
 import { registerSecurityRoutes } from "./security/routes";
 import { logAuditEvent, logPropertyChange, logApplicationChange, logSecurityEvent, logLeaseAction, logPaymentAction, getAuditLogs, getPaymentAuditLogs } from "./security/audit-logger";
+import { checkPropertyImageLimit, validateFileSize, MAX_IMAGES_PER_PROPERTY, MAX_FILE_SIZE_MB } from "./upload-limits";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
@@ -6707,6 +6708,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
             req
           );
           return res.status(403).json({ error: "You do not have access to this property" });
+        }
+
+        // Check image count limit for property
+        const limitStatus = await checkPropertyImageLimit(supabase, propertyId);
+        if (!limitStatus.allowed) {
+          await logSecurityEvent(
+            req.user!.id,
+            "upload_limit_exceeded",
+            false,
+            { reason: "Image upload limit exceeded", propertyId, imageCount: limitStatus.imageCount },
+            req
+          );
+          return res.status(400).json({ error: limitStatus.reason });
+        }
+      }
+
+      // Validate file size if metadata contains fileSize
+      if (metadata?.fileSize) {
+        const sizeValidation = validateFileSize(metadata.fileSize);
+        if (!sizeValidation.valid) {
+          await logSecurityEvent(
+            req.user!.id,
+            "upload_size_exceeded",
+            false,
+            { reason: "File size exceeds limit", fileSize: metadata.fileSize, propertyId },
+            req
+          );
+          return res.status(400).json({ error: sizeValidation.reason });
         }
       }
 
