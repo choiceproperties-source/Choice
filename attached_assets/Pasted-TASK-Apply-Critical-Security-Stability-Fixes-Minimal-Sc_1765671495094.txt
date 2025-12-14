@@ -1,0 +1,95 @@
+TASK: Apply Critical Security & Stability Fixes (Minimal Scope)
+
+OBJECTIVE
+Fix only the confirmed critical and high-risk issues identified in the audit WITHOUT refactoring architecture, changing business logic, or modifying unrelated files.
+
+STRICT RULES
+- Do NOT refactor server/routes.ts
+- Do NOT rename files or folders
+- Do NOT add new features
+- Do NOT change existing API behavior
+- Make the smallest possible changes to resolve the issues
+
+---
+
+FIX 1 — ENCRYPTION KEY SECURITY (CRITICAL)
+
+FILE
+server/security/encryption.ts
+
+PROBLEM
+Code falls back to a hardcoded development encryption key when ENCRYPTION_KEY env var is missing.
+
+REQUIRED FIX
+- Remove or disable the hardcoded fallback encryption key
+- If ENCRYPTION_KEY is missing:
+  - Throw an error during server startup
+  - Fail fast with a clear message
+- Ensure encryption logic remains unchanged otherwise
+
+ENVIRONMENT
+- Add ENCRYPTION_KEY to Replit Secrets
+- Do NOT rotate existing encrypted data
+- Do NOT change encryption algorithms
+
+ACCEPTANCE CRITERIA
+- Server refuses to start without ENCRYPTION_KEY
+- No hardcoded encryption keys remain
+
+---
+
+FIX 2 — IMAGEKIT PRIVATE KEY CONFIGURATION (HIGH)
+
+FILE
+server/imagekit.ts
+
+PROBLEM
+IMAGEKIT_PRIVATE_KEY is missing, causing photo features to fail.
+
+REQUIRED FIX
+- Ensure ImageKit initialization reads:
+  - IMAGEKIT_PUBLIC_KEY
+  - IMAGEKIT_PRIVATE_KEY
+  - IMAGEKIT_URL_ENDPOINT
+- If any are missing:
+  - Throw a startup error
+  - Do NOT silently continue
+
+ENVIRONMENT
+- Add IMAGEKIT_PRIVATE_KEY to Replit Secrets
+- Do NOT expose private key to frontend
+
+ACCEPTANCE CRITERIA
+- Server fails loudly if ImageKit credentials are missing
+- Photo features initialize correctly when keys are present
+
+---
+
+FIX 3 — IMAGEKIT SILENT FAILURE (HIGH)
+
+FILE
+server/imagekit.ts
+
+PROBLEM
+ImageKit initialization logs warnings but does not stop execution.
+
+REQUIRED FIX
+- Replace console warnings with thrown errors
+- Prevent routes from running if ImageKit client is not initialized
+- Do NOT change upload logic or APIs
+
+ACCEPTANCE CRITERIA
+- Misconfigured ImageKit stops server startup
+- No silent runtime failures
+
+---
+
+FINAL VALIDATION STEPS
+- Start server with missing secrets → must fail clearly
+- Start server with secrets set → must run normally
+- Verify existing features still work
+- Do NOT fix any other issues
+
+OUTPUT
+- Brief summary of changes
+- Confirmation that only specified files were modified

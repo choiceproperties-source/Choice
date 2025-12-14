@@ -7,16 +7,10 @@ const TAG_LENGTH = 16;
 const KEY_LENGTH = 32;
 const ITERATIONS = 100000;
 
-let fallbackKey: string | null = null;
-
 function getEncryptionKey(): string {
   const key = process.env.ENCRYPTION_KEY;
   if (!key) {
-    console.warn("[ENCRYPTION] No ENCRYPTION_KEY set. Using stable fallback key. SET ENCRYPTION_KEY IN PRODUCTION!");
-    if (!fallbackKey) {
-      fallbackKey = crypto.createHash("sha256").update("choice-properties-dev-key-not-for-production").digest("hex");
-    }
-    return fallbackKey;
+    throw new Error("[ENCRYPTION] ENCRYPTION_KEY environment variable is not set. Server cannot start without this secret.");
   }
   return key;
 }
