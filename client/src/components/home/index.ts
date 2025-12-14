@@ -1,0 +1,10 @@
+export { HeroSection } from './hero-section';
+export { StatisticsBanner } from './statistics-banner';
+export { HowItWorks } from './how-it-works';
+export { FeaturesSection } from './features-section';
+export { WhoWeHelp } from './who-we-help';
+export { LeaseDashboardPreview } from './lease-dashboard-preview';
+export { FeaturedProperties } from './featured-properties';
+export { FAQSection } from './faq-section';
+export { TestimonialsSection } from './testimonials-section';
+export { CTASection } from './cta-section';
