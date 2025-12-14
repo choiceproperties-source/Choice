@@ -50,13 +50,13 @@ export function FAQSection() {
             
             <div className="flex flex-wrap gap-4">
               <Link href="/faq">
-                <Button variant="outline" size="lg" className="font-semibold">
+                <Button variant="outline" size="lg" data-testid="button-faq-view-all">
                   <HelpCircle className="mr-2 h-5 w-5" />
                   View All FAQs
                 </Button>
               </Link>
               <Link href="/contact">
-                <Button size="lg" className="bg-primary hover:bg-primary/90 font-semibold">
+                <Button size="lg" data-testid="button-faq-contact">
                   Contact Support
                 </Button>
               </Link>

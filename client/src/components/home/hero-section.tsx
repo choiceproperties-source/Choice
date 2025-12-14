@@ -4,6 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Search, Building2, Home, Building, Castle } from 'lucide-react';
 import heroBg from "@assets/generated_images/modern_luxury_home_exterior_with_blue_sky.png";
 
+const propertyTypes = [
+  { value: '', label: 'All Types', icon: Search },
+  { value: 'house', label: 'Houses', icon: Home },
+  { value: 'apartment', label: 'Apartments', icon: Building2 },
+  { value: 'condo', label: 'Condos', icon: Building },
+  { value: 'townhouse', label: 'Townhouses', icon: Castle },
+];
+
 export function HeroSection() {
   const [location, setLocation] = useState('');
   const [minPrice, setMinPrice] = useState('');
@@ -58,28 +66,21 @@ export function HeroSection() {
           data-aos-delay="200"
         >
           <div className="flex border-b border-border overflow-x-auto">
-            {[
-              { value: '', label: 'All Types', icon: Search },
-              { value: 'house', label: 'Houses', icon: Home },
-              { value: 'apartment', label: 'Apartments', icon: Building2 },
-              { value: 'condo', label: 'Condos', icon: Building },
-              { value: 'townhouse', label: 'Townhouses', icon: Castle },
-            ].map((type) => {
+            {propertyTypes.map((type) => {
               const Icon = type.icon;
+              const isSelected = propertyType === type.value;
               return (
-                <button
+                <Button
                   key={type.value}
+                  variant={isSelected ? "default" : "ghost"}
                   onClick={() => setPropertyType(type.value)}
-                  className={`flex items-center gap-2 px-6 py-4 text-sm font-medium transition-colors whitespace-nowrap ${
-                    propertyType === type.value
-                      ? 'bg-primary text-white'
-                      : 'text-muted-foreground hover:bg-muted'
-                  }`}
+                  aria-pressed={isSelected}
+                  className="flex items-center gap-2 rounded-none whitespace-nowrap"
                   data-testid={`button-property-type-${type.value || 'all'}`}
                 >
                   <Icon className="h-4 w-4" />
                   {type.label}
-                </button>
+                </Button>
               );
             })}
           </div>
@@ -141,7 +142,7 @@ export function HeroSection() {
               <Link href={`/properties${buildSearchParams()}`}>
                 <Button 
                   size="lg"
-                  className="w-full bg-secondary hover:bg-secondary/90 text-primary-foreground font-bold h-12"
+                  className="w-full bg-secondary text-primary-foreground font-bold h-12"
                   data-testid="button-hero-search"
                 >
                   <Search className="h-5 w-5 mr-2" />

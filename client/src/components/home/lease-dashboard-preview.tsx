@@ -44,7 +44,7 @@ export function LeaseDashboardPreview() {
             </ul>
 
             <Link href="/signup">
-              <Button size="lg" className="bg-secondary hover:bg-secondary/90 text-primary-foreground font-bold h-14 px-8">
+              <Button size="lg" className="bg-secondary text-primary-foreground font-bold h-14 px-8" data-testid="button-dashboard-signup">
                 Create Your Account
               </Button>
             </Link>
@@ -98,7 +98,7 @@ export function LeaseDashboardPreview() {
               </div>
 
               <div className="mt-8 pt-6 border-t border-border">
-                <Button className="w-full bg-primary hover:bg-primary/90">
+                <Button className="w-full" data-testid="button-dashboard-sign-lease">
                   Sign Lease Now
                 </Button>
               </div>

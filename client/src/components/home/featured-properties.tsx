@@ -24,7 +24,7 @@ export function FeaturedProperties() {
             </p>
           </div>
           <Link href="/properties">
-            <Button variant="link" className="text-primary font-bold text-lg hidden md:flex group">
+            <Button variant="link" className="text-primary font-bold text-lg hidden md:flex group" data-testid="button-featured-view-all">
               View All Listings 
               <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
             </Button>
@@ -47,7 +47,7 @@ export function FeaturedProperties() {
 
         <div className="mt-12 text-center md:hidden">
           <Link href="/properties">
-            <Button variant="outline" className="w-full h-12 font-bold">
+            <Button variant="outline" className="w-full h-12 font-bold" data-testid="button-featured-view-all-mobile">
               View All Properties
             </Button>
           </Link>

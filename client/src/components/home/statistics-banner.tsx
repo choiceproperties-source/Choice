@@ -44,10 +44,10 @@ export function StatisticsBanner() {
                 <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-primary/10 text-primary mb-4 group-hover:bg-primary group-hover:text-white transition-colors">
                   <Icon className="h-7 w-7" />
                 </div>
-                <div className="text-3xl md:text-4xl font-bold text-primary mb-1">
+                <div className="text-3xl md:text-4xl font-bold text-primary mb-1" data-testid={`text-stat-value-${idx}`}>
                   {stat.value}
                 </div>
-                <div className="text-lg font-semibold text-foreground mb-1">
+                <div className="text-lg font-semibold text-foreground mb-1" data-testid={`text-stat-label-${idx}`}>
                   {stat.label}
                 </div>
                 <div className="text-sm text-muted-foreground">

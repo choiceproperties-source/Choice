@@ -23,24 +23,24 @@ export function CTASection() {
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
             <Link href="/properties">
-              <Button size="lg" className="bg-secondary hover:bg-secondary/90 text-primary-foreground font-bold h-16 px-12 text-lg shadow-lg hover:shadow-xl transition-all group">
+              <Button size="lg" className="bg-secondary text-primary-foreground font-bold h-16 px-12 text-lg shadow-lg group" data-testid="button-cta-search">
                 Start Searching Now
                 <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </Button>
             </Link>
             <Link href="/contact">
-              <Button size="lg" variant="outline" className="border-2 border-white/30 text-white hover:bg-white/10 font-bold h-16 px-12 text-lg">
+              <Button size="lg" variant="outline" className="border-2 border-white/30 text-white font-bold h-16 px-12 text-lg backdrop-blur-sm" data-testid="button-cta-agent">
                 Talk to an Agent
               </Button>
             </Link>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-8 justify-center text-white/70">
-            <a href="tel:+1234567890" className="flex items-center gap-2 hover:text-white transition-colors">
+            <a href="tel:+1234567890" className="flex items-center gap-2 hover:text-white transition-colors" data-testid="link-cta-phone">
               <Phone className="h-5 w-5" />
               <span>(123) 456-7890</span>
             </a>
-            <a href="mailto:hello@choiceproperties.com" className="flex items-center gap-2 hover:text-white transition-colors">
+            <a href="mailto:hello@choiceproperties.com" className="flex items-center gap-2 hover:text-white transition-colors" data-testid="link-cta-email">
               <Mail className="h-5 w-5" />
               <span>hello@choiceproperties.com</span>
             </a>
