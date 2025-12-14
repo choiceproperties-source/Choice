@@ -8,7 +8,6 @@ import { PropertyQuickView } from "@/components/property-quick-view";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerClose } from "@/components/ui/drawer";
 import MapView from "@/components/map-view";
 import { useProperties } from "@/hooks/use-properties";
 import type { Property } from "@/lib/types";
@@ -316,126 +315,149 @@ export default function Properties() {
         </div>
       </div>
 
-      {/* Mobile Filters Drawer */}
-      <Drawer open={isMobileFiltersOpen} onOpenChange={setIsMobileFiltersOpen}>
-          <DrawerContent>
-            <DrawerHeader className="border-b">
-              <DrawerTitle>Filters</DrawerTitle>
-            </DrawerHeader>
-            <div className="p-4 space-y-4 pb-8">
-            <div>
-              <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 block">Price Range</label>
-              <div className="flex gap-2 items-center">
-                <input 
-                  type="number" 
-                  min="0" 
-                  max="10000"
-                  step="100"
-                  value={priceMin} 
-                  onChange={(e) => setPriceMin(e.target.value)}
-                  className="flex-1 h-9 px-2 border border-gray-300 dark:border-gray-700 rounded dark:bg-gray-800 dark:text-white text-sm"
-                  placeholder="Min ($)"
-                  data-testid="input-price-min-mobile"
-                />
-                <span className="text-gray-500 dark:text-gray-400">to</span>
-                <input 
-                  type="number" 
-                  min="0" 
-                  max="10000"
-                  step="100"
-                  value={priceMax} 
-                  onChange={(e) => setPriceMax(e.target.value)}
-                  className="flex-1 h-9 px-2 border border-gray-300 dark:border-gray-700 rounded dark:bg-gray-800 dark:text-white text-sm"
-                  placeholder="Max ($)"
-                  data-testid="input-price-max-mobile"
-                />
+      {/* Mobile Filters - Using Dialog instead of Drawer to avoid composedRefs issue */}
+      {isMobileFiltersOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50" onClick={() => setIsMobileFiltersOpen(false)}>
+          <div 
+            className="fixed inset-x-0 bottom-0 z-50 bg-background rounded-t-xl border-t max-h-[80vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto mt-4 h-1.5 w-12 rounded-full bg-muted" />
+            <div className="p-4 border-b">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold">Filters</h2>
+                <button 
+                  onClick={() => setIsMobileFiltersOpen(false)}
+                  className="p-1 rounded-full hover:bg-muted"
+                >
+                  <span className="sr-only">Close</span>
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
             </div>
+            <div className="p-4 space-y-4 pb-8">
+              <div>
+                <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 block">Price Range</label>
+                <div className="flex gap-2 items-center">
+                  <input 
+                    type="number" 
+                    min="0" 
+                    max="10000"
+                    step="100"
+                    value={priceMin} 
+                    onChange={(e) => setPriceMin(e.target.value)}
+                    className="flex-1 h-9 px-2 border border-gray-300 dark:border-gray-700 rounded dark:bg-gray-800 dark:text-white text-sm"
+                    placeholder="Min ($)"
+                    data-testid="input-price-min-mobile"
+                  />
+                  <span className="text-gray-500 dark:text-gray-400">to</span>
+                  <input 
+                    type="number" 
+                    min="0" 
+                    max="10000"
+                    step="100"
+                    value={priceMax} 
+                    onChange={(e) => setPriceMax(e.target.value)}
+                    className="flex-1 h-9 px-2 border border-gray-300 dark:border-gray-700 rounded dark:bg-gray-800 dark:text-white text-sm"
+                    placeholder="Max ($)"
+                    data-testid="input-price-max-mobile"
+                  />
+                </div>
+              </div>
 
-            <div>
-              <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 block">Bedrooms</label>
-              <Select value={bedrooms} onValueChange={setBedrooms}>
-                <SelectTrigger className="w-full" data-testid="select-bedrooms-mobile">
-                  <SelectValue placeholder="Select bedrooms" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="any">Any Beds</SelectItem>
-                  <SelectItem value="1">1+ Bd</SelectItem>
-                  <SelectItem value="2">2+ Bd</SelectItem>
-                  <SelectItem value="3">3+ Bd</SelectItem>
-                  <SelectItem value="4">4+ Bd</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+              <div>
+                <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 block">Bedrooms</label>
+                <Select value={bedrooms} onValueChange={setBedrooms}>
+                  <SelectTrigger className="w-full" data-testid="select-bedrooms-mobile">
+                    <SelectValue placeholder="Select bedrooms" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="any">Any Beds</SelectItem>
+                    <SelectItem value="1">1+ Bd</SelectItem>
+                    <SelectItem value="2">2+ Bd</SelectItem>
+                    <SelectItem value="3">3+ Bd</SelectItem>
+                    <SelectItem value="4">4+ Bd</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div>
-              <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 block">Bathrooms</label>
-              <Select value={bathrooms} onValueChange={setBathrooms}>
-                <SelectTrigger className="w-full" data-testid="select-bathrooms-mobile">
-                  <SelectValue placeholder="Select bathrooms" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="any">Any Baths</SelectItem>
-                  <SelectItem value="1">1+ Ba</SelectItem>
-                  <SelectItem value="1.5">1.5+ Ba</SelectItem>
-                  <SelectItem value="2">2+ Ba</SelectItem>
-                  <SelectItem value="3">3+ Ba</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+              <div>
+                <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 block">Bathrooms</label>
+                <Select value={bathrooms} onValueChange={setBathrooms}>
+                  <SelectTrigger className="w-full" data-testid="select-bathrooms-mobile">
+                    <SelectValue placeholder="Select bathrooms" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="any">Any Baths</SelectItem>
+                    <SelectItem value="1">1+ Ba</SelectItem>
+                    <SelectItem value="1.5">1.5+ Ba</SelectItem>
+                    <SelectItem value="2">2+ Ba</SelectItem>
+                    <SelectItem value="3">3+ Ba</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div>
-              <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 block">Home Type</label>
-              <Select value={homeType} onValueChange={setHomeType}>
-                <SelectTrigger className="w-full" data-testid="select-home-type-mobile">
-                  <SelectValue placeholder="Select home type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="any">Any Type</SelectItem>
-                  <SelectItem value="House">Houses</SelectItem>
-                  <SelectItem value="Apartment">Apartments</SelectItem>
-                  <SelectItem value="Condo">Condos</SelectItem>
-                  <SelectItem value="Townhome">Townhomes</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+              <div>
+                <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 block">Home Type</label>
+                <Select value={homeType} onValueChange={setHomeType}>
+                  <SelectTrigger className="w-full" data-testid="select-home-type-mobile">
+                    <SelectValue placeholder="Select home type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="any">Any Type</SelectItem>
+                    <SelectItem value="House">Houses</SelectItem>
+                    <SelectItem value="Apartment">Apartments</SelectItem>
+                    <SelectItem value="Condo">Condos</SelectItem>
+                    <SelectItem value="Townhome">Townhomes</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div>
-              <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 block">Sort By</label>
-              <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="w-full" data-testid="select-sort-by-mobile">
-                  <SelectValue placeholder="Select sort option" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="featured">Featured</SelectItem>
-                  <SelectItem value="price-low">Price: Low to High</SelectItem>
-                  <SelectItem value="price-high">Price: High to Low</SelectItem>
-                  <SelectItem value="newest">Newest</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+              <div>
+                <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 block">Sort By</label>
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger className="w-full" data-testid="select-sort-by-mobile">
+                    <SelectValue placeholder="Select sort option" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="featured">Featured</SelectItem>
+                    <SelectItem value="price-low">Price: Low to High</SelectItem>
+                    <SelectItem value="price-high">Price: High to Low</SelectItem>
+                    <SelectItem value="newest">Newest</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div className="flex gap-2 pt-4">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={resetFilters}
-                data-testid="button-reset-filters-mobile"
-              >
-                Clear All
-              </Button>
-              <Button
-                className="flex-1"
-                onClick={saveSearch}
-                data-testid="button-save-search-mobile"
-              >
-                <Bookmark className="h-4 w-4 mr-2" />
-                Save
-              </Button>
+              <div className="flex gap-2 pt-4">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    resetFilters();
+                    setIsMobileFiltersOpen(false);
+                  }}
+                  data-testid="button-reset-filters-mobile"
+                >
+                  Clear All
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={() => {
+                    saveSearch();
+                    setIsMobileFiltersOpen(false);
+                  }}
+                  data-testid="button-save-search-mobile"
+                >
+                  <Bookmark className="h-4 w-4 mr-2" />
+                  Save
+                </Button>
+              </div>
             </div>
           </div>
-        </DrawerContent>
-      </Drawer>
+        </div>
+      )}
 
       {/* Full-Width Grid Layout */}
       <div className="flex-1 overflow-y-auto bg-white dark:bg-gray-950">
